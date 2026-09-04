@@ -201,7 +201,7 @@ window.CF.REGISTRY = /*REGISTRY-START*/
   "tier": 1,
   "variants": {
    "oak": {
-    "functional": false,
+    "functional": true,
     "tiles": [
      "leaves_oak",
      "leaves_oak",
@@ -215,7 +215,16 @@ window.CF.REGISTRY = /*REGISTRY-START*/
     "tool": null,
     "minTier": 0,
     "solid": true,
-    "light": 0
+    "light": 0,
+    "proof": {
+     "issue": "#019",
+     "tests": [
+      "interact.break-time",
+      "world.leaves-decay",
+      "world.leaves-persist",
+      "interact.leaves-drop"
+     ]
+    }
    }
   }
  },
