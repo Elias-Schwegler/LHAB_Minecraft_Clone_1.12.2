@@ -87,7 +87,9 @@ window.CF = window.CF || {};
       const lx = ((x % CX) + CX) % CX, lz = ((z % CZ) + CZ) % CZ;
       const idx = (y * CZ + lz) * CX + lx;
       const prev = c.arr[idx];
+      if (prev === id) return true;
       c.arr[idx] = id;
+      queueRelight(x, z);
       dirty.add(c.cx + ',' + c.cz);
       if (lx === 0) dirty.add((c.cx - 1) + ',' + c.cz);
       if (lx === CX - 1) dirty.add((c.cx + 1) + ',' + c.cz);
@@ -122,6 +124,101 @@ window.CF = window.CF || {};
       for (const [x, y, z] of toKill) if (get(x, y, z) === LEAF) { set(x, y, z, 0); n++; }
       return n;
     }
+    // ---- light engine (#020): packed byte = (sky<<4)|block per cell, per-chunk maps,
+    // region relight (5x5 chunks) from sources + sky columns + ring seeds; queue budgeted.
+    const lightQueue = new Set();
+    const lightDone = new Set();
+    function lightCell(c, x, y, z) {
+      const lx = ((x % CX) + CX) % CX, lz = ((z % CZ) + CZ) % CZ;
+      return (y * CZ + lz) * CX + lx;
+    }
+    function lightAt(x, y, z) {
+      if (y >= CH) return 0xF0;
+      if (y < 0) return 0;
+      const c = chunkAt(x, z);
+      return c && c.light ? c.light[lightCell(c, x, y, z)] : 0;
+    }
+    function relight(cx0, cz0) {
+      const R = 2, box = [];
+      for (let dx = -R; dx <= R; dx++) for (let dz = -R; dz <= R; dz++) {
+        const c = chunks.get((cx0 + dx) + ',' + (cz0 + dz));
+        if (c) box.push(c);
+      }
+      if (!box.length) return;
+      // ring seed snapshot (outer perimeter cells keep old values as BFS seeds from outside light)
+      const ring = [];
+      for (const c of box) {
+        const onRing = c.cx === cx0 - R || c.cx === cx0 + R || c.cz === cz0 - R || c.cz === cz0 + R;
+        if (!onRing || !c.light) continue;
+        for (let lx = 0; lx < CX; lx++) for (let lz = 0; lz < CZ; lz++) {
+          for (let y = 1; y < CH; y++) {
+            const l = c.light[(y * CZ + lz) * CX + lx];
+            if (l) ring.push([c.cx * 16 + lx, y, c.cz * 16 + lz, l]);
+          }
+        }
+      }
+      for (const c of box) {
+        if (!c.light) c.light = new Uint8Array(CX * CH * CZ);
+        else c.light.fill(0);
+      }
+      const qx = [], qy = [], qz = [], qs = [], qb = [];
+      const pushQ = (x, y, z, s, b) => { qx.push(x); qy.push(y); qz.push(z); qs.push(s); qb.push(b); };
+      // seeds: light sources + ring + sky columns (top-down no-decay while air)
+      for (const c of box) {
+        for (let lx = 0; lx < CX; lx++) for (let lz = 0; lz < CZ; lz++) {
+          let sky = 15;
+          for (let y = CH - 1; y >= 1; y--) {
+            const id = c.arr[(y * CZ + lz) * CX + lx];
+            if (id) {
+              const lv = CF.BY_ID[id] ? CF.BY_ID[id].light : 0;
+              if (lv) { c.light[(y * CZ + lz) * CX + lx] = lv; pushQ(c.cx * 16 + lx, y, c.cz * 16 + lz, 0, lv); }
+              sky = 0;
+            } else if (sky) {
+              c.light[(y * CZ + lz) * CX + lx] |= sky << 4;
+            }
+          }
+        }
+      }
+      for (const [x, y, z, l] of ring) { const c = chunkAt(x, z); if (c && c.light) c.light[lightCell(c, x, y, z)] |= l; }
+      for (const c of box) { // seed BFS from every lit cell (sky & block channels)
+        for (let lx = 0; lx < CX; lx++) for (let lz = 0; lz < CZ; lz++) for (let y = 1; y < CH; y++) {
+          const l = c.light[(y * CZ + lz) * CX + lx];
+          if (l) pushQ(c.cx * 16 + lx, y, c.cz * 16 + lz, l >> 4, l & 15);
+        }
+      }
+      const NB = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+      let head = 0;
+      while (head < qx.length) {
+        const x = qx[head], y = qy[head], z = qz[head], s = qs[head], b = qb[head]; head++;
+        for (const [dx, dy, dz] of NB) {
+          const nx = x + dx, ny = y + dy, nz = z + dz;
+          if (ny < 1 || ny >= CH) continue;
+          const c2 = chunkAt(nx, nz);
+          if (!c2) continue; // unloaded = opaque boundary (v1)
+          if (!c2.light) c2.light = new Uint8Array(CX * CH * CZ);
+          const cell = lightCell(c2, nx, ny, nz);
+          if (c2.arr[cell]) continue; // opaque blocks stop light (v1: all non-air opaque)
+          const ns = s ? (dy !== 0 ? s : s - 1) : 0; // vertical skylight: no decay
+          const nb = b ? b - 1 : 0;
+          if (!ns && !nb) continue;
+          const cur = c2.light[cell];
+          const nval = (Math.max(cur >> 4, ns) << 4) | Math.max(cur & 15, nb);
+          if (nval !== cur) { c2.light[cell] = nval; pushQ(nx, ny, nz, ns, nb); }
+        }
+      }
+      for (const c of box) dirty.add(c.cx + ',' + c.cz);
+      lightDone.add(cx0 + ',' + cz0);
+    }
+    function ensureLight(cx, cz) {
+      const k = cx + ',' + cz;
+      if (lightDone.has(k)) return;
+      relight(cx, cz);
+    }
+    function queueRelight(x, z) {
+      const k = Math.floor(x / 16) + ',' + Math.floor(z / 16);
+      if (lightQueue.size < 96) lightQueue.add(k);
+      lightDone.clear(); // conservative invalidation (v1: cheap correctness)
+    }
     function ensureAround(px, pz, radius) {
       const cx = key(px, 0), cz = keyZ(pz);
       for (let dx = -radius; dx <= radius; dx++) for (let dz = -radius; dz <= radius; dz++) {
@@ -138,6 +235,13 @@ window.CF = window.CF || {};
       while (budget-- > 0 && genQueue.length) {
         const k = genQueue.shift();
         if (!chunks.has(k)) { const [cx, cz] = k.split(',').map(Number); generate(cx, cz); }
+      }
+      let lb = 2;
+      for (const k of lightQueue) {
+        if (lb-- <= 0) break;
+        lightQueue.delete(k);
+        const [cx, cz] = k.split(',').map(Number);
+        relight(cx, cz);
       }
       randomTicks();
     }
@@ -183,9 +287,8 @@ window.CF = window.CF || {};
         }
       }
     }
-    function stats() { return { chunks: chunks.size, generated, queue: genQueue.length, dirty: dirty.size, spreadEv }; }
-    function heightAt(x, z) { const h = colHeight(x, z); return h; }
-    return { get, set, tick, ensureAround, stats, generate, chunks, dirty, heightAt, biome, seed, decayLeavesNear };
+    function stats() { return { chunks: chunks.size, generated, queue: genQueue.length, dirty: dirty.size, spreadEv }; }    function heightAt(x, z) { const h = colHeight(x, z); return h; }
+    return { get, set, tick, ensureAround, stats, generate, chunks, dirty, heightAt, biome, seed, decayLeavesNear, lightAt, ensureLight };
   }
   CF.makeWorld = makeWorld;
   const seed = ((location.search.match(/seed=(\d+)/) || [0, 1337])[1] | 0);
@@ -197,6 +300,44 @@ window.CF = window.CF || {};
   const CF = window.CF;
   CF.worldTests = async (r) => {
     const w = CF.world;
+    // #020 light engine (run first: relight is global-conservative)
+    const IDL = CF.IDOF;
+    const lx = 44, lz = 44;
+    let hmax = 0;
+    for (let dx = -2; dx <= 10; dx++) hmax = Math.max(hmax, w.heightAt(lx + dx, lz));
+    const lh = hmax + 3;
+    w.ensureAround(lx, lz, 2);
+    for (let i = 0; i < 20 && w.stats().queue; i++) w.tick();
+    w.set(lx, lh, lz, IDL['glowstone']);
+    w.ensureLight(Math.floor(lx / 16), Math.floor(lz / 16));
+    const l0 = w.lightAt(lx, lh, lz) & 15;
+    const l4 = w.lightAt(lx + 4, lh, lz) & 15;
+    const l8 = w.lightAt(lx + 8, lh, lz) & 15;
+    CF.assert(r, 'light.source(' + l0 + ')', l0 === 15);
+    CF.assert(r, 'light.falloff(' + l4 + ',' + l8 + ')', l4 === 11 && l8 === 7);
+    // occlusion: big stone wall between source and target
+    for (let wy = lh - 4; wy <= lh + 4; wy++) for (let wz2 = lz - 5; wz2 <= lz + 5; wz2++) w.set(lx + 6, wy, wz2, IDL['stone']);
+    w.set(lx, lh, lz, 0);
+    w.set(lx, lh, lz, IDL['glowstone']);
+    w.ensureLight(Math.floor(lx / 16), Math.floor(lz / 16));
+    const behind = w.lightAt(lx + 8, lh, lz) & 15;
+    CF.assert(r, 'light.occluded(' + behind + ')', behind <= 2);
+    // skylight: find an open column (trees can block others)
+    let skyOpen = 0;
+    for (const [sx, sz] of [[lx, lz + 20], [lx + 3, lz + 23], [lx - 6, lz + 6], [lx + 9, lz - 9]]) {
+      const sh = w.heightAt(sx, sz);
+      let open = true;
+      for (let y = sh + 1; y < 128; y++) if (w.get(sx, y, sz)) { open = false; break; }
+      if (open) { skyOpen = w.lightAt(sx, sh + 1, sz) >> 4; break; }
+    }
+    CF.assert(r, 'light.sky(' + skyOpen + ')', skyOpen === 15);
+    // budgeted queue: edit far away, relight happens within <=8 ticks
+    const beforeLight = w.lightAt(lx, lh, lz) & 15;
+    w.set(lx, lh, lz, 0);
+    CF.assert(r, 'light.queue(stale ok)', true);
+    for (let i = 0; i < 10 && (w.lightAt(lx, lh, lz) & 15) > 0; i++) w.tick();
+    const afterLight = w.lightAt(lx, lh, lz) & 15;
+    CF.assert(r, 'light.queue-off(' + beforeLight + '->' + afterLight + ')', afterLight === 0);
     w.ensureAround(0, 0, 4);
     for (let i = 0; i < 60 && w.stats().queue; i++) w.tick();
     CF.assert(r, 'world.chunks', w.stats().chunks >= 40);
@@ -214,7 +355,7 @@ window.CF = window.CF || {};
     w.set(2, 45, 2, before);
     CF.assert(r, 'world.dirty-marked', w.dirty.size > 0);
     w.dirty.clear();
-    w.set(0, 45, 15, IDOF['stone']);
+    w.set(0, 45, 15, IDOF['glass']); // glass: guaranteed different from underground stone
     CF.assert(r, 'world.dirty-neighbor', w.dirty.size >= 2);
     let ores = 0;
     const ch = [...w.chunks.values()];

@@ -132,8 +132,15 @@
   "h": 16,
   "src": "blender:gen.py"
  },
- "obsidian": {
+ "glowstone": {
   "x": 48,
+  "y": 32,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "obsidian": {
+  "x": 64,
   "y": 32,
   "w": 16,
   "h": 16,

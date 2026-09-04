@@ -198,6 +198,13 @@ def gen_tiles():
     add("leaves_oak", leaves)
     add("snow", lambda m, nt, em: nt.links.new(
         ramp(nt, noise(nt, 10.0), [hexc("#e8f0f8"), hexc("#ffffff")]), em.inputs["Color"]))
+    def glowstone(m, nt, em):
+        base = ramp(nt, noise(nt, 7.0), [hexc("#d8a838"), hexc("#f0c858"), hexc("#b88820")])
+        spots = nt.nodes.new("ShaderNodeMix"); spots.data_type='RGBA'; spots.blend_type='ADD'; spots.inputs["Factor"].default_value = 0.4
+        nt.links.new(base, spots.inputs[6])
+        nt.links.new(ramp(nt, voronoi(nt, 5.0), [hexc("#201800"), hexc("#fff0a0")]), spots.inputs[7])
+        nt.links.new(spots.outputs[2], em.inputs["Color"])
+    add("glowstone", glowstone)
     add("obsidian", lambda m, nt, em: nt.links.new(
         ramp(nt, noise(nt, 6.0), [hexc("#0d0716"), hexc("#1f1430"), hexc("#3a2450")]), em.inputs["Color"]))
     return T

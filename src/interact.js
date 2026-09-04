@@ -5,7 +5,7 @@ window.CF = window.CF || {};
   const CF = window.CF;
   const HAND_TIER = 0, HAND_SPEED = 1; // tool system comes later; hand for now
 
-  CF.hotbar = ['grass', 'dirt', 'stone', 'cobblestone', 'planks', 'log', 'leaves', 'sand', 'glass'];
+  CF.hotbar = ['grass', 'dirt', 'stone', 'cobblestone', 'planks', 'log', 'leaves', 'glowstone', 'glass'];
   CF.sel = 0;
   CF.drops = [];
 

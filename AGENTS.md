@@ -11,7 +11,7 @@ Read docs/MASTERPROMPT.md for the law. This file = current state, 1-minute groun
   render, collision, physics, break/place+drops, F3 done-ish; lighting/UI/mobs/fluids next.
 - Merged: #002 worldgen, #003 renderer, #004 registry, #005 player, #006 interact,
   #007 textures, #008 shots+baseline, #009 F3. Audit #1 fixes #010-#019.
-- test.mjs: 56 asserts green. 15 blocks w/ qa/blocks sheets + proof-bound flags. #019 leaves + #023 save/load done (Sprint 02 underway).
+- test.mjs: 59 asserts green. 16 blocks w/ qa/blocks sheets + proof-bound flags. Sprint 02: #019 leaves, #020 light (packed sky<<4|block, region relight), #023 save/load done.
 - Seed 5 = plains spawn (nice shots): `node tools/shot.mjs starter-world seed=5`.
 
 ## How to work (condensed law)
@@ -50,7 +50,7 @@ node tools/tex/gen.mjs                # regen atlas via Blender + manifest
   grav32; CF.freeCam=true for camera-owning scenarios
 - src/interact.js: DDA raycast, breakTime=hardness*1.5 (x5 if below tool tier, no drop),
   bedrock Infinity, place w/ player-AABB reject, hotbar 1-9/wheel
-- src/f3.js: F3 overlay (fps/xyz/chunk/target/tris)
+- src/f3.js: F3 overlay (fps/xyz/chunk/target/tris)`n- src/world.js light: chunk.light Uint8 packed (sky<<4|block); relight = 5x5-chunk region BFS`n  (ring seeds + sky columns + sources), queue <=2/tick; render merges greedy quads by id+light/4 bucket
 - tools/blockshots.mjs: regenerates qa/blocks/<n>[-variant].png evidence sheets
 - Gotcha log: greedy init budget must count UNMESHED chunks (advance-past-mapped), or
   remesh loop never progresses past first two chunks.
