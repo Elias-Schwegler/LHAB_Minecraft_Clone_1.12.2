@@ -197,6 +197,57 @@
     }));
     await new Promise((r) => setTimeout(r, 300));
   };
+  CF.shotScenarios['fluid-pool'] = async () => {
+    CF.freeCam = true;
+    const W = CF.world;
+    let bx = 0, bz = 0;
+    outer: for (const [cx2, cz2] of [[40, 40], [80, 20], [20, 80], [120, 120], [60, 100], [0, 0]]) {
+      W.ensureAround(cx2, cz2, 1);
+      for (let i = 0; i < 10 && W.stats().queue; i++) W.tick();
+      for (let x = cx2 - 7; x <= cx2 + 7; x++) for (let z = cz2 - 7; z <= cz2 + 7; z++) for (let y = 1; y < 100; y++)
+        if (W.get(x, y, z)) { continue outer; } // any solid at/above surface band? skip spot
+      bx = cx2; bz = cz2; break;
+    }
+    W.ensureAround(bx, bz, 2);
+    for (let i = 0; i < 30 && W.stats().queue; i++) W.tick();
+    const by = W.heightAt(bx, bz);
+    for (let x = bx - 5; x <= bx + 5; x++) for (let z = bz - 5; z <= bz + 5; z++) {
+      for (let y = by + 1; y <= by + 4; y++) W.set(x, y, z, 0);
+      W.set(x, by, z, CF.IDOF['cobblestone']);
+    }
+    W.set(bx, by + 1, bz, CF.IDOF['water']);
+    for (let i = 0; i < 300; i++) { W.tick(); if (i % 10 === 0) CF.renderTick(); }
+    for (let i = 0; i < 60; i++) CF.renderTick();
+    CF.camera = { pos: [bx + 9, by + 7, bz + 9], yaw: Math.atan2(-9, -9), pitch: -0.5 };
+    CF.renderDraw(CF.camera);
+    const canvasPx = CF.canvas.width, canvasPy = CF.canvas.height;
+    const px = (nx, ny) => { const q = new Uint8Array(4); CF.gl.readPixels((canvasPx * nx) | 0, (canvasPy * ny) | 0, 1, 1, CF.gl.RGBA, CF.gl.UNSIGNED_BYTE, q); return [q[0], q[1], q[2], q[3]]; };
+    document.title = 'FP:' + encodeURIComponent(JSON.stringify({
+      spot: [bx, bz], wtris: CF.rendererStats.wtris, waterLight: W.lightAt(bx + 1, by + 1, bz + 1),
+      pixCenter: px(0.5, 0.55), pixLeft: px(0.35, 0.5), glErr: CF.rendererStats.glErr,
+    }));
+    await new Promise((r) => setTimeout(r, 300));
+  };
+  CF.shotScenarios['fluid-lava'] = async () => {
+    CF.freeCam = true;
+    const W = CF.world;
+    const bx = 80, bz = 80;
+    W.ensureAround(bx, bz, 2);
+    for (let i = 0; i < 30 && W.stats().queue; i++) W.tick();
+    const by = W.heightAt(bx, bz);
+    for (let x = bx - 6; x <= bx + 6; x++) for (let z = bz - 6; z <= bz + 6; z++) {
+      for (let y = by + 1; y <= by + 8; y++) W.set(x, y, z, 0);
+      W.set(x, by, z, CF.IDOF['cobblestone']);
+    }
+    W.set(bx + 3, by + 1, bz, CF.IDOF['lava']);
+    for (let i = 0; i < 20; i++) W.tick();
+    W.set(bx - 3, by + 1, bz, CF.IDOF['water']);
+    for (let i = 0; i < 400; i++) { W.tick(); if (i % 10 === 0) CF.renderTick(); }
+    for (let i = 0; i < 60; i++) CF.renderTick();
+    CF.camera = { pos: [bx + 9, by + 6, bz + 9], yaw: Math.atan2(-9, -9), pitch: -0.42 };
+    CF.renderDraw(CF.camera);
+    await new Promise((r) => setTimeout(r, 300));
+  };
   const h = location.hash || '';
   if (h === '#test') runTests();
   else if (h.startsWith('#shot=')) runShot(h.slice(6));

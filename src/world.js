@@ -90,6 +90,13 @@ window.CF = window.CF || {};
       if (prev === id) return true;
       c.arr[idx] = id;
       queueRelight(x, z);
+      const prevDef = CF.BY_ID[prev], nowDef = CF.BY_ID[id];
+      if ((nowDef && nowDef.liquid) || (prevDef && prevDef.liquid)) {
+        if (nowDef && nowDef.liquid) setFlat(x, y, z, 0);
+        q(x, y, z);
+        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) q(x + dx, y, z + dz);
+        q(x, y + 1, z);
+      }
       dirty.add(c.cx + ',' + c.cz);
       if (lx === 0) dirty.add((c.cx - 1) + ',' + c.cz);
       if (lx === CX - 1) dirty.add((c.cx + 1) + ',' + c.cz);
@@ -169,21 +176,31 @@ window.CF = window.CF || {};
           let sky = 15;
           for (let y = CH - 1; y >= 1; y--) {
             const id = c.arr[(y * CZ + lz) * CX + lx];
-            if (id) {
+            const liq = id && CF.BY_ID[id] && CF.BY_ID[id].liquid;
+            if (id && !liq) {
               const lv = CF.BY_ID[id] ? CF.BY_ID[id].light : 0;
               if (lv) { c.light[(y * CZ + lz) * CX + lx] = lv; pushQ(c.cx * 16 + lx, y, c.cz * 16 + lz, 0, lv); }
               sky = 0;
             } else if (sky) {
               c.light[(y * CZ + lz) * CX + lx] |= sky << 4;
+              if (liq) sky -= 1; // liquids attenuate vertical skylight slightly
             }
           }
         }
       }
       for (const [x, y, z, l] of ring) { const c = chunkAt(x, z); if (c && c.light) c.light[lightCell(c, x, y, z)] |= l; }
-      for (const c of box) { // seed BFS from every lit cell (sky & block channels)
+      for (const c of box) { // seed BFS only from cells whose light can actually spread (skip interior)
         for (let lx = 0; lx < CX; lx++) for (let lz = 0; lz < CZ; lz++) for (let y = 1; y < CH; y++) {
           const l = c.light[(y * CZ + lz) * CX + lx];
-          if (l) pushQ(c.cx * 16 + lx, y, c.cz * 16 + lz, l >> 4, l & 15);
+          if (!l) continue;
+          const s = l >> 4, b = l & 15;
+          const wx = c.cx * 16 + lx, wz = c.cz * 16 + lz;
+          let useful = false;
+          for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
+            const nb = lightAt(wx + dx, y + dy, wz + dz);
+            if ((s > 0 && (dy !== 0 ? s : s - 1) > (nb >> 4)) || (b > 1 && b - 1 > (nb & 15))) { useful = true; break; }
+          }
+          if (useful) pushQ(wx, y, wz, s, b);
         }
       }
       const NB = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
@@ -197,7 +214,7 @@ window.CF = window.CF || {};
           if (!c2) continue; // unloaded = opaque boundary (v1)
           if (!c2.light) c2.light = new Uint8Array(CX * CH * CZ);
           const cell = lightCell(c2, nx, ny, nz);
-          if (c2.arr[cell]) continue; // opaque blocks stop light (v1: all non-air opaque)
+          if (c2.arr[cell] && !(CF.BY_ID[c2.arr[cell]] && CF.BY_ID[c2.arr[cell]].liquid)) continue; // opaque stops; liquids pass
           const ns = s ? (dy !== 0 ? s : s - 1) : 0; // vertical skylight: no decay
           const nb = b ? b - 1 : 0;
           if (!ns && !nb) continue;
@@ -215,9 +232,10 @@ window.CF = window.CF || {};
       relight(cx, cz);
     }
     function queueRelight(x, z) {
-      const k = Math.floor(x / 16) + ',' + Math.floor(z / 16);
+      const cx = Math.floor(x / 16), cz = Math.floor(z / 16);
+      const k = cx + ',' + cz;
       if (lightQueue.size < 96) lightQueue.add(k);
-      lightDone.clear(); // conservative invalidation (v1: cheap correctness)
+      for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) lightDone.delete((cx + dx) + ',' + (cz + dz));
     }
     function ensureAround(px, pz, radius) {
       const cx = key(px, 0), cz = keyZ(pz);
@@ -230,6 +248,63 @@ window.CF = window.CF || {};
         return (Math.abs(pa[0] - cx) + Math.abs(pa[1] - cz)) - (Math.abs(pb[0] - cx) + Math.abs(pb[1] - cz));
       });
     }
+    // ---- fluids (#022): level per cell (0=source, 1..7=flow), queue + tick budget.
+    const fluidQueue = new Set();
+    function flatIdx(x, y, z) { const lx = ((x % CX) + CX) % CX, lz = ((z % CZ) + CZ) % CZ; return (y * CZ + lz) * CX + lx; }
+    function flatAt(x, y, z) { const c = chunkAt(x, z); return c && c.flat ? c.flat[flatIdx(x, y, z)] : 0; }
+    function setFlat(x, y, z, v) {
+      const c = chunkAt(x, z); if (!c) return;
+      if (!c.flat) c.flat = new Uint8Array(CX * CH * CZ);
+      c.flat[flatIdx(x, y, z)] = v;
+    }
+    function q(x, y, z) { if (fluidQueue.size < 4096) fluidQueue.add(x + ',' + y + ',' + z); }
+    const OBS = IDOF['obsidian'], COBB = IDOF['cobblestone'], STONE = IDOF['stone'];
+    function fluidStep(x, y, z) {
+      const id = get(x, y, z); const def = id && CF.BY_ID[id];
+      if (!def || !def.liquid) { setFlat(x, y, z, 0); return; }
+      const isW = def.liquid === 'water';
+      const maxLv = isW ? 7 : 3;
+      const lv = flatAt(x, y, z);
+      if (lv > maxLv) return;
+      const belowId = get(x, y - 1, z);
+      const belowDef = belowId && CF.BY_ID[belowId];
+      if (!belowId) {
+        set(x, y - 1, z, id); setFlat(x, y - 1, z, lv); q(x, y - 1, z);
+        return;
+      }
+      if (belowDef && belowDef.liquid && belowDef.liquid !== def.liquid) {
+        const otherLv = flatAt(x, y - 1, z);
+        const rep = isW ? (otherLv === 0 ? OBS : COBB) : STONE;
+        set(x, y - 1, z, rep); setFlat(x, y - 1, z, 0); q(x, y - 1, z);
+        return;
+      }
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const b = get(x + dx, y, z + dz);
+        const bd = b && CF.BY_ID[b];
+        if (!b) {
+          const nlv = lv + 1;
+          if (nlv <= maxLv) { set(x + dx, y, z + dz, id); setFlat(x + dx, y, z + dz, nlv); q(x + dx, y, z + dz); }
+        } else if (bd && bd.liquid && bd.liquid !== def.liquid) {
+          const otherLv = flatAt(x + dx, y, z + dz);
+          const rep = isW ? (otherLv === 0 ? OBS : COBB) : STONE;
+          set(x + dx, y, z + dz, rep); setFlat(x + dx, y, z + dz, 0);
+        }
+      }
+    }
+    function fluidTick() {
+      const t0 = performance.now();
+      let n = 40;
+      for (const k of fluidQueue) {
+        if (n-- <= 0 || performance.now() - t0 > 15) break;
+        fluidQueue.delete(k);
+        const [x, y, z] = k.split(',').map(Number);
+        fluidStep(x, y, z);
+      }
+      fluidStat.ms = performance.now() - t0;
+      return fluidQueue.size;
+    }
+    const fluidStat = { ms: 0 };
+
     function tick() {
       let budget = 2;
       while (budget-- > 0 && genQueue.length) {
@@ -243,6 +318,7 @@ window.CF = window.CF || {};
         const [cx, cz] = k.split(',').map(Number);
         relight(cx, cz);
       }
+      fluidTick();
       randomTicks();
     }
     // 1.12 random block ticks: grass spread + sand/gravel gravity (issue #014, audit F4)
@@ -288,7 +364,7 @@ window.CF = window.CF || {};
       }
     }
     function stats() { return { chunks: chunks.size, generated, queue: genQueue.length, dirty: dirty.size, spreadEv }; }    function heightAt(x, z) { const h = colHeight(x, z); return h; }
-    return { get, set, tick, ensureAround, stats, generate, chunks, dirty, heightAt, biome, seed, decayLeavesNear, lightAt, ensureLight };
+    return { get, set, tick, ensureAround, stats, generate, chunks, dirty, heightAt, biome, seed, decayLeavesNear, lightAt, ensureLight, flatAt, flatSet: setFlat, fluidStat };
   }
   CF.makeWorld = makeWorld;
   // #021 day/night: 24000-tick cycle; daylight factor curve (moonlight floor handled in shader).
@@ -427,5 +503,59 @@ window.CF = window.CF || {};
     for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) for (let dy = 3; dy <= 5; dy++)
       if (w.get(tx + 24 + dx, th + dy, tz + dz) === ID['leaves']) kept++;
     CF.assert(r, 'world.leaves-persist(' + kept + ')', kept > 60);
+    // #022 fluids: spread, distance cap, Java interaction rules
+    const W2 = w;
+    const fx = 140, fz = 140;
+    W2.ensureAround(fx, fz, 2);
+    for (let i = 0; i < 30 && W2.stats().queue; i++) W2.tick();
+    const fh = W2.heightAt(fx, fz);
+    for (let x = fx - 8; x <= fx + 8; x++) for (let z = fz - 8; z <= fz + 8; z++)
+      for (let y = fh + 1; y <= fh + 6; y++) W2.set(x, y, z, 0);
+    for (let x = fx - 8; x <= fx + 8; x++) for (let z = fz - 8; z <= fz + 8; z++) W2.set(x, fh, z, ID['stone']);
+    W2.set(fx, fh + 1, fz, ID['water']);
+    for (let i = 0; i < 200; i++) W2.tick();
+    const lv4 = W2.flatAt(fx + 4, fh + 1, fz);
+    const far = W2.get(fx + 8, fh + 1, fz);
+    CF.assert(r, 'fluids.spread(id=' + ID['water'] + '/g=' + W2.get(fx, fh + 1, fz) + ',liq=' + (CF.BY_ID[W2.get(fx, fh + 1, fz)] && CF.BY_ID[W2.get(fx, fh + 1, fz)].liquid) + ',src=' + W2.flatAt(fx, fh + 1, fz) + ',d4=' + lv4 + ',d1=' + W2.flatAt(fx + 1, fh + 1, fz) + ',far=' + far + ')',
+      W2.get(fx, fh + 1, fz) === ID['water'] && W2.flatAt(fx, fh + 1, fz) === 0 && lv4 === 4 && far !== ID['water']);
+    // water -> lava source = obsidian (Java)
+    const ox = 160, oz = 160;
+    W2.ensureAround(ox, oz, 2);
+    for (let i = 0; i < 20 && W2.stats().queue; i++) W2.tick();
+    const oh = W2.heightAt(ox, oz);
+    for (let x = ox - 6; x <= ox + 6; x++) for (let z = oz - 6; z <= oz + 6; z++) {
+      for (let y = oh + 1; y <= oh + 6; y++) W2.set(x, y, z, 0);
+      W2.set(x, oh, z, ID['stone']);
+    }
+    W2.set(ox, oh + 1, oz, ID['water']); // water placed first: its flow resolves before lava's
+    W2.set(ox + 1, oh + 1, oz, ID['lava']);
+    for (let i = 0; i < 60; i++) W2.tick();
+    CF.assert(r, 'fluids.obsidian(' + W2.get(ox + 1, oh + 1, oz) + '/' + ID['obsidian'] + ')', W2.get(ox + 1, oh + 1, oz) === ID['obsidian']);
+    // water -> flowing lava = cobblestone; lava -> water = stone
+    const px = 180, pz = 180;
+    W2.ensureAround(px, pz, 2);
+    for (let i = 0; i < 20 && W2.stats().queue; i++) W2.tick();
+    const ph = W2.heightAt(px, pz);
+    for (let x = px - 7; x <= px + 7; x++) for (let z = pz - 7; z <= pz + 7; z++) {
+      for (let y = ph + 1; y <= ph + 6; y++) W2.set(x, y, z, 0);
+      W2.set(x, ph, z, ID['stone']);
+    }
+    W2.set(px + 5, ph + 1, pz, ID['lava']); // flowing lava spreads toward px
+    for (let i = 0; i < 20; i++) W2.tick();
+    W2.set(px - 5, ph + 1, pz, ID['water']); // water front meets lava front
+    for (let i = 0; i < 150; i++) W2.tick();
+    let solidified = 0;
+    for (let x = px - 3; x <= px + 3; x++) {
+      const b = W2.get(x, ph + 1, pz);
+      if (b === ID['cobblestone'] || b === ID['stone']) solidified++;
+    }
+    CF.assert(r, 'fluids.solidify(' + solidified + ')', solidified >= 1);
+    // pure lava->water: immobile lv7 water cell (bucket-placed) + adjacent lava flow -> stone
+    W2.set(px - 5, ph + 2, pz + 6, ID['water']);
+    W2.flatSet(px - 5, ph + 2, pz + 6, 7); // max level: cannot spread, just sits
+    W2.set(px - 3, ph + 2, pz + 6, ID['lava']);
+    for (let i = 0; i < 60; i++) W2.tick();
+    CF.assert(r, 'fluids.stone-lava-into-water(' + W2.get(px - 5, ph + 2, pz + 6) + ')', W2.get(px - 5, ph + 2, pz + 6) === ID['stone']);
+    CF.assert(r, 'fluids.budget', W2.fluidStat.ms < 30);
   };
 })();

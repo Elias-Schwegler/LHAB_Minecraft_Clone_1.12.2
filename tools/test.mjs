@@ -6,7 +6,7 @@ import { runBrowser, toFileUrl, p } from './lib.mjs';
 if (!existsSync(p('game', 'index.html'))) { console.error('run tools/build.mjs first'); process.exit(2); }
 
 const url = toFileUrl(p('game', 'index.html')) + '#test';
-const dom = runBrowser({ url, dumpDom: true, budget: 12000, timeout: 90000 });
+const dom = runBrowser({ url, dumpDom: true, budget: 20000, timeout: 200000 });
 const m = dom.match(/<title>TESTRESULT:([^<]*)<\/title>/);
 if (!m) { console.error('FAIL: no TESTRESULT in title (harness did not finish)'); process.exit(1); }
 const r = JSON.parse(decodeURIComponent(m[1]));

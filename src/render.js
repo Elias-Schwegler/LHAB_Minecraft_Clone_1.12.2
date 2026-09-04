@@ -50,7 +50,7 @@ window.CF = window.CF || {};
           const A = coord(a, ua, va, d, u, v);
           const cur = W.get(A[0], A[1], A[2]);
           if (!cur) continue;
-          if (CF.BY_ID[cur] && CF.BY_ID[cur].cross) continue; // cross models drawn separately
+          if (CF.BY_ID[cur] && (CF.BY_ID[cur].cross || CF.BY_ID[cur].liquid)) continue; // drawn separately
           const B = A.slice(); B[a]++;
           if (W.get(B[0], B[1], B[2])) continue;
           // merge buckets split by id AND light quartile so greedy quads respect lighting (#020)
@@ -100,7 +100,39 @@ window.CF = window.CF || {};
       }
       trisArr[0] += 2;
     }
-    return { pos: new Float32Array(pos), col: new Float32Array(col), tris: tris[0] };
+    // liquid faces: separate translucent buffer, per-face quads (v1, no merge) (#022)
+    const wpos = [], wcol = [];
+    for (let a = 0; a < 3; a++) {
+      const ua = (a + 1) % 3, va = (a + 2) % 3;
+      for (let d = 0; d < dims[a]; d++) {
+        for (let u = 0; u < dims[ua]; u++) for (let v = 0; v < dims[va]; v++) {
+          const A = coord(a, ua, va, d, u, v);
+          const id = W.get(A[0], A[1], A[2]);
+          const v2 = id && CF.BY_ID[id];
+          if (!v2 || !v2.liquid) continue;
+          const B = A.slice(); B[a]++;
+          const bid = W.get(B[0], B[1], B[2]);
+          if (bid) continue; // only against air (v1)
+          const tile = v2.tiles[a * 2];
+          const meta = (window.__TEXMETA || {})[tile];
+          if (!meta) stats.missingTiles.add(tile);
+          const P0 = coord(a, ua, va, d + 1, u, v), P1 = coord(a, ua, va, d + 1, u + 1, v);
+          const P2 = coord(a, ua, va, d + 1, u + 1, v + 1), P3 = coord(a, ua, va, d + 1, u, v + 1);
+          const packed = W.lightAt(B[0], B[1], B[2]);
+          const br = packed / 255;
+          const uvf = meta ? [(meta.x + 0.25) / 128, (meta.y + 0.25) / 128, (meta.x + 15.75) / 128, (meta.y + 15.75) / 128] : MAGENTA_UV;
+          const c00 = [P0[0], P0[1], P0[2]], c10 = [P1[0], P1[1], P1[2]], c11 = [P2[0], P2[1], P2[2]], c01 = [P3[0], P3[1], P3[2]];
+          if (a === 1) for (const q of [c00, c10, c11, c01]) q[1] -= 0.12; // water surface slightly below bank (MC-like, avoids coplanar z-fight)
+          const uvs = [[uvf[0], uvf[1]], [uvf[2], uvf[1]], [uvf[2], uvf[3]], [uvf[0], uvf[3]]];
+          for (const oi of [0, 1, 2, 0, 2, 3]) {
+            const q = [c00, c10, c11, c01][oi];
+            wpos.push(q[0], q[1], q[2]);
+            wcol.push(uvs[oi][0], uvs[oi][1], 0.95, br);
+          }
+        }
+      }
+    }
+    return { pos: new Float32Array(pos), col: new Float32Array(col), wpos: new Float32Array(wpos), wcol: new Float32Array(wcol), tris: tris[0] };
   }
 
   const vs = `#version 300 es
@@ -120,7 +152,7 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
  float bright = mix(0.16, 0.25+0.75*eff, step(0.02, eff));
  vec3 c = t.rgb*sh*bright; c = mix(c, FOG, f);
  if (t.a < 0.5) discard;
- OC = vec4(c,1.); }`;
+ OC = vec4(c * t.a, t.a); }`;
 
   function initRenderer(gl2) {
     gl = gl2;
@@ -168,7 +200,15 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
       gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 28, 12);
       gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 28, 24);
       gl.bindVertexArray(null);
-      e = { vao, vb, n: 0 }; meshMap.set(k, e);
+      e = { vao, vb, n: 0 };
+      const wvao = gl.createVertexArray(); gl.bindVertexArray(wvao);
+      const wvb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, wvb);
+      gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 28, 0);
+      gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 28, 12);
+      gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 28, 24);
+      gl.bindVertexArray(null);
+      e.wvao = wvao; e.wvb = wvb; e.wn = 0;
+      meshMap.set(k, e);
     }
     const arr = new Float32Array(m.pos.length + m.col.length);
     for (let i = 0, j = 0; i < m.pos.length / 3; i++) {
@@ -178,6 +218,14 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
     gl.bindBuffer(gl.ARRAY_BUFFER, e.vb);
     gl.bufferData(gl.ARRAY_BUFFER, arr.length ? arr : new Float32Array(7), gl.STATIC_DRAW);
     e.n = arr.length / 7;
+    const warr = new Float32Array(m.wpos.length + m.wcol.length);
+    for (let i = 0, j = 0; i < m.wpos.length / 3; i++) {
+      warr[j++] = m.wpos[i * 3]; warr[j++] = m.wpos[i * 3 + 1]; warr[j++] = m.wpos[i * 3 + 2];
+      warr[j++] = m.wcol[i * 4]; warr[j++] = m.wcol[i * 4 + 1]; warr[j++] = m.wcol[i * 4 + 2]; warr[j++] = m.wcol[i * 4 + 3];
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, e.wvb);
+    gl.bufferData(gl.ARRAY_BUFFER, warr.length ? warr : new Float32Array(7), gl.STATIC_DRAW);
+    e.wn = warr.length / 7;
     stats.lastBuf = Array.from(arr.slice(0, 12));
   }
 
@@ -247,6 +295,20 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
       gl.drawArrays(gl.TRIANGLES, 0, e.n);
       tris += e.n / 3; drawn++;
     }
+    // translucent liquid pass (no depth write) (#022) - premultiplied blending
+    gl.enable(gl.BLEND);
+    gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    gl.depthMask(false);
+    let wtris = 0;
+    for (const [, e] of meshMap) {
+      if (!e.wn) continue;
+      gl.bindVertexArray(e.wvao);
+      gl.drawArrays(gl.TRIANGLES, 0, e.wn);
+      wtris += e.wn / 3;
+    }
+    stats.wtris = wtris;
+    gl.depthMask(true);
+    gl.disable(gl.BLEND);
     stats.tris = tris; stats.drawn = drawn; stats.mapped = meshMap.size;
     stats.glErr = gl.getError();
   }
@@ -256,7 +318,7 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
   CF.renderDraw = draw;
   CF.renderReset = () => {
     if (!gl) { meshMap.clear(); return; }
-    for (const [, e] of meshMap) { gl.deleteBuffer(e.vb); gl.deleteVertexArray(e.vao); }
+    for (const [, e] of meshMap) { gl.deleteBuffer(e.vb); gl.deleteVertexArray(e.vao); gl.deleteBuffer(e.wvb); gl.deleteVertexArray(e.wvao); }
     meshMap.clear();
     stats.meshes = 0; stats.tris = 0; stats.rebuilds = 0;
   };
