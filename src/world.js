@@ -91,6 +91,21 @@ window.CF = window.CF || {};
       c.arr[idx] = id;
       queueRelight(x, z);
       const prevDef = CF.BY_ID[prev], nowDef = CF.BY_ID[id];
+      if (id === 0) {
+        // cross-model pop when its ATTACHED face support dies (MC torch rule, per-face) (#028)
+        for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, -1]]) {
+          const nx = x + dx, ny = y + dy, nz = z + dz;
+          const nb = get(nx, ny, nz);
+          const nv = nb && CF.BY_ID[nb];
+          if (!nv || !nv.cross) continue;
+          const SUPV = { 1: [0, -1, 0], 2: [-1, 0, 0], 6: [1, 0, 0], 4: [0, 0, -1], 8: [0, 0, 1] };
+          const v = SUPV[flatAt(nx, ny, nz)] || [0, -1, 0];
+          if (CF.solidAt(get(nx + v[0], ny + v[1], nz + v[2]))) continue;
+          set(nx, ny, nz, 0);
+          if (CF.drops) CF.drops.push({ name: nv.name, n: 1, x: nx + 0.5, y: ny + 0.5, z: nz + 0.5 });
+          if (CF.give) CF.give(nv.name, 1);
+        }
+      }
       if ((nowDef && nowDef.liquid) || (prevDef && prevDef.liquid)) {
         if (nowDef && nowDef.liquid) setFlat(x, y, z, 0);
         q(x, y, z);

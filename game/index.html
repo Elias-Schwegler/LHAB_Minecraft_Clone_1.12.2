@@ -817,6 +817,21 @@ window.CF = window.CF || {};
       c.arr[idx] = id;
       queueRelight(x, z);
       const prevDef = CF.BY_ID[prev], nowDef = CF.BY_ID[id];
+      if (id === 0) {
+        // cross-model pop when its ATTACHED face support dies (MC torch rule, per-face) (#028)
+        for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, -1]]) {
+          const nx = x + dx, ny = y + dy, nz = z + dz;
+          const nb = get(nx, ny, nz);
+          const nv = nb && CF.BY_ID[nb];
+          if (!nv || !nv.cross) continue;
+          const SUPV = { 1: [0, -1, 0], 2: [-1, 0, 0], 6: [1, 0, 0], 4: [0, 0, -1], 8: [0, 0, 1] };
+          const v = SUPV[flatAt(nx, ny, nz)] || [0, -1, 0];
+          if (CF.solidAt(get(nx + v[0], ny + v[1], nz + v[2]))) continue;
+          set(nx, ny, nz, 0);
+          if (CF.drops) CF.drops.push({ name: nv.name, n: 1, x: nx + 0.5, y: ny + 0.5, z: nz + 0.5 });
+          if (CF.give) CF.give(nv.name, 1);
+        }
+      }
       if ((nowDef && nowDef.liquid) || (prevDef && prevDef.liquid)) {
         if (nowDef && nowDef.liquid) setFlat(x, y, z, 0);
         q(x, y, z);
@@ -1875,7 +1890,20 @@ window.CF = window.CF || {};
     if (ox && oy) return false;
     const id = CF.hotId();
     if (!id) return false;
+    const v = CF.BY_ID[id];
+    if (v.cross) {
+      // MC support rule: floor face needs solid below; side faces need solid on that side
+      const f = hit.face;
+      const support = f[1] === 1 ? CF.solidAt(CF.world.get(hit.x, hit.y, hit.z))
+        : CF.solidAt(CF.world.get(tx - f[0], ty - f[1], tz - f[2]));
+      if (!support) return false;
+    }
     const ok = CF.world.set(tx, ty, tz, id);
+    if (ok && v.cross && CF.world.flatSet) {
+      const f = hit.face;
+      const code = f[1] === 1 ? 1 : f[0] === 1 ? 2 : f[0] === -1 ? 6 : f[2] === 1 ? 4 : 8;
+      CF.world.flatSet(tx, ty, tz, code);
+    }
     if (ok && !CF.creative && CF.consume) CF.consume(CF.held(), 1);
     if (ok && CF.BY_ID[id].name === 'furnace' && CF.furnacePlace) CF.furnacePlace(tx, ty, tz);
     return ok;
@@ -1965,6 +1993,20 @@ window.CF = window.CF || {};
     CF.world.set(cx, cy, cz, 0);
     const self = CF.place({ x: cx - 1, y: cy, z: cz, face: [1, 0, 0] });
     CF.assert(r, 'interact.no-self-place', !self && CF.world.get(cx, cy, cz) === 0);
+    // #028: torch attaches to solid faces only; pops when support dies
+    const wx9 = 60, wz9 = 60;
+    CF.world.ensureAround(wx9, wz9, 1);
+    for (let i = 0; i < 10 && CF.world.stats().queue; i++) CF.world.tick();
+    const wh9 = CF.world.heightAt(wx9, wz9);
+    CF.world.set(wx9, wh9 + 1, wz9, IDOF['cobblestone']);
+    CF.inv[CF.sel] = { name: 'torch', count: 4 };
+    const wallT = CF.place({ x: wx9, y: wh9 + 1, z: wz9, face: [0, 0, -1] });
+    CF.assert(r, 'torch.on-wall', wallT && CF.world.get(wx9, wh9 + 1, wz9 - 1) === IDOF['torch']);
+    const floatT = CF.place({ x: wx9 + 3, y: wh9 + 3, z: wz9, face: [1, 0, 0] });
+    CF.assert(r, 'torch.no-float', !floatT && !CF.world.get(wx9 + 4, wh9 + 3, wz9));
+    const n0 = CF.countItem('torch');
+    CF.world.set(wx9, wh9 + 1, wz9, 0);
+    CF.assert(r, 'torch.pop(g=' + CF.world.get(wx9, wh9 + 1, wz9 - 1) + ',c=' + CF.countItem('torch') + '/' + (n0 + 1) + ')', CF.world.get(wx9, wh9 + 1, wz9 - 1) === 0 && CF.countItem('torch') === n0 + 1);
   };
 })();
 
