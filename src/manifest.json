@@ -4,6 +4,7 @@
     "src/world.js",
     "src/render.js",
     "src/player.js",
+    "src/interact.js",
     "src/game.js",
     "src/harness.js"
   ],
