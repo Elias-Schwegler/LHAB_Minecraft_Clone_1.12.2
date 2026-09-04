@@ -7,3 +7,4 @@
 
 Definition: 1 point = 1 issue completed within one iteration-day (issue points = size
 estimate). Escaped defect = P0/P1 opened by auditor against already-DONE work.
+| 02 (light+matter) | #019-#028 + #029-#032 | 9 FEAT/FIX done, 2 iterations | high | 1 P1 escaped (false checkbox, audit-caught) | fluids debug cost ~50% of sprint; probe pattern adopted |
