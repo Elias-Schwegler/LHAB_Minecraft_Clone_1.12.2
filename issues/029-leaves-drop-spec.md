@@ -1,5 +1,5 @@
 # Issue: 029 — Close leaves drop/decay spec honestly (#019 carry-over) + stick drop
-- Type: FIX | Severity: P1 (audit 2026-09-04-b, F1) | Status: READY
+- Type: FIX | Severity: P1 (audit 2026-09-04-b, F1) | Status: DONE
 - Epic: docs/backlog/epics.md (E2)
 - Sprint: 02 | Depends on: #019 (DONE on main) — reopens its spec honesty only
 - Time-box: <= 1 iteration-day (research + doc/registry alignment + one assert)
@@ -57,3 +57,8 @@ No research risk (values confirmed); code change is one branch line + assert ban
 - Screenshots: n/a
 - Vision verdict per AC:
 - Parity impact: none (leaves stays counted, now with honest spec)
+## Evidence (close - audit #2 P1)
+- Issue body [verify] markers REMOVED; Java 1.12.2 oak leaf drops resolved: sapling 0.05, apple 0.005, no sticks (Bedrock-only).
+- REFERENCE [TBC] flint % + leaf drop lines fixed to exact values.
+- Vacuous light.queue assert replaced w/ real pending-relight check (light.queue-stale, world.js).
+- test.mjs GREEN 63 asserts.

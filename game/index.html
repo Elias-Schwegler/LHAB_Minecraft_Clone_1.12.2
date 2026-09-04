@@ -933,7 +933,7 @@ window.CF = window.CF || {};
     // budgeted queue: edit far away, relight happens within <=8 ticks
     const beforeLight = w.lightAt(lx, lh, lz) & 15;
     w.set(lx, lh, lz, 0);
-    CF.assert(r, 'light.queue(stale ok)', true);
+    CF.assert(r, 'light.queue-stale(pending relight)', (w.lightAt(lx, lh, lz) & 15) > 0);
     for (let i = 0; i < 10 && (w.lightAt(lx, lh, lz) & 15) > 0; i++) w.tick();
     const afterLight = w.lightAt(lx, lh, lz) & 15;
     CF.assert(r, 'light.queue-off(' + beforeLight + '->' + afterLight + ')', afterLight === 0);

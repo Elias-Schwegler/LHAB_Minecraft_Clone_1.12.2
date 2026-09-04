@@ -35,12 +35,12 @@ The machine-readable catalog is `docs/catalog.json`:
 | 6 | sapling | 5 | oak/spruce/birch/jungle/acacia/dark_oak; grow w/ light>=9 + bonemeal; 2x2 species need 2x2 sapling arrangement; jungle also needs 2x2 trunk |
 | 7 | bedrock | 1 | unbreakable (hardness -1); creative only |
 | 12 | sand | 1 | falls as entity when unsupported |
-| 13 | gravel | 1 | falls; drops flint 10% **[TBC %]** |
+| 13 | gravel | 1 | falls; drops flint 10% exactly (Java) |
 | 14 | gold_ore | 1 | needs iron pick (else drops nothing); RESOLVED (audit #011): 1.12.2 has no raw items (raw_* are 1.17+) — gold ore drops `gold_ingot` directly |
 | 15 | iron_ore | 1 | needs stone pick; drops `iron_ore` item (smelt to ingot) |
 | 16 | coal_ore | 1 | needs wooden pick; drops `coal` item |
 | 17 | log | 6 | oak/spruce/birch/jungle small + acacia/dark_oak big-trunk variants counted via planks/log textures; drops itself |
-| 18 | leaves | 6 | oak/spruce/birch/jungle/acacia/dark_oak; decay w/o player nearby (oak/spruce/birch range 6? decay radius 6 **[TBC]**); oak/birch drop apple/sapling chance |
+| 18 | leaves | 6 | oak/spruce/birch/jungle/acacia/dark_oak; decay w/o player nearby (oak/spruce/birch range 6? decay radius 6 **[TBC]**); oak leaves drop sapling 5% + apple 0.5% (Java loot tables; implemented+asserted #019) |
 | 19 | sponge | 2 | dry/wet; absorbs 5x5x5 water, turns wet (no regen in 1.12 survival) |
 
 ### Fluids (8/9 water, 10/11 lava) — counted once each
