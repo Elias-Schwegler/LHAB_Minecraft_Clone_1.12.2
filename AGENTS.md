@@ -13,7 +13,7 @@ Read docs/MASTERPROMPT.md for the law. This file = current state, 1-minute groun
   render, collision, physics, break/place+drops, F3 done-ish; lighting/UI/mobs/fluids next.
 - Merged: #002 worldgen, #003 renderer, #004 registry, #005 player, #006 interact,
   #007 textures, #008 shots+baseline, #009 F3. Audit #1 fixes #010-#019.
-- test.mjs: 80 asserts green. Audit #2 done (scoped). #029 drop-spec resolved (Java: sapling .05, apple .005, no sticks). 16 blocks w/ qa/blocks sheets + proof-bound flags. Sprint 02: #019 leaves, #020 light (packed sky<<4|block, region relight), #023 save/load done.
+- test.mjs: 104 asserts green. Audits #2+#3 done (scoped); #4 at sprint close. #029 drop-spec resolved (Java: sapling .05, apple .005, no sticks). 16 blocks w/ qa/blocks sheets + proof-bound flags. Sprint 02: #019 leaves, #020 light (packed sky<<4|block, region relight), #023 save/load done.
 - Seed 5 = plains spawn (nice shots): 
 ode tools/shot.mjs starter-world seed=5`.
 
