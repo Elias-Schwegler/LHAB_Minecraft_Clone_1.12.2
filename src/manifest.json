@@ -6,6 +6,7 @@
     "src/player.js",
     "src/interact.js",
     "src/items.js",
+    "src/ui.js",
     "src/persist.js",
     "src/f3.js",
     "src/game.js",
