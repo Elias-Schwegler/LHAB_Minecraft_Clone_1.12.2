@@ -1,0 +1,67 @@
+<!DOCTYPE html><html><head><title>DBG2</title></head><body style="margin:0">
+<canvas id="gl" style="width:854px;height:480px"></canvas>
+<script>window.CF={errors:[]};window.__test=null;document.getElementById('gl').clientWidth;</script>
+<script src="../src/registry.js"></script>
+<script src="../src/world.js"></script>
+<script src="../src/render.js"></script>
+<script>
+(async () => {
+  try {
+    if (!window.__TEXMETA) {
+      const res = await fetch('../tools/tex/atlas.json');
+      window.__TEXMETA = await res.json();
+      const b = await (await fetch('../tools/tex/atlas.png')).arrayBuffer();
+      let bin = ''; const u8 = new Uint8Array(b);
+      for (let i = 0; i < u8.length; i += 8192) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 8192));
+      window.__ATLAS_B64 = btoa(bin);
+    }
+    const cv = document.getElementById('gl');
+    cv.width = 854; cv.height = 480;
+    const gl = cv.getContext('webgl2', { preserveDrawingBuffer: true });
+    window.CF.gl = gl; window.CF.canvas = cv;
+    CF.assert = (res, n, c) => {};
+    CF.initRenderer(gl);
+    CF.world.ensureAround(0, 0, 2);
+    for (let i = 0; i < 40; i++) CF.world.tick();
+    setTimeout(() => {
+      for (let i = 0; i < 40; i++) CF.renderTick();
+      CF.renderDraw({ pos: [0, CF.world.heightAt(0, 0) + 12, 0], yaw: 0.6, pitch: -1.4 });
+      const grid=[];for(let gy=60;gy<480;gy+=90){const row=[];for(let gx=60;gx<854;gx+=90){const q=new Uint8Array(4);gl.readPixels(gx,gy,1,1,gl.RGBA,gl.UNSIGNED_BYTE,q);if(!(q[0]>140&&q[1]>180&&q[2]>240))row.push(gx+','+gy+':'+q[0]+','+q[1]+','+q[2]);}grid.push(row.join(' | '));}grid.push('SUMMARY:'+grid.map(r=>r.length).join(','));
+      // mini independent sampler: own texture + program, fullscreen quad
+      let mini = 'skip';
+      try {
+        const im2 = new Image();
+        im2.onload = () => {
+          const t2 = gl.createTexture();
+          gl.activeTexture(gl.TEXTURE1);
+          gl.bindTexture(gl.TEXTURE_2D, t2);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, im2);
+          const p2 = gl.createProgram();
+          const v2 = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(v2, '#version 300 es\nlayout(location=0)in vec2 P;out vec2 uv;void main(){gl_Position=vec4(P,0,1);uv=(P+1.)*.5;}'); gl.compileShader(v2);
+          const f2 = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(f2, '#version 300 es\nprecision mediump float;in vec2 uv;out vec4 O;uniform sampler2D S;void main(){O=texture(S,uv*vec2(0.125));}'); gl.compileShader(f2);
+          gl.attachShader(p2, v2); gl.attachShader(p2, f2); gl.linkProgram(p2); gl.useProgram(p2);
+          gl.uniform1i(gl.getUniformLocation(p2, 'S'), 1);
+          const b2 = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b2);
+          gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+          gl.disableVertexAttribArray(0); gl.vertexAttrib2f(0, 0, 0);
+          gl.deleteVertexArray && (() => { const va = gl.createVertexArray(); gl.bindVertexArray(va); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0); gl.bindVertexArray(va); })();
+          gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+          const q = new Uint8Array(4); gl.readPixels(8, 8, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, q);
+          window.__mini = [q[0], q[1], q[2], q[3]];
+          window.__miniT = JSON.stringify({ mini: window.__mini, err: gl.getError() });
+        };
+        im2.src = window.__ATLAS_B64 ? 'data:image/png;base64,' + window.__ATLAS_B64 : '../tools/tex/atlas.png';
+      } catch (e) { mini = String(e); }
+      document.title = 'DBG2:' + encodeURIComponent(JSON.stringify({
+        grid: grid.filter(x=>x).slice(0,6), mapped: CF.rendererStats.mapped, tris: CF.rendererStats.tris,
+        ready: CF.rendererStats.ready, err: CF.rendererStats.glErr, errors: CF.errors,
+        h: CF.world.heightAt(0, 0), chunks: CF.world.chunks.size,
+        px0: CF.rendererStats.px0, fbpx: CF.rendererStats.fbpx, cvErr: CF.rendererStats.cvErr, lastBuf: CF.rendererStats.lastBuf,
+        vpErr: gl.getError()
+      }));
+    }, 600);
+  } catch (e) { document.title = 'DBG2:' + encodeURIComponent(JSON.stringify({ threw: String(e) })); }
+})();
+</script></body></html>
