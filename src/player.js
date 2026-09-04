@@ -38,7 +38,7 @@ window.CF = window.CF || {};
     if (!CF.world) return;
     readInput();
     const i = player.input;
-    const speed = i.sprint ? SPRINT : i.sneak ? SNEAK : WALK;
+    const speed = (i.sprint && (!CF.canSprint || CF.canSprint())) ? SPRINT : i.sneak ? SNEAK : WALK;
     const fx = Math.sin(player.yaw), fz = Math.cos(player.yaw);
     let mx = fx * (i.f - i.s) + Math.cos(player.yaw) * (i.r - i.l);
     let mz = fz * (i.f - i.s) - Math.sin(player.yaw) * (i.r - i.l);
