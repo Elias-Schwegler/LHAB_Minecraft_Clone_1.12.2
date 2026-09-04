@@ -16,7 +16,7 @@ for (let s = 1; s < 400; s++) {
   const nT = makeNoise(s + 3);
   let plains = 0, tot = 0;
   for (let dx = -6; dx <= 6; dx += 3) for (let dz = -6; dz <= 6; dz += 3) {
-    const t = nT(dx * 0.004, 9, dz * 0.004);
+    const t = nT(dx * 0.0015, 9, dz * 0.0015);
     tot++; if (t >= 0.36 && t <= 0.66) plains++;
   }
   if (plains === tot) good.push(s);

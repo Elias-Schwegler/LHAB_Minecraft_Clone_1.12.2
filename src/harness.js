@@ -26,6 +26,8 @@
       if (typeof CF.worldTests === 'function') await CF.worldTests(r);
       if (typeof CF.rendererTests === 'function') await CF.rendererTests(r);
       if (typeof CF.playerTests === 'function') await CF.playerTests(r);
+      if (typeof CF.interactTests === 'function') await CF.interactTests(r);
+      if (typeof CF.f3Tests === 'function') await CF.f3Tests(r);
     } catch (e) {
       r.fail.push('harness.threw: ' + e.message);
     }
@@ -69,6 +71,41 @@
     await new Promise((r) => setTimeout(r, 300));
   };
 
+  CF.shotScenarios['block'] = async () => {
+    CF.freeCam = true;
+    const name = (location.search.match(/block=([a-z0-9_]+)/) || [])[1] || 'stone';
+    const W = CF.world;
+    W.ensureAround(10, 10, 2);
+    for (let i = 0; i < 20 && W.stats().queue; i++) W.tick();
+    const reg = CF.REGISTRY[name];
+    const key = Object.keys(reg.variants)[0];
+    const id = reg.variants[key].id;
+    const by = 70;
+    for (let x = 7; x <= 13; x++) for (let z = 7; z <= 13; z++) for (let y = by - 2; y < by + 8; y++) W.set(x, y, z, 0);
+    for (let x = 7; x <= 13; x++) for (let z = 7; z <= 13; z++) W.set(x, by, z, CF.IDOF['stone']);
+    W.set(10, by + 1, 10, id);
+    for (let i = 0; i < 100; i++) CF.renderTick();
+    const camx = 13.4, camy = by + 2.6, camz = 13.4, tx = 10.5, ty = by + 1.5, tz = 10.5;
+    const horiz = Math.hypot(camx - tx, camz - tz);
+    CF.camera = { pos: [camx, camy, camz], yaw: Math.atan2(tx - camx, tz - camz), pitch: -Math.atan2(camy - ty, horiz) };
+    CF.renderDraw(CF.camera);
+    await new Promise((r) => setTimeout(r, 300));
+  };
+  CF.shotScenarios['walking'] = async () => {
+    CF.freeCam = false;
+    const W = CF.world, P = CF.player;
+    W.ensureAround(8, 8, 3);
+    for (let i = 0; i < 30 && W.stats().queue; i++) W.tick();
+    const h = W.heightAt(8, 8);
+    P.tp(8.5, h + 2, 8.5);
+    P.input.scripted = true; P.input.f = 1; P.pitch = -0.30;
+    for (let i = 0; i < 60; i++) CF.playerTick();
+    P.input.f = 0;
+    for (let i = 0; i < 30 && !CF.rendererStats.ready; i++) { CF.renderTick(); await new Promise((r) => setTimeout(r, 50)); }
+    for (let i = 0; i < 40; i++) CF.renderTick();
+    CF.renderDraw(CF.camera);
+    await new Promise((r) => setTimeout(r, 300));
+  };
   const h = location.hash || '';
   if (h === '#test') runTests();
   else if (h.startsWith('#shot=')) runShot(h.slice(6));

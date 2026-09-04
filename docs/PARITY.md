@@ -11,34 +11,40 @@ shot.mjs PNG + vision verdict. `parity.mjs` counts a variant ONLY if the game re
 marks it `functional:true` AND `qa/blocks/<variant>.png` exists AND a texture tile is
 Blender-sourced (`tools/tex` manifest). No self-declared counts.
 
-## Block % (tiered)
+## Block % (tiered) — live from parity.mjs (2026-09-04)
 | Tier | variants total | functional | % |
 |------|---------------|-----------|---|
-| 1 | (parity.mjs prints) | 0 | 0% |
-| 2 | | 0 | 0% |
-| 3 | | 0 | 0% |
-| **all** | **399** | **0** | **0%** |
+| 1 | 125 | 15 | 12.0% |
+| 2 | 163 | 1 | 0.6% |
+| 3 | 111 | 0 | 0% |
+| **all** | **399** | **16** | **4.0%** |
+
+Counted (evidence: qa/blocks/*.png + blender tiles + functional flag + test asserts):
+stone, grass, dirt, cobblestone, planks:oak, log:oak, leaves:oak, sand, gravel, glass,
+obsidian, coal/iron/gold/diamond ore (t1); snow (t2).
+Not counted though registered: bedrock (creative-only, §7 'breakable' fails), red_sand +
+wood variants (no tiles), all Tier-2/3 families.
 
 ## Mechanic % (tiered checklists — flip to [x] ONLY with evidence link)
 ### Tier-1 (50% bar gate)
-[ ] chunked infinite worldgen w/ biomes + ores + caves
-[ ] block place/break/AABB collision
-[ ] 1.9-style player physics + combat cooldown
-[ ] hotbar/inventory/drag-drop
+[ ] chunked infinite worldgen w/ biomes + ores + caves   <- #002 asserts+shot; streaming-unlimited pending
+[x] block place/break/AABB collision                     <- #005/#006 interact asserts + walking.png
+[ ] 1.9-style player physics + combat cooldown           <- #005 physics asserted; cooldown needs combat
+[ ] hotbar/inventory/drag-drop                           <- hotbar select only (#006)
 [ ] crafting grid + recipe book + smelting
-[ ] day/night + sky/block light engine
+[ ] day/night + sky/block light engine                   <- flat-shaded only (#013 lighting)
 [ ] gravity blocks (sand/gravel/concrete_powder)
 [ ] water/lava flow + obsidian/cobblestone
 [ ] torches + spawn-by-light rules
 [ ] hostile mobs (zombie/skeleton/creeper/spider/enderman) + passive w/ breeding
 [ ] health/hunger/fall damage
 [ ] chests/furnaces
-[ ] wood→tools→mining tiers
+[ ] wood→tools→mining tiers                              <- tier GATES done (#006); items/tools pending
 [ ] TNT
 [ ] beds/sleep
 [ ] survival + creative
 [ ] localStorage save/load
-[ ] F3 debug
+[x] F3 debug                                             <- #009 asserts
 
 ### Tier-2 / Tier-3: see REFERENCE.md §tiers + backlog epics; parity.mjs prints live table.
 

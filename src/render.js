@@ -56,7 +56,7 @@ window.CF = window.CF || {};
           : a === 0 ? [u0 + th * dv, v0 + th * (hh - du)]
           : [u0 + tw * du, v0 + th * (hh - dv)]);
       } else { stats.missingTiles.add(tile); uvAt = () => MAGENTA_UV.slice(0, 2); }
-      const P = (du, dv) => coord(a, ua, va, d, u + du, v + dv);
+      const P = (du, dv) => coord(a, ua, va, d + 1, u + du, v + dv);
       const corners = [P(0, 0), P(w, 0), P(w, hh), P(0, hh)];
       const uvs = [[0, 0], [w, 0], [w, hh], [0, hh]].map(([du, dv]) => uvAt(du, dv));
       const order = a % 2 === 0 ? [0, 2, 1, 0, 3, 2] : [0, 1, 2, 0, 2, 3];
