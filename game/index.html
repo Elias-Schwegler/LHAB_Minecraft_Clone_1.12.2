@@ -30,7 +30,7 @@ window.CF.REGISTRY = /*REGISTRY-START*/
   "log": {"id":17,"tier":1,"variants":{"oak":{"functional":true,"tiles":["log_side_oak","log_side_oak","log_top_oak","log_top_oak","log_side_oak","log_side_oak"],"hardness":2.0,"drop":"log","tool":null,"minTier":0,"solid":true,"light":0}}},
   "leaves": {"id":18,"tier":1,"variants":{"oak":{"functional":true,"tiles":["leaves_oak","leaves_oak","leaves_oak","leaves_oak","leaves_oak","leaves_oak"],"hardness":0.2,"drop":null,"tool":null,"minTier":0,"solid":true,"light":0}}},
   "bedrock": {"id":7,"tier":1,"variants":{"default":{"functional":false,"tiles":["bedrock","bedrock","bedrock","bedrock","bedrock","bedrock"],"hardness":-1,"drop":null,"tool":null,"minTier":9,"solid":true,"light":0}}},
-  "sand": {"id":12,"tier":1,"variants":{"default":{"functional":true,"tiles":["sand","sand","sand","sand","sand","sand"],"hardness":0.5,"drop":"sand","tool":null,"minTier":0,"solid":true,"light":0}}},
+  "sand": {"id":12,"tier":1,"variants":{"sand":{"functional":true,"tiles":["sand","sand","sand","sand","sand","sand"],"hardness":0.5,"drop":"sand","tool":null,"minTier":0,"solid":true,"light":0}}},
   "gravel": {"id":13,"tier":1,"variants":{"default":{"functional":true,"tiles":["gravel","gravel","gravel","gravel","gravel","gravel"],"hardness":0.6,"drop":"gravel","tool":null,"minTier":0,"solid":true,"light":0}}},
   "snow": {"id":80,"tier":2,"variants":{"default":{"functional":true,"tiles":["snow","snow","snow","snow","snow","snow"],"hardness":0.2,"drop":"snow","tool":null,"minTier":0,"solid":true,"light":0}}},
   "glass": {"id":20,"tier":1,"variants":{"default":{"functional":true,"tiles":["glass","glass","glass","glass","glass","glass"],"hardness":0.3,"drop":null,"tool":null,"minTier":0,"solid":true,"light":0}}},
@@ -55,6 +55,7 @@ window.CF.REGISTRY = /*REGISTRY-START*/
       CF.BY_ID[next] = v; CF.ID_TO_VARIANT[next] = name + (key === 'default' ? '' : ':' + key);
       CF.IDOF = CF.IDOF || {};
       CF.IDOF[name + (key === 'default' ? '' : ':' + key)] = next;
+      if (!CF.IDOF[name]) CF.IDOF[name] = next;
       next++;
     }
   }
@@ -110,7 +111,7 @@ window.CF = window.CF || {};
     function colHeight(x, z) {
       return Math.max(5, Math.min(110, Math.round(SEA + (n1(x * 0.008, 0, z * 0.008) - 0.5) * 26 + (n2(x * 0.03, 5, z * 0.03) - 0.5) * 10)));
     }
-    function biome(x, z) { const t = nT(x * 0.004, 9, z * 0.004); return t < 0.36 ? 'desert' : t > 0.66 ? 'frozen' : 'plains'; }
+    function biome(x, z) { const t = nT(x * 0.0015, 9, z * 0.0015); return t < 0.36 ? 'desert' : t > 0.66 ? 'frozen' : 'plains'; }
     function generate(cx, cz) {
       const arr = new Uint8Array(CX * CH * CZ);
       for (let lx = 0; lx < CX; lx++) for (let lz = 0; lz < CZ; lz++) {
@@ -749,6 +750,46 @@ window.CF = window.CF || {};
   };
 })();
 
+/* ==== src/f3.js ==== */
+// F3 debug overlay (Tier-1): fps, xyz, chunk, faced direction, aimed block, light-ish stats.
+window.CF = window.CF || {};
+(function () {
+  const CF = window.CF;
+  const div = document.createElement('div');
+  div.id = 'f3';
+  div.style.cssText = 'position:fixed;top:4px;left:4px;color:#fff;font:12px monospace;' +
+    'text-shadow:1px 1px 0 #000;background:rgba(0,0,0,.35);padding:4px;display:none;z-index:10;pointer-events:none';
+  if (document.body) document.body.appendChild(div);
+  let on = false, frames = 0, fps = 0, last = performance.now();
+  window.addEventListener('keydown', (e) => { if (e.code === 'F3') { on = !on; div.style.display = on ? 'block' : 'none'; } });
+  setInterval(() => {
+    frames++;
+    const now = performance.now();
+    if (now - last > 500) { fps = Math.round(frames * 1000 / (now - last)); frames = 0; last = now; }
+    if (!on) return;
+    const p = CF.player, t = CF.aim && CF.aim();
+    const b = t ? CF.BY_ID[CF.world.get(t.x, t.y, t.z)] : null;
+    div.textContent = 'Cubeforge F3\n' +
+      `${fps} fps  ticks ${CF.ticks}\n` +
+      (p ? `XYZ: ${p.pos.map((v) => v.toFixed(2)).join(' / ')}\n` +
+        `Chunk: ${Math.floor(p.pos[0] / 16)}, ${Math.floor(p.pos[2] / 16)}  facing ${yawFace(p.yaw)}\n` : '') +
+      `Target: ${b ? b.name + (b.variant !== 'default' ? ':' + b.variant : '') + ` [${t.x} ${t.y} ${t.z}]` : 'none'}\n` +
+      `Chunks: ${CF.world ? CF.world.stats().chunks : 0}  Tris: ${CF.rendererStats ? CF.rendererStats.tris : 0}\n` +
+      `Seed: ${CF.world ? CF.world.seed : '-'}  Hotbar: ${CF.hotbar ? CF.hotbar[CF.sel] : '-'}\n` +
+      `Drops: ${CF.drops ? CF.drops.length : 0}`;
+  }, 250);
+  function yawFace(y) {
+    const w = ((Math.round(((y % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 2)) % 4 + 4) % 4;
+    return ['south', 'west', 'north', 'east'][w];
+  }
+  CF.f3Tests = async (r) => {
+    CF.assert(r, 'f3.overlay-exists', !!document.getElementById('f3'));
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F3' }));
+    CF.assert(r, 'f3.toggle', div.style.display === 'block');
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F3' }));
+  };
+})();
+
 /* ==== src/game.js ==== */
 // Cubeforge boot: WebGL2 canvas + fixed 20 UPS tick loop.
 window.CF = window.CF || {};
@@ -834,6 +875,7 @@ window.CF = window.CF || {};
       if (typeof CF.rendererTests === 'function') await CF.rendererTests(r);
       if (typeof CF.playerTests === 'function') await CF.playerTests(r);
       if (typeof CF.interactTests === 'function') await CF.interactTests(r);
+      if (typeof CF.f3Tests === 'function') await CF.f3Tests(r);
     } catch (e) {
       r.fail.push('harness.threw: ' + e.message);
     }
@@ -894,6 +936,21 @@ window.CF = window.CF || {};
     const camx = 13.4, camy = by + 2.6, camz = 13.4, tx = 10.5, ty = by + 1.5, tz = 10.5;
     const horiz = Math.hypot(camx - tx, camz - tz);
     CF.camera = { pos: [camx, camy, camz], yaw: Math.atan2(tx - camx, tz - camz), pitch: -Math.atan2(camy - ty, horiz) };
+    CF.renderDraw(CF.camera);
+    await new Promise((r) => setTimeout(r, 300));
+  };
+  CF.shotScenarios['walking'] = async () => {
+    CF.freeCam = false;
+    const W = CF.world, P = CF.player;
+    W.ensureAround(8, 8, 3);
+    for (let i = 0; i < 30 && W.stats().queue; i++) W.tick();
+    const h = W.heightAt(8, 8);
+    P.tp(8.5, h + 2, 8.5);
+    P.input.scripted = true; P.input.f = 1; P.pitch = -0.30;
+    for (let i = 0; i < 60; i++) CF.playerTick();
+    P.input.f = 0;
+    for (let i = 0; i < 30 && !CF.rendererStats.ready; i++) { CF.renderTick(); await new Promise((r) => setTimeout(r, 50)); }
+    for (let i = 0; i < 40; i++) CF.renderTick();
     CF.renderDraw(CF.camera);
     await new Promise((r) => setTimeout(r, 300));
   };

@@ -28,7 +28,7 @@ window.CF = window.CF || {};
     function colHeight(x, z) {
       return Math.max(5, Math.min(110, Math.round(SEA + (n1(x * 0.008, 0, z * 0.008) - 0.5) * 26 + (n2(x * 0.03, 5, z * 0.03) - 0.5) * 10)));
     }
-    function biome(x, z) { const t = nT(x * 0.004, 9, z * 0.004); return t < 0.36 ? 'desert' : t > 0.66 ? 'frozen' : 'plains'; }
+    function biome(x, z) { const t = nT(x * 0.0015, 9, z * 0.0015); return t < 0.36 ? 'desert' : t > 0.66 ? 'frozen' : 'plains'; }
     function generate(cx, cz) {
       const arr = new Uint8Array(CX * CH * CZ);
       for (let lx = 0; lx < CX; lx++) for (let lz = 0; lz < CZ; lz++) {

@@ -15,7 +15,7 @@ window.CF.REGISTRY = /*REGISTRY-START*/
   "log": {"id":17,"tier":1,"variants":{"oak":{"functional":true,"tiles":["log_side_oak","log_side_oak","log_top_oak","log_top_oak","log_side_oak","log_side_oak"],"hardness":2.0,"drop":"log","tool":null,"minTier":0,"solid":true,"light":0}}},
   "leaves": {"id":18,"tier":1,"variants":{"oak":{"functional":true,"tiles":["leaves_oak","leaves_oak","leaves_oak","leaves_oak","leaves_oak","leaves_oak"],"hardness":0.2,"drop":null,"tool":null,"minTier":0,"solid":true,"light":0}}},
   "bedrock": {"id":7,"tier":1,"variants":{"default":{"functional":false,"tiles":["bedrock","bedrock","bedrock","bedrock","bedrock","bedrock"],"hardness":-1,"drop":null,"tool":null,"minTier":9,"solid":true,"light":0}}},
-  "sand": {"id":12,"tier":1,"variants":{"default":{"functional":true,"tiles":["sand","sand","sand","sand","sand","sand"],"hardness":0.5,"drop":"sand","tool":null,"minTier":0,"solid":true,"light":0}}},
+  "sand": {"id":12,"tier":1,"variants":{"sand":{"functional":true,"tiles":["sand","sand","sand","sand","sand","sand"],"hardness":0.5,"drop":"sand","tool":null,"minTier":0,"solid":true,"light":0}}},
   "gravel": {"id":13,"tier":1,"variants":{"default":{"functional":true,"tiles":["gravel","gravel","gravel","gravel","gravel","gravel"],"hardness":0.6,"drop":"gravel","tool":null,"minTier":0,"solid":true,"light":0}}},
   "snow": {"id":80,"tier":2,"variants":{"default":{"functional":true,"tiles":["snow","snow","snow","snow","snow","snow"],"hardness":0.2,"drop":"snow","tool":null,"minTier":0,"solid":true,"light":0}}},
   "glass": {"id":20,"tier":1,"variants":{"default":{"functional":true,"tiles":["glass","glass","glass","glass","glass","glass"],"hardness":0.3,"drop":null,"tool":null,"minTier":0,"solid":true,"light":0}}},
@@ -40,6 +40,7 @@ window.CF.REGISTRY = /*REGISTRY-START*/
       CF.BY_ID[next] = v; CF.ID_TO_VARIANT[next] = name + (key === 'default' ? '' : ':' + key);
       CF.IDOF = CF.IDOF || {};
       CF.IDOF[name + (key === 'default' ? '' : ':' + key)] = next;
+      if (!CF.IDOF[name]) CF.IDOF[name] = next;
       next++;
     }
   }

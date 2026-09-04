@@ -4,13 +4,15 @@
 Cubeforge: offline single-file (game/index.html) clean-room Minecraft Java 1.12.2 clone.
 Read docs/MASTERPROMPT.md for the law. This file = current state, 1-minute grounding.
 
-## Current state (2026-09-04)
-- Phase 0 bootstrap: env verified (docs/ENVIRONMENT.md), governance docs DONE,
-  tooling DONE (tools/build|test|shot|parity.mjs, zero npm deps), catalog = 399 variants
-  (docs/catalog.json), spikes SPK-1..6 verdicts: see docs/spikes/.
-- Sprint: 01 — goal: walk on Blender-textured grass in a lit, meshed, collideable chunk world.
-- Block%: 0/399 (parity.mjs). Tier-1 mechanics: 0/18.
-- Baseline tag: v0.0.0.
+## Current state (2026-09-04, end of iteration 2)
+- Sprint 01 core DONE: walk on Blender-textured grass in lit, meshed, collideable chunk
+  world (sprint exit screenshot: qa/baseline/walking.png, vision-verified).
+- Block%: 16/399 (4.0%) proven-functional (parity.mjs). Tier-1 mechanics: worldgen,
+  render, collision, physics, break/place+drops, F3 done-ish; lighting/UI/mobs/fluids next.
+- Merged: #002 worldgen, #003 renderer, #004 registry, #005 player, #006 interact,
+  #007 textures, #008 shots+baseline, #009 F3. Tag v0.1.0 at sprint close pending.
+- test.mjs: 41 asserts green. 17 blocks w/ qa/blocks sheets.
+- Seed 5 = plains spawn (nice shots): `node tools/shot.mjs starter-world seed=5`.
 
 ## How to work (condensed law)
 1. Loop priority: P0/P1 → committed sprint issues → refine backlog to DoR → plan sprint from parity gap.
@@ -38,10 +40,26 @@ node tools/tex/gen.mjs                # regen atlas via Blender + manifest
 - src/player.js: AABB physics, break/place
 - src/harness.js: __test + shot scenarios (hash-routed)
 - tools/: build/test/shot/parity + tex pipeline + atlas.json manifest
+- src/registry.js: strict-JSON block registry (parity source) + id tables
+- src/world.js: Uint8Array chunks, biomes (plains/desert/frozen @0.0015), ores by depth,
+  caves, trees; <=2 gens/tick; dirty-set w/ neighbor cross-marking
+- src/render.js: greedy mesh, atlas UV (WebGL NO-FLIP: image top row = v=0!), per-block
+  UV tiling, per-face orientation, face planes at voxel max-boundary (d+1!), fog, NEAREST,
+  magenta fallback uv; <=2 rebuilds/tick; stats on CF.rendererStats
+- src/player.js: AABB sweep, step-up .55, speed walk4.317/sprint5.6/sneak1.3, jump8.94,
+  grav32; CF.freeCam=true for camera-owning scenarios
+- src/interact.js: DDA raycast, breakTime=hardness*1.5 (x5 if below tool tier, no drop),
+  bedrock Infinity, place w/ player-AABB reject, hotbar 1-9/wheel
+- src/f3.js: F3 overlay (fps/xyz/chunk/target/tris)
+- tools/blockshots.mjs: regenerates qa/blocks/<n>[-variant].png evidence sheets
+- Gotcha log: greedy init budget must count UNMESHED chunks (advance-past-mapped), or
+  remesh loop never progresses past first two chunks.
 
 ## Open issues / next
 (see issues/ dir + docs/sprints/01.md)
 
 ## Recent merges (newest first)
+- #002..#009 sprint-01 core: worldgen, renderer, registry(17 blocks), player, interact,
+  textures+leaves, shot scenarios+baseline, F3 (parity 16/399)
 - #001 spikes SPK-1..6 all GO / GO-WITH-ALT (SPK-4 heap-A*); texture pipeline promoted (19 tiles)
 - bootstrap: scaffold + docs + tooling + spikes (v0.0.0)
