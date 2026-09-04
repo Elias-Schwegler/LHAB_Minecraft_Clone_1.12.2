@@ -1,5 +1,5 @@
 # Issue: 008 — Shot scenarios + qa/baseline
-- Type: FEAT | Status: DONE | Epic: E5 (QA) | Sprint: 01 | Depends: #005
+- Type: FEAT | Status: DONE | Epic: QA/E1 (corrected #015) | Sprint: 01 | Depends: #005
 
 ## Spec
 Scenarios (CF.shotScenarios): starter-world (orbit-like 3rd person of spawn),

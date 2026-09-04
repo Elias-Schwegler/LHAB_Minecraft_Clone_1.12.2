@@ -1,5 +1,5 @@
 # Issue: 017 — Step-up height 0.55 vs REFERENCE 0.6 (reconcile physics constant)
-- Type: FIX | Severity: P2 (audit 2026-09-04, F8) | Status: READY
+- Type: FIX | Severity: P2 (audit 2026-09-04, F8) | Status: DONE
 - Epic: docs/backlog/epics.md (E4) | Sprint: — | Depends on: — | Time-box: <= 0.5 iteration-day
 
 ## SMART
@@ -27,3 +27,6 @@ grep step 0.55 src/player.js → stepY in the two sweep blocks; REFERENCE line 2
 
 ## Evidence (fill at close)
 - outputs:
+
+## Evidence (close)
+- AC PASS: corrected + verified this branch (see docs/audits/2026-09-04.md follow-up). Test: test.mjs GREEN.

@@ -1,5 +1,5 @@
 # Issue: 011 — Resolve drop-table [TBC]s that leaked into counted blocks
-- Type: FIX | Severity: P1 (audit 2026-09-04, F2) | Status: DRAFT (research is the work)
+- Type: FIX | Severity: P1 (audit 2026-09-04, F2) | Status: DONE (research is the work)
 - Epic: docs/backlog/epics.md (E4)
 - Sprint: — | Depends on: — | Spike: —
 - Time-box: <= 1 iteration-day (research + registry/REFERENCE alignment only)
@@ -41,3 +41,8 @@ Research-risk (version archaeology), not code-risk. If unresolvable: REFERENCE k
 - Screenshots: n/a
 - Vision verdict per AC: n/a
 - Parity impact: none expected (no count change unless drops fail proof)
+
+## Evidence (close: TBCs resolved for implemented blocks)
+- gold_ore -> gold_ingot (1.12 has no raw items; raw_* are 1.17+) in registry + REFERENCE resolved.
+- gravel -> 10% flint implemented + assert (interact.gravel-flint); REFERENCE % fixed to 10.
+- leaves drop/decay NOT implemented -> leaves de-counted (functional:false); tracked in #019 (new).

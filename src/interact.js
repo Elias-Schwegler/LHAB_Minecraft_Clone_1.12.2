@@ -49,7 +49,7 @@ window.CF = window.CF || {};
     if (v.hardness < 0) return Infinity;
     const tierOk = HAND_TIER >= v.minTier || !v.tool;
     let t = v.hardness * 1.5 / HAND_SPEED;
-    if (HAND_TIER < v.minTier) t *= 5; // 1.12: can dig but slow & dropless
+    if (HAND_TIER < v.minTier) t *= 10 / 3; // 1.12: raw/30 vs /100 dig speed ratio (audit #010)
     return t;
   }
   CF.breakTime = breakTime;
@@ -70,7 +70,9 @@ window.CF = window.CF || {};
     if (m.progress >= m.need) {
       const v = CF.BY_ID[id];
       const tierOk = HAND_TIER >= v.minTier || !v.tool;
-      const drops = tierOk && v.drop ? [{ name: v.drop, n: 1, x: m.x + 0.5, y: m.y + 0.5, z: m.z + 0.5 }] : [];
+      let dropName = v.drop;
+      if (v.name === 'gravel' && dropName && Math.random() < 0.1) dropName = 'flint'; // 1.12: 10% flint
+      const drops = tierOk && dropName ? [{ name: dropName, n: 1, x: m.x + 0.5, y: m.y + 0.5, z: m.z + 0.5 }] : [];
       CF.world.set(m.x, m.y, m.z, 0);
       CF.drops.push(...drops);
       CF.mining = null;
@@ -132,8 +134,20 @@ window.CF = window.CF || {};
     for (let i = 0; i < 40; i++) CF.mineTick(0.05);
     CF.assert(r, 'interact.slow-tier', CF.world.get(hit.x, h + 1, hit.z) === IDOF['stone']);
     const need = CF.breakTime(IDOF['stone']);
-    CF.assert(r, 'interact.slow-time(' + need + 's)', Math.abs(need - 11.25) < 0.01);
+    CF.assert(r, 'interact.slow-time(' + need + 's)', Math.abs(need - 7.5) < 0.01);
     CF.mining = null;
+    // gravel flint 10% (1.12, audit #011): statistical over 240 breaks
+    CF.drops.length = 0;
+    let flint = 0, total = 0;
+    for (let t = 0; t < 240; t++) {
+      CF.world.set(hit.x, h + 1, hit.z, IDOF['gravel']);
+      CF.mineStart({ x: hit.x, y: h + 1, z: hit.z });
+      for (let i = 0; i < 40; i++) {
+        const res = CF.mineTick(0.05);
+        if (res && res.broke) { total++; flint += res.drops.some((d) => d.name === 'flint') ? 1 : 0; break; }
+      }
+    }
+    CF.assert(r, 'interact.gravel-flint(' + flint + '/' + total + ')', total === 240 && flint > 6 && flint < 45);
     CF.world.set(hit.x, h + 1, hit.z, 0);
     // bedrock unbreakable
     CF.assert(r, 'interact.bedrock', !isFinite(CF.breakTime(IDOF['bedrock'])));

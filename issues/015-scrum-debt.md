@@ -1,5 +1,5 @@
 # Issue: 015 — Scrum debt: Sprint-01 review/retro + METRICS + doc hygiene
-- Type: AUDIT | Severity: P2 (audit 2026-09-04, F6) | Status: READY
+- Type: AUDIT | Severity: P2 (audit 2026-09-04, F6) | Status: DONE
 - Epic: n/a (process) | Sprint: — | Depends on: — | Spike: — | Time-box: <= 1 iteration-day
 
 ## SMART
@@ -36,3 +36,7 @@ All in one docs/process commit "chore(process): sprint-01 review/retro + audit P
 ## Test plan
 - No gate needed (docs-only) — run parity once to confirm untouched counts.
 Evidence: file diffs + parity unchanged output.
+
+## Evidence (close)
+- Sprint 01 Review + Retro filled (docs/sprints/01.md); METRICS sprint-01 row added;
+  spike/bootstrap-01 branch deleted; #008 epic corrected; AGENTS.md updated (v0.1.1 tag now).

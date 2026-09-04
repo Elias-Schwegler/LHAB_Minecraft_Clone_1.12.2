@@ -1,5 +1,5 @@
 # Issue: 016 — Re-issue #009 (F3) to template + content asserts; then keep [x]
-- Type: FIX | Severity: P2 (audit 2026-09-04, F7) | Status: READY
+- Type: FIX | Severity: P2 (audit 2026-09-04, F7) | Status: DONE
 - Epic: docs/backlog/epics.md (E11 QA / E7 UI) | Sprint: — | Depends on: — | Time-box: <= 1 iteration-day
 
 ## SMART
@@ -32,3 +32,6 @@ overlay-exists + display toggle.
 
 ## Evidence (fill at close)
 - outputs:
+
+## Evidence (close)
+- AC PASS: corrected + verified this branch (see docs/audits/2026-09-04.md follow-up). Test: test.mjs GREEN.

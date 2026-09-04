@@ -1,5 +1,5 @@
 # Issue: 012 — "snow" is not a 1.12.2 variant: fix catalog, count, worldgen surface
-- Type: FIX | Severity: P1 (audit 2026-09-04, F3) | Status: READY
+- Type: FIX | Severity: P1 (audit 2026-09-04, F3) | Status: DONE
 - Epic: docs/backlog/epics.md (E2 worldgen / E3 textures)
 - Sprint: — | Depends on: — | Spike: —
 - Time-box: <= 1 iteration-day (decision + honest re-count + surface swap)
@@ -41,3 +41,6 @@ None code-risky; denominator change shifts every % — must be re-stated openly 
 - Screenshots (qa/…):
 - Vision verdict per AC:
 - Parity impact: expected 16/399 → 15/N (N≈406 after snow_layer v=8)
+
+## Evidence (close)
+- AC PASS: corrected + verified this branch (see docs/audits/2026-09-04.md follow-up). Test: test.mjs GREEN.

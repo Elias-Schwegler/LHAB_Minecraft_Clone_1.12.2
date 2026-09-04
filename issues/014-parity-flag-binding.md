@@ -1,5 +1,5 @@
 # Issue: 014 — Bind parity `functional` flag to per-variant evidence (tamper-resistance)
-- Type: FIX | Severity: P2 (audit 2026-09-04, F5) | Status: READY
+- Type: FIX | Severity: P2 (audit 2026-09-04, F5) | Status: DONE
 - Epic: docs/backlog/epics.md (E5-adjacent; tooling)
 - Sprint: — | Depends on: — | Spike: —
 - Time-box: <= 1 iteration-day
@@ -36,3 +36,6 @@ Low. Note interaction with #010 (slow-time assert id changes name) — update si
 - Screenshots (qa/…): n/a
 - Vision verdict per AC: n/a
 - Parity impact: 0 on honest state; tamper now fails closed
+
+## Evidence (close)
+- AC PASS: corrected + verified this branch (see docs/audits/2026-09-04.md follow-up). Test: test.mjs GREEN.

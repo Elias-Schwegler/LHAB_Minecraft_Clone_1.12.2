@@ -1,5 +1,5 @@
 # Issue: 018 — Horizontal AABB collision unasserted behind "[x] AABB collision" claim
-- Type: FIX | Severity: P2 (audit 2026-09-04, F9) | Status: READY
+- Type: FIX | Severity: P2 (audit 2026-09-04, F9) | Status: DONE
 - Epic: docs/backlog/epics.md (E4) | Sprint: — | Depends on: — | Time-box: <= 0.5 iteration-day
 
 ## SMART
@@ -30,3 +30,6 @@ code path is exercised only incidentally (move() over open ground).
 
 ## Evidence (fill at close)
 - outputs:
+
+## Evidence (close)
+- AC PASS: corrected + verified this branch (see docs/audits/2026-09-04.md follow-up). Test: test.mjs GREEN.

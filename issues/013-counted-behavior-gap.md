@@ -1,5 +1,5 @@
 # Issue: 013 — Counted blocks missing their 1.12.2 behavior (grass/sand/gravel/leaves)
-- Type: FIX | Severity: P1 (audit 2026-09-04, F4) | Status: READY
+- Type: FIX | Severity: P1 (audit 2026-09-04, F4) | Status: DONE
 - Epic: docs/backlog/epics.md (E2/E6)
 - Sprint: — | Depends on: — | Spike: — (gravity = SPK-3 budget applies later)
 - Time-box: <= 1 iteration-day (this issue = decision + immediate honest re-count)
@@ -43,3 +43,9 @@ None. Count will move down — that is the point (honesty > optics, §1.4).
 - Screenshots (qa/…): n/a
 - Vision verdict per AC: n/a
 - Parity impact: expected −3..−4 variants (path a) or 0 (path b)
+
+## Evidence (close, leaves carved out)
+- grass-spread assert (world.grass-spread ev5): grass converts adjacent dirt on random ticks w/ sky access.
+- sand+gravel gravity: set-update-driven fall (world.gravity-fall assert), matches 1.12 falling-on-neighbor-update.
+- gravel flint 10% (interact.gravel-flint 27/240). Registry functional flags updated: leaves now
+  functional:false (decay/shears/sapling-drop pending) until #019. Parity honestly 14/399.
