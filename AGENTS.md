@@ -5,8 +5,10 @@ Cubeforge: offline single-file (game/index.html) clean-room Minecraft Java 1.12.
 Read docs/MASTERPROMPT.md for the law. This file = current state, 1-minute grounding.
 
 ## Current state (2026-09-04, end of iteration 2)
-- Sprint: 01 CLOSED (v0.1.0 + audit fixes v0.1.1 pending merge). Next: Sprint 02 = lighting
-  (#013-line), fluids, items/tools/combat, inventory UI, save/load, mobs (SPK-4 alt A*).
+- Sprint: 02 near close: DONE #019 leaves, #020 light, #021 day/night, #022 fluids (+#031 carve:
+  water banding/lava brightness/buckets), #023 save, #024 items/crafting/smelting/torch, #025 UI,
+  #026 survival+HUD, #027 F3v2. Remaining: #028 torch wall-attach, then audit #4 + v0.2.0 tag.
+  Sprint 03 draft: mobs (SPK-4 heap A*), chests, beds/sleep, weather, TNT, nether portal (SPK-7 spike?).
 - Block%: 17/399 (4.3%) proof-bound functional: +glowstone #020, +torch #024. Sprint02 done: #021 day/night, #024 items/tools/crafting/smelting/cross-model torch. torch wall-attach -> #028; furnace/GUI -> #025. Tier-1 mechanics: worldgen,
   render, collision, physics, break/place+drops, F3 done-ish; lighting/UI/mobs/fluids next.
 - Merged: #002 worldgen, #003 renderer, #004 registry, #005 player, #006 interact,
@@ -52,7 +54,11 @@ node tools/tex/gen.mjs                # regen atlas via Blender + manifest
   grav32; CF.freeCam=true for camera-owning scenarios
 - src/interact.js: DDA raycast, breakTime=hardness*1.5 (x5 if below tool tier, no drop),
   bedrock Infinity, place w/ player-AABB reject, hotbar 1-9/wheel
-- src/f3.js: F3 overlay (fps/xyz/chunk/target/tris)
+- src/f3.js: F3 v2 (fps/sim-ms/xyz/chunk/facing/biome/target+light/time/daylight/save state)
+- src/survival.js: hp/food/sat, fall/lava/drown/starve dmg, regen, respawn, HUD pips (F4 toggles)
+- src/ui.js: hotbar/inventory/craft-grid DOM UI, icon slicing, ghost-cursor drag
+- src/world.js fluids: flat[] level per cell, queue-budget flow, Java interaction rules
+- src/render.js: opaque pass + cross pass + translucent liquid pass (premult blend, surf -0.12)
 - src/world.js light: chunk.light Uint8 packed (sky<<4|block); relight = 5x5-chunk region BFS
   (ring seeds + sky columns + sources), queue <=2/tick; render merges greedy quads by id+light/4 bucket
 - tools/blockshots.mjs: regenerates qa/blocks/<n>[-variant].png evidence sheets
