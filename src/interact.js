@@ -108,8 +108,8 @@ window.CF = window.CF || {};
     if (e.button === 2) CF.place(CF.aim());
   });
   window.addEventListener('mouseup', () => { CF.mining = null; });
-  window.addEventListener('wheel', (e) => { CF.sel = (CF.sel + (e.deltaY > 0 ? 1 : -1) + CF.hotbar.length) % CF.hotbar.length; });
-  window.addEventListener('keydown', (e) => { if (e.code.startsWith('Digit')) { const n = +e.code[5]; if (n >= 1 && n <= 9) CF.sel = n - 1; } });
+  window.addEventListener('wheel', (e) => { CF.sel = (CF.sel + (e.deltaY > 0 ? 1 : -1) + CF.hotbar.length) % CF.hotbar.length; CF.uiRefresh && CF.uiRefresh(); });
+  window.addEventListener('keydown', (e) => { if (e.code.startsWith('Digit')) { const n = +e.code[5]; if (n >= 1 && n <= 9) { CF.sel = n - 1; CF.uiRefresh && CF.uiRefresh(); } } });
 
   // continuous mining from the sim tick (1.12: holding LMB continues)
   const origTick = CF.onTick;

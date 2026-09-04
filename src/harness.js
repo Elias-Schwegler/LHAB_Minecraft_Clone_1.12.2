@@ -29,6 +29,7 @@
       if (typeof CF.interactTests === 'function') await CF.interactTests(r);
       if (typeof CF.f3Tests === 'function') await CF.f3Tests(r);
       if (typeof CF.itemTests === 'function') await CF.itemTests(r);
+      if (typeof CF.uiTests === 'function') await CF.uiTests(r);
       if (typeof CF.persistTests === 'function') await CF.persistTests(r);
     } catch (e) {
       r.fail.push('harness.threw: ' + (e && e.stack ? String(e.stack).split('\n').slice(0, 3).join(' | ') : e.message));
@@ -49,7 +50,7 @@
     setTimeout(() => { CF.shotDone = true; }, 2500);
   }
 
-  CF.shotScenarios = {};
+  CF.shotScenarios = CF.shotScenarios || {};
   CF.shotScenarios['starter-world'] = async () => {
     CF.freeCam = true;
     const W = CF.world;
