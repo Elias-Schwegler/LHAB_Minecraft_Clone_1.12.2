@@ -8,7 +8,7 @@ CSS/HTML overlay: hotbar 9 w/ atlas-slice icons + selection; E opens 27+9 invent
 - [x] AC1 shot hotbar: icons + frame, legible 854x480
 - [x] AC2 harness: E toggles; scripted slot swap; stacks move
 - [x] AC3 harness: digits 1-9 select hotbar slots
-- [x] AC4 furnace UI: smelt progress advances (shot)
+- [ ] AC4 furnace UI: smelt progress advances (shot) -> audit #4 F1: GUI never shipped; carried to #032 (logic smelt itself is done+asserted via #024)
 
 ## Test plan
 Harness asserts named in ACs; shot scenario named in ACs; vision verdict into issue at close.
