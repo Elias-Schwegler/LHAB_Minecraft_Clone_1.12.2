@@ -17,6 +17,11 @@
       await new Promise((res) => setTimeout(res, 600));
       CF.assert(r, 'loop.ticks', CF.ticks > t0 + 5);
       CF.assert(r, 'registry.json', typeof CF.REGISTRY === 'object' && CF.REGISTRY !== null);
+      if (window.__ATLAS_B64) {
+        const img = new Image();
+        const ok = await new Promise((res) => { img.onload = () => res(true); img.onerror = () => res(false); img.src = 'data:image/png;base64,' + window.__ATLAS_B64; });
+        CF.assert(r, 'atlas.decoded', ok && img.width === 128 && img.height === 128);
+      }
       if (typeof CF.worldTests === 'function') await CF.worldTests(r);
       if (typeof CF.playerTests === 'function') await CF.playerTests(r);
     } catch (e) {
