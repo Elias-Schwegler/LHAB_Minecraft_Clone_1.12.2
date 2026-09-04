@@ -618,6 +618,54 @@ window.CF.REGISTRY = /*REGISTRY-START*/
     "light": 0
    }
   }
+ },
+ "water": {
+  "id": 8,
+  "tier": 1,
+  "variants": {
+   "default": {
+    "functional": false,
+    "tiles": [
+     "water",
+     "water",
+     "water",
+     "water",
+     "water",
+     "water"
+    ],
+    "hardness": -1,
+    "drop": null,
+    "tool": null,
+    "minTier": 9,
+    "solid": false,
+    "light": 0,
+    "liquid": "water"
+   }
+  }
+ },
+ "lava": {
+  "id": 10,
+  "tier": 1,
+  "variants": {
+   "default": {
+    "functional": false,
+    "tiles": [
+     "lava",
+     "lava",
+     "lava",
+     "lava",
+     "lava",
+     "lava"
+    ],
+    "hardness": -1,
+    "drop": null,
+    "tool": null,
+    "minTier": 9,
+    "solid": false,
+    "light": 15,
+    "liquid": "lava"
+   }
+  }
  }
 }/*REGISTRY-END*/;
 

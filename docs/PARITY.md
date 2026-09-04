@@ -34,7 +34,7 @@ wood variants (no tiles), all Tier-2/3 families.
 [ ] crafting grid + recipe book + smelting
 [x] day/night + sky/block light engine                   <- #020 light + #021 cycle (time.* asserts, night shots)
 [ ] gravity blocks (sand/gravel/concrete_powder)  <- sand+gravel done #013 asserts; concrete_powder pending
-[ ] water/lava flow + obsidian/cobblestone
+[x] water/lava flow + obsidian/cobblestone            <- #022 asserts (spread/caps/3 Java interactions) + fluid shots; buckets->#031
 [ ] torches + spawn-by-light rules
 [ ] hostile mobs (zombie/skeleton/creeper/spider/enderman) + passive w/ breeding
 [ ] health/hunger/fall damage

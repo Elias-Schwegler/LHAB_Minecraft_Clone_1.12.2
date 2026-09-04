@@ -48,8 +48,11 @@ Water: source=level0; horizontal flow spreads 7 blocks (level 7 = min) then 1 bl
 resets spread; sources flow both ways if in line; still+flowing render w/ transparency;
 water source + adjacent lava source -> cobblestone; water stream onto lava source ->
 cobblestone; water touching lava stream -> stone? water flow into lava *stream* ->
-stone? **rule: water on lava source -> cobblestone; water on lava flowing -> stone;
-lava on water (source or stream) -> stone** (lava does not displace water). Water
+stone? **Java rule (verified): water stream into lava source -> obsidian; water stream into flowing
+lava -> cobblestone; lava stream into water (any) -> stone** (lava does not displace water).
+NUANCE (impl-verified): lateral flows cobble-shield a source before water can reach it -
+obsidian forms only when water directly touches an untouched source (basis of cobble generators).
+Interaction resolution order = flow queue order (first-mover wins the contact cell). Water
 currents push entities; swimming drains oxygen after 15s (air 300 ticks), then 2 dmg/s
 drowning.
 Lava: overworld flow distance 3, level drops 2 per horizontal block, slow: moves ~once

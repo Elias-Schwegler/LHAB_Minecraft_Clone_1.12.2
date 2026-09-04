@@ -161,8 +161,22 @@ def gen_tiles():
     def water(m, nt, em):
         c = ramp(nt, noise(nt, 6.0), [hexc("#2253c8"), hexc("#3a6fd8")])
         nt.links.new(c, em.inputs["Color"])
-        
+        tp = nt.nodes.new("ShaderNodeBsdfTransparent")
+        mixs = nt.nodes.new("ShaderNodeMixShader")
+        mixs.inputs["Fac"].default_value = 0.15
+        nt.links.new(tp.outputs[0], mixs.inputs[1])
+        nt.links.new(em.outputs[0], mixs.inputs[2])
+        out = nt.nodes.get("Material Output")
+        for l in list(out.inputs["Surface"].links): nt.links.remove(l)
+        nt.links.new(mixs.outputs[0], out.inputs["Surface"])
     add("water", water)
+    def lava(m, nt, em):
+        c = ramp(nt, noise(nt, 5.0), [hexc("#c8380a"), hexc("#e86818"), hexc("#f8a028")])
+        v = ramp(nt, voronoi(nt, 4.0), [hexc("#601000"), hexc("#f8c858")])
+        mx = nt.nodes.new("ShaderNodeMix"); mx.data_type = 'RGBA'; mx.blend_type = 'OVERLAY'; mx.inputs["Factor"].default_value = 0.5
+        nt.links.new(c, mx.inputs[6]); nt.links.new(v, mx.inputs[7])
+        nt.links.new(mx.outputs[2], em.inputs["Color"])
+    add("lava", lava)
     def glass(m, nt, em):
         tc = nt.nodes.new("ShaderNodeTexCoord")
         sep = nt.nodes.new("ShaderNodeSeparateXYZ")
