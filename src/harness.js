@@ -67,7 +67,7 @@
     }
     const th = W.heightAt(tx, tz);
     for (let i = 0; i < 30 && W.stats().queue; i++) CF.renderTick();
-    CF.camera = { pos: [tx - 6, th + 7, tz - 6], yaw: Math.PI / 4, pitch: -0.15 };
+    CF.camera = { pos: [tx - 9, th + 10, tz - 9], yaw: Math.PI / 4, pitch: -0.35 };
     CF.renderDraw(CF.camera);
     await new Promise((r) => setTimeout(r, 300));
   };
@@ -136,6 +136,19 @@
     CF.loadNow(); // full round-trip through localStorage before rendering
     for (let i = 0; i < 100; i++) CF.renderTick();
     CF.camera = { pos: [8 - 10, th + 8, 8 - 10], yaw: Math.PI / 4, pitch: -0.35 };
+    CF.renderDraw(CF.camera);
+    await new Promise((r) => setTimeout(r, 300));
+  };
+  CF.shotScenarios['glow-cave'] = async () => {
+    CF.freeCam = true;
+    const W = CF.world;
+    W.ensureAround(0, 0, 4);
+    for (let i = 0; i < 60 && W.stats().queue; i++) W.tick();
+    const cx = 0, cz = 0, cy = W.heightAt(cx, cz) - 4;
+    for (let x = cx - 4; x <= cx + 4; x++) for (let z = cz - 4; z <= cz + 4; z++) for (let y = cy - 1; y <= cy + 3; y++) W.set(x, y, z, 0);
+    W.set(cx, cy, cz, CF.IDOF['glowstone']);
+    for (let i = 0; i < 30; i++) { W.tick(); CF.renderTick(); }
+    CF.camera = { pos: [cx + 6.5, cy + 2.2, cz + 6.5], yaw: Math.atan2(cx - cx - 6.5, cz - cz - 6.5), pitch: -0.4 };
     CF.renderDraw(CF.camera);
     await new Promise((r) => setTimeout(r, 300));
   };

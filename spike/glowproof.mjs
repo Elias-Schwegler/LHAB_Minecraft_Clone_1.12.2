@@ -1,0 +1,10 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+let s = readFileSync('src/registry.js', 'utf8');
+const m = s.match(/\/\*REGISTRY-START\*\/([\s\S]*?)\/\*REGISTRY-END\*\//);
+const reg = JSON.parse(m[1]);
+const v = reg.glowstone.variants.default;
+v.functional = true;
+v.proof = { issue: '#020', tests: ['light.source', 'light.falloff', 'light.occluded', 'light.sky', 'light.queue-off', 'interact.place'] };
+s = s.replace(m[0], '/*REGISTRY-START*/\n' + JSON.stringify(reg, null, 1) + '/*REGISTRY-END*/');
+writeFileSync('src/registry.js', s);
+console.log('glowstone functional+proof');

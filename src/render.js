@@ -26,7 +26,10 @@ window.CF = window.CF || {};
           if (!cur) continue;
           const B = A.slice(); B[a]++;
           if (W.get(B[0], B[1], B[2])) continue;
-          mask[u * dims[va] + v] = cur;
+          // merge buckets split by id AND light quartile so greedy quads respect lighting (#020)
+          const packed = W.lightAt(B[0], B[1], B[2]);
+          const lv = Math.max(packed >> 4, packed & 15);
+          mask[u * dims[va] + v] = cur | ((lv >> 2) << 12);
         }
         for (let u = 0; u < dims[ua]; u++) for (let v = 0; v < dims[va];) {
           const val = mask[u * dims[va] + v];
@@ -35,7 +38,7 @@ window.CF = window.CF || {};
           let hh = 1;
           scan: while (v + hh < dims[va]) { for (let k = 0; k < w; k++) if (mask[(u + k) * dims[va] + v + hh] !== val) break scan; hh++; }
           const shadeBase = SHADE[a];
-          const tile = CF.tileFor(val, a * 2);
+          const tile = CF.tileFor(val & 0xfff, a * 2);
           const shade = (a % 2 === 0) ? shadeBase : shadeBase * 0.85;
           pushQuad(a, ua, va, d, u, v, w, hh, tile, shade, tris);
           for (let uu = 0; uu < w; uu++) for (let vv = 0; vv < hh; vv++) mask[(u + uu) * dims[va] + v + vv] = 0;
@@ -57,12 +60,17 @@ window.CF = window.CF || {};
           : [u0 + tw * du, v0 + th * (hh - dv)]);
       } else { stats.missingTiles.add(tile); uvAt = () => MAGENTA_UV.slice(0, 2); }
       const P = (du, dv) => coord(a, ua, va, d + 1, u + du, v + dv);
+      // face brightness from adjacent air cell's light (max of sky, block) (#020)
+      const mid = coord(a, ua, va, d + 1, Math.min(dims[ua] - 1, u + (w >> 1)), Math.min(dims[va] - 1, v + (hh >> 1)));
+      const packed = CF.world.lightAt(mid[0], mid[1], mid[2]);
+      const lv = Math.max(packed >> 4, packed & 15);
+      const bright = lv > 0 ? 0.25 + 0.75 * (lv / 15) : 0.16;
       const corners = [P(0, 0), P(w, 0), P(w, hh), P(0, hh)];
       const uvs = [[0, 0], [w, 0], [w, hh], [0, hh]].map(([du, dv]) => uvAt(du, dv));
       const order = a % 2 === 0 ? [0, 2, 1, 0, 3, 2] : [0, 1, 2, 0, 2, 3];
       for (const oi of order) {
         pos.push(corners[oi][0], corners[oi][1], corners[oi][2]);
-        col.push(uvs[oi][0], uvs[oi][1], shade);
+        col.push(uvs[oi][0], uvs[oi][1], shade, bright);
       }
       trisArr[0] += 2;
     }
@@ -70,17 +78,17 @@ window.CF = window.CF || {};
   }
 
   const vs = `#version 300 es
-layout(location=0) in vec3 P; layout(location=1) in vec3 Q;
+layout(location=0) in vec3 P; layout(location=1) in vec3 Q; layout(location=2) in float BR;
 uniform mat4 VP; uniform vec3 E;
-out vec2 uv; out float sh; out float dist;
-void main(){ gl_Position = VP*vec4(P,1.); uv=Q.xy; sh=Q.z; dist=length(E-P); }`;
+out vec2 uv; out float sh; out float dist; out float br;
+void main(){ gl_Position = VP*vec4(P,1.); uv=Q.xy; sh=Q.z; br=BR; dist=length(E-P); }`;
   const fs = `#version 300 es
 precision mediump float;
- in vec2 uv; in float sh; in float dist;
+ in vec2 uv; in float sh; in float dist; in float br;
  uniform sampler2D T; uniform vec3 FOG;
-out vec4 OC;
+ out vec4 OC;
 void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
- vec3 c = t.rgb*sh; c = mix(c, FOG, f);
+ vec3 c = t.rgb*sh*br; c = mix(c, FOG, f);
  if (t.a < 0.5) discard;
  OC = vec4(c,1.); }`;
 
@@ -126,19 +134,20 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
     if (!e) {
       const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
       const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb);
-      gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0);
-      gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12);
+      gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 28, 0);
+      gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 28, 12);
+      gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 28, 24);
       gl.bindVertexArray(null);
       e = { vao, vb, n: 0 }; meshMap.set(k, e);
     }
     const arr = new Float32Array(m.pos.length + m.col.length);
     for (let i = 0, j = 0; i < m.pos.length / 3; i++) {
       arr[j++] = m.pos[i * 3]; arr[j++] = m.pos[i * 3 + 1]; arr[j++] = m.pos[i * 3 + 2];
-      arr[j++] = m.col[i * 3]; arr[j++] = m.col[i * 3 + 1]; arr[j++] = m.col[i * 3 + 2];
+      arr[j++] = m.col[i * 4]; arr[j++] = m.col[i * 4 + 1]; arr[j++] = m.col[i * 4 + 2]; arr[j++] = m.col[i * 4 + 3];
     }
     gl.bindBuffer(gl.ARRAY_BUFFER, e.vb);
-    gl.bufferData(gl.ARRAY_BUFFER, arr.length ? arr : new Float32Array(6), gl.STATIC_DRAW);
-    e.n = arr.length / 6;
+    gl.bufferData(gl.ARRAY_BUFFER, arr.length ? arr : new Float32Array(7), gl.STATIC_DRAW);
+    e.n = arr.length / 7;
     stats.lastBuf = Array.from(arr.slice(0, 12));
   }
 
@@ -151,6 +160,7 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
       if (budget-- <= 0) break;
       W.dirty.delete(k);
       const [cx, cz] = k.split(',').map(Number);
+      W.ensureLight(cx, cz);
       upload(cx, cz, buildMesh(cx, cz));
       stats.rebuilds++;
     }
@@ -162,6 +172,7 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
         if (meshMap.has(k)) continue;
         b2--;
         const [cx, cz] = k.split(',').map(Number);
+        W.ensureLight(cx, cz);
         upload(cx, cz, buildMesh(cx, cz));
         stats.rebuilds++; stats.meshes++;
       }

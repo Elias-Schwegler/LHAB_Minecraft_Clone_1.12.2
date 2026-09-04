@@ -505,6 +505,40 @@ window.CF.REGISTRY = /*REGISTRY-START*/
     }
    }
   }
+ },
+ "glowstone": {
+  "id": 89,
+  "tier": 2,
+  "variants": {
+   "default": {
+    "functional": true,
+    "tiles": [
+     "glowstone",
+     "glowstone",
+     "glowstone",
+     "glowstone",
+     "glowstone",
+     "glowstone"
+    ],
+    "hardness": 0.8,
+    "drop": "glowstone",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 15,
+    "proof": {
+     "issue": "#020",
+     "tests": [
+      "light.source",
+      "light.falloff",
+      "light.occluded",
+      "light.sky",
+      "light.queue-off",
+      "interact.place"
+     ]
+    }
+   }
+  }
  }
 }/*REGISTRY-END*/;
 
