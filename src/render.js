@@ -18,12 +18,39 @@ window.CF = window.CF || {};
     const coord = (a, ua, va, d, u, v) => { const Q = [0, 0, 0]; Q[a] = d; Q[ua] = u; Q[va] = v; for (let i = 0; i < 3; i++) Q[i] += off[i]; return Q; };
     for (let a = 0; a < 3; a++) {
       const ua = (a + 1) % 3, va = (a + 2) % 3;
+      if (a === 0) {
+        // cross-model blocks (torch #024): two vertical quads, no greedy
+        for (let x = 0; x < CX; x++) for (let z = 0; z < CZ; z++) for (let y = 1; y < CH; y++) {
+          const id = W.get(cx * 16 + x, y, cz * 16 + z);
+          const v = id && CF.BY_ID[id];
+          if (!v || !v.cross) continue;
+          const tile = v.tiles[0];
+          const meta = (window.__TEXMETA || {})[tile];
+          if (!meta) stats.missingTiles.add(tile);
+          const wx = cx * 16 + x, wz = cz * 16 + z;
+          const br = (W.lightAt(wx, y, wz) || 14 << 0) / 255;
+          const uvf = meta ? [(meta.x + 0.25) / 128, (meta.y + 0.25) / 128, (meta.x + 15.75) / 128, (meta.y + 15.75) / 128] : MAGENTA_UV;
+          const quad = (d) => {
+            const ax = 0.35, az = 0.35 * d;
+            const A = [x + 0.5 - ax, y, z + 0.5 - az], B = [x + 0.5 + ax, y, z + 0.5 + az];
+            const C = [B[0], y + 1, B[2]], D = [A[0], y + 1, A[2]];
+            const uvs = [[uvf[0], uvf[1]], [uvf[2], uvf[1]], [uvf[2], uvf[3]], [uvf[0], uvf[3]]];
+            for (const oi of [0, 1, 2, 0, 2, 3]) {
+              const P4 = [A, B, C, D][oi];
+              pos.push(P4[0], P4[1], P4[2]);
+              col.push(uvs[oi][0], uvs[oi][1], 0.94, br);
+            }
+            tris[0] += 2;
+          };
+          quad(1); quad(-1);        }
+      }
       for (let d = 0; d < dims[a]; d++) {
         const mask = new Int32Array(dims[ua] * dims[va]);
         for (let u = 0; u < dims[ua]; u++) for (let v = 0; v < dims[va]; v++) {
           const A = coord(a, ua, va, d, u, v);
           const cur = W.get(A[0], A[1], A[2]);
           if (!cur) continue;
+          if (CF.BY_ID[cur] && CF.BY_ID[cur].cross) continue; // cross models drawn separately
           const B = A.slice(); B[a]++;
           if (W.get(B[0], B[1], B[2])) continue;
           // merge buckets split by id AND light quartile so greedy quads respect lighting (#020)

@@ -28,9 +28,10 @@
       if (typeof CF.playerTests === 'function') await CF.playerTests(r);
       if (typeof CF.interactTests === 'function') await CF.interactTests(r);
       if (typeof CF.f3Tests === 'function') await CF.f3Tests(r);
+      if (typeof CF.itemTests === 'function') await CF.itemTests(r);
       if (typeof CF.persistTests === 'function') await CF.persistTests(r);
     } catch (e) {
-      r.fail.push('harness.threw: ' + e.message);
+      r.fail.push('harness.threw: ' + (e && e.stack ? String(e.stack).split('\n').slice(0, 3).join(' | ') : e.message));
     }
     r.errors = CF.errors.slice(0, 20);
     r.ticks = CF.ticks;
@@ -44,7 +45,7 @@
     CF.shotDone = false;
     try {
       if (typeof CF.shotScenarios === 'object' && CF.shotScenarios[name]) await CF.shotScenarios[name]();
-    } catch (e) { CF.errors.push('shot:' + name + ' ' + e.message); }
+    } catch (e) { CF.errors.push('shot:' + name + ' ' + e.message); document.title = 'SHOTERR:' + encodeURIComponent(String(e.stack || e).split('\n').slice(0, 3).join(' | ')); }
     setTimeout(() => { CF.shotDone = true; }, 2500);
   }
 
@@ -167,6 +168,32 @@
     for (let i = 0; i < 120; i++) CF.renderTick();
     CF.camera = { pos: [0 - 9, th + 4, 0 - 9], yaw: Math.PI / 4, pitch: -0.18 };
     CF.renderDraw(CF.camera);
+    await new Promise((r) => setTimeout(r, 300));
+  };
+  CF.shotScenarios['torch-craft'] = async () => {
+    CF.freeCam = true;
+    CF.timeOffset = 18000;
+    const W = CF.world;
+    W.ensureAround(0, 0, 3);
+    for (let i = 0; i < 40 && W.stats().queue; i++) W.tick();
+    // craft 4 torches from coal+stick via the real inventory API:
+    CF.inv.fill(null);
+    CF.inv[0] = { name: 'coal', count: 1 }; CF.inv[2] = { name: 'stick', count: 1 };
+    const made = CF.craftOnce([0, 1, 2, 3]);
+    CF.lastCraft = made;
+    // deterministic room carve (same trick as glow-cave), torch on floor center
+    const cx = 0, cz = 0, cy = W.heightAt(cx, cz) - 4;
+    for (let x = cx - 4; x <= cx + 4; x++) for (let z = cz - 4; z <= cz + 4; z++) for (let y = cy - 1; y <= cy + 3; y++) W.set(x, y, z, 0);
+    W.set(cx, cy, cz, CF.IDOF['torch']);
+    for (let i = 0; i < 120; i++) { W.tick(); CF.renderTick(); }
+    CF.camera = { pos: [cx + 6.5, cy + 2.2, cz + 6.5], yaw: Math.atan2(-6.5, -6.5), pitch: -0.4 };
+    CF.renderDraw(CF.camera);
+    document.title = 'TC:' + encodeURIComponent(JSON.stringify({
+      cy, torch: W.get(cx, cy, cz), torchId: CF.IDOF['torch'],
+      pool: [W.lightAt(cx, cy + 1, cz + 2) >> 4, W.lightAt(cx, cy + 1, cz + 2) & 15, W.lightAt(cx + 3, cy + 1, cz + 3) & 15],
+      mapped: CF.rendererStats.mapped, tris: CF.rendererStats.tris, glErr: CF.rendererStats.glErr,
+      made: made && made.name, craftCount: CF.countItem('torch'),
+    }));
     await new Promise((r) => setTimeout(r, 300));
   };
   const h = location.hash || '';

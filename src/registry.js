@@ -539,6 +539,85 @@ window.CF.REGISTRY = /*REGISTRY-START*/
     }
    }
   }
+ },
+ "torch": {
+  "id": 50,
+  "tier": 1,
+  "variants": {
+   "default": {
+    "functional": true,
+    "tiles": [
+     "tile_torch",
+     "tile_torch",
+     "tile_torch",
+     "tile_torch",
+     "tile_torch",
+     "tile_torch"
+    ],
+    "hardness": 0,
+    "drop": "torch",
+    "tool": null,
+    "minTier": 0,
+    "solid": false,
+    "light": 14,
+    "cross": true,
+    "proof": {
+     "issue": "#024",
+     "tests": [
+      "items.torch",
+      "items.torch-light",
+      "interact.place",
+      "light.source"
+     ]
+    }
+   }
+  }
+ },
+ "furnace": {
+  "id": 61,
+  "tier": 1,
+  "variants": {
+   "default": {
+    "functional": false,
+    "tiles": [
+     "furnace",
+     "furnace",
+     "furnace",
+     "furnace",
+     "furnace",
+     "furnace"
+    ],
+    "hardness": 3.5,
+    "drop": "furnace",
+    "tool": "pickaxe",
+    "minTier": 1,
+    "solid": true,
+    "light": 0
+   }
+  }
+ },
+ "crafting_table": {
+  "id": 58,
+  "tier": 1,
+  "variants": {
+   "default": {
+    "functional": false,
+    "tiles": [
+     "crafting_table",
+     "crafting_table",
+     "crafting_table",
+     "crafting_table",
+     "crafting_table",
+     "crafting_table"
+    ],
+    "hardness": 2.5,
+    "drop": "crafting_table",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0
+   }
+  }
  }
 }/*REGISTRY-END*/;
 

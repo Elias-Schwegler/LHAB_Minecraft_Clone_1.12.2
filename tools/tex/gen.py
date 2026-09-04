@@ -2,7 +2,7 @@
 # blender --background --python tools/tex/gen.py
 # Procedural per-tile Cycles renders (emission = exact colors), packed to RGBA atlas
 # tools/tex/atlas.png (8x8 grid of 16px tiles) + manifest atlas.json + sheet for vision QA.
-import bpy, json, math, os, sys
+import bpy, bmesh, json, math, os, sys
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -207,7 +207,148 @@ def gen_tiles():
     add("glowstone", glowstone)
     add("obsidian", lambda m, nt, em: nt.links.new(
         ramp(nt, noise(nt, 6.0), [hexc("#0d0716"), hexc("#1f1430"), hexc("#3a2450")]), em.inputs["Color"]))
+    def furnace(m, nt, em):
+        st = ramp(nt, noise(nt, 5.0), [hexc("#6e6e74"), hexc("#8a8a90"), hexc("#5c5c62")])
+        tc = nt.nodes.new("ShaderNodeTexCoord")
+        sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+        nt.links.new(tc.outputs["Generated"], sep.inputs["Vector"])
+        mx = nt.nodes.new("ShaderNodeMath"); mx.operation = 'SUBTRACT'
+        nt.links.new(sep.outputs["X"], mx.inputs[0]); mx.inputs[1].default_value = 0.5
+        my = nt.nodes.new("ShaderNodeMath"); my.operation = 'MULTIPLY_ADD'
+        nt.links.new(mx.outputs[0], my.inputs[0]); my.inputs[1].default_value = 0; my.inputs[2].default_value = 0
+        # dark arch = rect via abs distance
+        ax = nt.nodes.new("ShaderNodeMath"); ax.operation = 'ABSOLUTE'
+        nt.links.new(mx.outputs[0], ax.inputs[0])
+        ay = nt.nodes.new("ShaderNodeMath"); ay.operation = 'SUBTRACT'
+        nt.links.new(sep.outputs["Y"], ay.inputs[0]); ay.inputs[1].default_value = 0.35
+        a2 = nt.nodes.new("ShaderNodeMath"); a2.operation = 'ABSOLUTE'
+        nt.links.new(ay.outputs[0], a2.inputs[0])
+        inx = nt.nodes.new("ShaderNodeMath"); inx.operation = 'LESS_THAN'; inx.inputs[1].default_value = 0.22
+        nt.links.new(ax.outputs[0], inx.inputs[0])
+        iny = nt.nodes.new("ShaderNodeMath"); iny.operation = 'LESS_THAN'; iny.inputs[1].default_value = 0.22
+        nt.links.new(a2.outputs[0], iny.inputs[0])
+        arch = nt.nodes.new("ShaderNodeMath"); arch.operation = 'MULTIPLY'
+        nt.links.new(inx.outputs[0], arch.inputs[0]); nt.links.new(iny.outputs[0], arch.inputs[1])
+        outc = nt.nodes.new("ShaderNodeMix"); outc.data_type = 'RGBA'
+        nt.links.new(arch.outputs[0], outc.inputs["Factor"])
+        nt.links.new(st, outc.inputs[6])
+        outc.inputs[7].default_value = hexc("#141414")
+        nt.links.new(outc.outputs[2], em.inputs["Color"])
+    add("furnace", furnace)
+    def workbench(m, nt, em):
+        pl = ramp(nt, noise(nt, 7.0), [hexc("#8d7143"), hexc("#9c7f4e")])
+        tc = nt.nodes.new("ShaderNodeTexCoord")
+        sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+        nt.links.new(tc.outputs["Generated"], sep.inputs["Vector"])
+        gx = nt.nodes.new("ShaderNodeMath"); gx.operation = 'GREATER_THAN'; gx.inputs[1].default_value = 0.92
+        nt.links.new(sep.outputs["X"], gx.inputs[0])
+        gy = nt.nodes.new("ShaderNodeMath"); gy.operation = 'GREATER_THAN'; gy.inputs[1].default_value = 0.92
+        nt.links.new(sep.outputs["Y"], gy.inputs[0])
+        grid = nt.nodes.new("ShaderNodeMath"); grid.operation = 'MAXIMUM'
+        nt.links.new(gx.outputs[0], grid.inputs[0]); nt.links.new(gy.outputs[0], grid.inputs[1])
+        edge = nt.nodes.new("ShaderNodeMath"); edge.operation = 'ADD'
+        nt.links.new(grid.outputs[0], edge.inputs[0]); edge.inputs[1].default_value = 0
+        outc = nt.nodes.new("ShaderNodeMix"); outc.data_type = 'RGBA'
+        nt.links.new(edge.outputs[0], outc.inputs["Factor"])
+        nt.links.new(pl, outc.inputs[6]); outc.inputs[7].default_value = hexc("#5b431f")
+        nt.links.new(outc.outputs[2], em.inputs["Color"])
+    add("crafting_table", workbench)
     return T
+
+ICONS = {
+    "item_stick":        ([(7,9,3,3),(9,6,3,3),(6,11,3,3),(10,4,3,3)], "#6b4a2c"),
+    "item_coal":         ([(5,5,6,6),(4,7,8,4),(7,3,4,3),(6,10,4,3)], "#1a1a1a"),
+    "item_iron_ingot":   ([(4,10,8,3),(5,7,6,3),(6,5,4,2)], "#d8d8d8"),
+    "item_gold_ingot":   ([(4,10,8,3),(5,7,6,3),(6,5,4,2)], "#f8d858"),
+    "item_diamond":      ([(7,3,2,2),(5,5,6,2),(4,7,8,2),(5,9,6,2),(7,11,2,2)], "#5cdcd4"),
+    "item_apple":        ([(4,5,8,8),(5,4,6,1),(3,6,1,6),(12,6,1,6)], "#c02020"),
+    "item_sapling":      ([(4,4,8,4),(5,2,6,2),(7,8,2,5)], "#3a7d22"),
+    "item_flint":        ([(4,7,8,6),(6,5,5,3),(7,4,3,2)], "#26262c"),
+    "item_stick_dark":   ([(7,9,3,3),(9,6,3,3),(10,4,3,3)], "#5b3a1c"),
+    "tile_torch":        ([(6,4,4,12)], "#6b4a2c"),
+}
+TOOL_SHAPES = {
+    "pickaxe": [(4,2,8,2),(3,2,2,3),(11,2,2,3)],
+    "axe":     [(4,2,7,2),(4,4,5,2),(4,6,3,1)],
+    "shovel":  [(6,2,4,4),(7,5,2,2)],
+    "sword":   [(7,2,2,6),(8,1,1,1),(6,8,4,1)],
+    "shears":  [(5,4,2,6),(9,4,2,6),(7,9,2,2),(4,11,3,3),(9,11,3,3)],
+}
+TOOL_MATS = {"wood": "#9c7f4e", "stone": "#7e7e82", "iron": "#d8d8d8", "diamond": "#5cdcd4", "gold": "#f8d858"}
+
+def icon_quads(name):
+    """Returns [(x,y,w,h,color)] pixel rects for an icon/tile name."""
+    if name == "item_shears":
+        return [(x, y, w, h, "#d8d8d8") for (x, y, w, h) in TOOL_SHAPES["shears"]]
+    if name in ICONS:
+        rects, col = ICONS[name]
+        out = [(x, y, w, h, col) for (x, y, w, h) in rects]
+        if name == "item_apple":
+            out += [(8,2,2,3,"#5a3a1c"),(10,3,3,2,"#3a8a2a")]
+        if name == "item_iron_ingot":
+            out += [(7,6,2,1,"#f4f4f4"),(5,8,2,1,"#f4f4f4")]
+        if name == "item_gold_ingot":
+            out += [(7,6,2,1,"#fff0a0"),(5,8,2,1,"#fff0a0")]
+        if name == "item_diamond":
+            out += [(6,6,4,2,"#a8f0ec")]
+        if name == "tile_torch":
+            out += [(5,0,6,5,"#f8d858"),(7,1,3,3,"#fff8c0")]
+        return out
+    for mat, mc in TOOL_MATS.items():
+        for shape, srects in TOOL_SHAPES.items():
+            if name == "item_%s_%s" % (mat, shape):
+                out = [(7,10,2,3,"#5b3a1c"),(7,13,2,3,"#5b3a1c") if shape != "sword" else (6,12,4,3,"#5b3a1c")]
+                if shape == "sword":
+                    out = [(5,8,6,1,"#8a8a8e")] + [(x,y,w,h,mc) for (x,y,w,h) in srects] + [(7,10,2,3,"#5b3a1c"),(7,13,2,3,"#5b3a1c")]
+                    return out
+                if shape == "shears":
+                    return [(x,y,w,h,mc) for (x,y,w,h) in srects]
+                return out + [(x,y,w,h,mc) for (x,y,w,h) in srects]
+    return None
+
+def build_icons(names, atlas, tiles, start_idx):
+    """Render flat rect-composed icons via ortho emission quads."""
+    sc = bpy.context.scene
+    S = SIZE
+    for i, name in enumerate(names):
+        rects = icon_quads(name)
+        if rects is None:
+            raise SystemExit("no icon def for " + name)
+        # fresh mesh per icon
+        for ob in [o for o in sc.collection.objects if o.type == 'MESH']:
+            bpy.data.objects.remove(ob, do_unlink=True)
+        for (x, y, w, h, col) in rects:
+            me = bpy.data.meshes.new("r")
+            ob = bpy.data.objects.new("r", me)
+            sc.collection.objects.link(ob)
+            bm = bmesh.new()
+            bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=0.5)
+            bm.to_mesh(me); bm.free()
+            ob.scale = (w / 16.0, h / 16.0, 1)
+            ob.location = ((x + w / 2.0) / 16.0 - 0.5, 0.5 - (y + h / 2.0) / 16.0, 0)
+            mt = bpy.data.materials.new("ic")
+            mt.use_nodes = True
+            nt2 = mt.node_tree
+            for nd in list(nt2.nodes): nt2.nodes.remove(nd)
+            out2 = nt2.nodes.new("ShaderNodeOutputMaterial")
+            em2 = nt2.nodes.new("ShaderNodeEmission")
+            em2.inputs["Color"].default_value = hexc(col)
+            nt2.links.new(em2.outputs["Emission"], out2.inputs["Surface"])
+            me.materials.append(mt)
+        sc.render.filepath = os.path.join(OUT, "_t_%s.png" % name)
+        bpy.ops.render.render(write_still=True)
+        img = bpy.data.images.load(sc.render.filepath, check_existing=False)
+        px = np.empty(len(img.pixels), dtype=np.float32)
+        img.pixels.foreach_get(px)
+        px = px.reshape(S, S, 4)[::-1]
+        bpy.data.images.remove(img)
+        idx = start_idx + i
+        tx, ty = (idx % GRID) * S, (idx // GRID) * GRID
+        atlas[ty:ty+S, tx:tx+S] = px
+        tiles[name] = {"x": tx, "y": ty, "w": S, "h": S, "src": "blender:gen.py:icons"}
+        os.remove(sc.render.filepath)
+    return start_idx + len(names)
+
 
 def main():
     sc = bpy.context.scene
@@ -247,6 +388,12 @@ def main():
         atlas[ty:ty+SIZE, tx:tx+SIZE] = px
         tiles[name] = {"x": tx, "y": ty, "w": SIZE, "h": SIZE, "src": "blender:gen.py"}
         os.remove(sc.render.filepath)
+    icon_names = [n for n in ICONS if n != "item_stick_dark"]
+    for mat in ["wood", "stone", "iron", "diamond"]:
+        for shp in ["pickaxe", "axe", "shovel", "sword"]:
+            icon_names.append("item_%s_%s" % (mat, shp))
+    icon_names.append("item_shears")
+    build_icons(icon_names, atlas, tiles, len(tiles))
     out_img = bpy.data.images.new("atlas", GRID*SIZE, GRID*SIZE, alpha=True)
     out_img.pixels.foreach_set(atlas[::-1].ravel())  # top-down -> bottom-up
     out_img.filepath_raw = os.path.join(OUT, "atlas.png")
