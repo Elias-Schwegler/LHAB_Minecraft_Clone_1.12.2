@@ -118,15 +118,22 @@
   "h": 16,
   "src": "blender:gen.py"
  },
- "snow": {
+ "leaves_oak": {
   "x": 16,
   "y": 32,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
- "obsidian": {
+ "snow": {
   "x": 32,
+  "y": 32,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "obsidian": {
+  "x": 48,
   "y": 32,
   "w": 16,
   "h": 16,

@@ -24,7 +24,7 @@ def new_mat():
     out = nt.nodes.get("Material Output")
     for l in list(out.inputs["Surface"].links): nt.links.remove(l)
     nt.links.new(em.outputs["Emission"], out.inputs["Surface"])
-    return m, nt, em
+    return m, nt, em  # color -> em.inputs["Color"]; alpha: add transparency manually
 
 def ramp(nt, fac, colors, interpol='EASE'):
     r = nt.nodes.new("ShaderNodeValToRGB")
@@ -89,10 +89,10 @@ def gen_tiles():
         edge = nt.nodes.new("ShaderNodeMath"); edge.operation = 'GREATER_THAN'
         edge.inputs[1].default_value = 0.0  # placeholder, set below: y + jitter > 0.85
         jit = nt.nodes.new("ShaderNodeMath"); jit.operation = 'MULTIPLY_ADD'
-        nt.links.new(noise(nt, 5.0), jit.inputs[0]); jit.inputs[1].default_value = 0.25; jit.inputs[2].default_value = 0.0
+        nt.links.new(noise(nt, 5.0), jit.inputs[0]); jit.inputs[1].default_value = 0.12; jit.inputs[2].default_value = 0.0
         addn = nt.nodes.new("ShaderNodeMath"); addn.operation = 'ADD'
         nt.links.new(sep.outputs["Y"], addn.inputs[0]); nt.links.new(jit.outputs[0], addn.inputs[1])
-        nt.links.new(addn.outputs[0], edge.inputs[0]); edge.inputs[1].default_value = 0.82
+        nt.links.new(addn.outputs[0], edge.inputs[0]); edge.inputs[1].default_value = 0.86
         nt.links.new(mix(nt, edge.outputs[0], dirt, gr), em.inputs["Color"])
     add("grass_side", grass_side)
     add("dirt", lambda m, nt, em: nt.links.new(
@@ -131,17 +131,22 @@ def gen_tiles():
     add("log_side_oak", log_side)
     def log_top(m, nt, em):
         tc = nt.nodes.new("ShaderNodeTexCoord")
-        w = nt.nodes.new("ShaderNodeTexWave"); w.wave_type='RINGS'; w.inputs["Scale"].default_value = 9.0
-        nt.links.new(tc.outputs["Generated"], w.inputs["Vector"])
-        rings = ramp(nt, w.outputs["Fac"], [hexc("#b3925c"), hexc("#8d6d3c")])
-        nt.links.new(rings, em.inputs["Color"])
+        sub = nt.nodes.new("ShaderNodeVectorMath"); sub.operation = 'SUBTRACT'; sub.inputs[1].default_value = (0.5, 0.5, 0.5)
+        nt.links.new(tc.outputs["Generated"], sub.inputs[0])
+        ln = nt.nodes.new("ShaderNodeVectorMath"); ln.operation = 'LENGTH'
+        nt.links.new(sub.outputs[0], ln.inputs[0])
+        muln = nt.nodes.new("ShaderNodeMath"); muln.operation = 'MULTIPLY'; muln.inputs[1].default_value = 28.0
+        nt.links.new(ln.outputs["Value"], muln.inputs[0])
+        sn = nt.nodes.new("ShaderNodeMath"); sn.operation = 'SINE'
+        nt.links.new(muln.outputs[0], sn.inputs[0])
+        nt.links.new(ramp(nt, sn.outputs[0], [hexc("#c8a060"), hexc("#6a4c22")]), em.inputs["Color"])
     add("log_top_oak", log_top)
     add("sand", lambda m, nt, em: nt.links.new(
         ramp(nt, noise(nt, 12.0), [hexc("#dbd0a0"), hexc("#e8dfb8"), hexc("#cfc290")]), em.inputs["Color"]))
     add("gravel", lambda m, nt, em: nt.links.new(
         ramp(nt, voronoi(nt, 6.0), [hexc("#7d7d80"), hexc("#9a938a"), hexc("#5f5f63")]), em.inputs["Color"]))
     add("bedrock", lambda m, nt, em: nt.links.new(
-        ramp(nt, voronoi(nt, 5.0), [hexc("#2a2a2e"), hexc("#585860"), hexc("#8f8f97")]), em.inputs["Color"]))
+        ramp(nt, voronoi(nt, 5.0), [hexc("#8f8f97"), hexc("#585860"), hexc("#2a2a2e")]), em.inputs["Color"]))
     def ore(base, blob):
         def f(m, nt, em):
             st = ramp(nt, noise(nt, 5.0), [hexc(base), hexc("#9a9aa0")])
@@ -156,20 +161,41 @@ def gen_tiles():
     def water(m, nt, em):
         c = ramp(nt, noise(nt, 6.0), [hexc("#2253c8"), hexc("#3a6fd8")])
         nt.links.new(c, em.inputs["Color"])
-        em.inputs["Strength"].default_value = 1.0
+        
     add("water", water)
     def glass(m, nt, em):
         tc = nt.nodes.new("ShaderNodeTexCoord")
-        mn = nt.nodes.new("ShaderNodeMath"); mn.operation = 'MINIMUM'
         sep = nt.nodes.new("ShaderNodeSeparateXYZ")
         nt.links.new(tc.outputs["Generated"], sep.inputs["Vector"])
-        inv = nt.nodes.new("ShaderNodeMath"); inv.operation = 'SUBTRACT'; inv.inputs[0].default_value = 1.0
-        nt.links.new(sep.outputs["X"], inv.inputs[1])
-        nt.links.new(sep.outputs["X"], mn.inputs[0]); nt.links.new(inv.outputs[0], mn.inputs[1])
-        fr = nt.nodes.new("ShaderNodeMath"); fr.operation = 'LESS_THAN'; fr.inputs[1].default_value = 0.1
-        nt.links.new(mn.outputs[0], fr.inputs[0])
-        nt.links.new(ramp(nt, fr.outputs[0], [hexc("#b8e0e8"), hexc("#d8f0f4")]), em.inputs["Color"])
+        def edge_of(ch):
+            inv = nt.nodes.new("ShaderNodeMath"); inv.operation = 'SUBTRACT'; inv.inputs[0].default_value = 1.0
+            nt.links.new(sep.outputs[ch], inv.inputs[1])
+            mn = nt.nodes.new("ShaderNodeMath"); mn.operation = 'MINIMUM'
+            nt.links.new(sep.outputs[ch], mn.inputs[0]); nt.links.new(inv.outputs[0], mn.inputs[1])
+            return mn.outputs[0]
+        m1 = edge_of("X"); m2 = edge_of("Y")
+        m0 = nt.nodes.new("ShaderNodeMath"); m0.operation = 'MINIMUM'
+        nt.links.new(m1, m0.inputs[0]); nt.links.new(m2, m0.inputs[1])
+        fr = nt.nodes.new("ShaderNodeMath"); fr.operation = 'LESS_THAN'; fr.inputs[1].default_value = 0.08
+        nt.links.new(m0.outputs[0], fr.inputs[0])
+        em.inputs["Color"].default_value = hexc("#d8f0f4")
+        tp = nt.nodes.new("ShaderNodeBsdfTransparent")
+        mixs = nt.nodes.new("ShaderNodeMixShader")
+        nt.links.new(fr.outputs[0], mixs.inputs["Fac"])
+        nt.links.new(tp.outputs[0], mixs.inputs[1])
+        nt.links.new(em.outputs[0], mixs.inputs[2])
+        out = nt.nodes.get("Material Output")
+        for l in list(out.inputs["Surface"].links): nt.links.remove(l)
+        nt.links.new(mixs.outputs[0], out.inputs["Surface"])
     add("glass", glass)
+    def leaves(m, nt, em):
+        nv = noise(nt, 9.0)
+        base = ramp(nt, nv, [hexc("#2f6b1c"), hexc("#4f8f2f"), hexc("#3a7d22")])
+        holes = nt.nodes.new("ShaderNodeMix"); holes.data_type='RGBA'; holes.blend_type='MULTIPLY'; holes.inputs["Factor"].default_value = 0.55
+        nt.links.new(base, holes.inputs[6])
+        nt.links.new(ramp(nt, voronoi(nt, 3.5), [hexc("#1e4a12"), hexc("#e8ffe0")]), holes.inputs[7])
+        nt.links.new(holes.outputs[2], em.inputs["Color"])
+    add("leaves_oak", leaves)
     add("snow", lambda m, nt, em: nt.links.new(
         ramp(nt, noise(nt, 10.0), [hexc("#e8f0f8"), hexc("#ffffff")]), em.inputs["Color"]))
     add("obsidian", lambda m, nt, em: nt.links.new(
@@ -183,6 +209,7 @@ def main():
     sc.cycles.samples = 8
     sc.render.resolution_x = SIZE; sc.render.resolution_y = SIZE
     sc.render.image_settings.file_format = 'PNG'
+    sc.render.film_transparent = True
     sc.world = bpy.data.worlds.new("w")
     sc.world.use_nodes = True
     sc.world.node_tree.nodes["Background"].inputs[0].default_value = (1,1,1,1)
