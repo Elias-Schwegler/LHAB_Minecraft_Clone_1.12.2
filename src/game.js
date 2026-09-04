@@ -27,6 +27,7 @@ window.CF = window.CF || {};
     // Fixed-timestep SIM on setInterval (deterministic, works in headless virtual time);
     // RENDER on rAF. Sim never depends on rAF firing.
     setInterval(() => {
+      const t0 = performance.now();
       if (CF.world) {
         const p = CF.player;
         CF.world.ensureAround(p ? p.pos[0] : 0, p ? p.pos[2] : 0, 4);
@@ -36,6 +37,7 @@ window.CF = window.CF || {};
       CF.renderTick && CF.renderTick();
       CF.onTick && CF.onTick();
       if (CF.renderDraw) CF.renderDraw(CF.camera || { pos: [8, CF.world ? CF.world.heightAt(0, 0) + 26 : 90, 8], yaw: 0.7, pitch: -0.9 });
+      CF.simMs = performance.now() - t0;
       CF.ticks++;
     }, 50);
     function frame() {
