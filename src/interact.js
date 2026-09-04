@@ -72,6 +72,10 @@ window.CF = window.CF || {};
       const tierOk = HAND_TIER >= v.minTier || !v.tool;
       let dropName = v.drop;
       if (v.name === 'gravel' && dropName && Math.random() < 0.1) dropName = 'flint'; // 1.12: 10% flint
+      if (v.name === 'leaves') { // 1.12: oak leaves 5% sapling, 0.5% apple, else nothing (#019)
+        const lr = Math.random();
+        dropName = lr < 0.05 ? 'sapling' : lr < 0.055 ? 'apple' : null;
+      }
       const drops = tierOk && dropName ? [{ name: dropName, n: 1, x: m.x + 0.5, y: m.y + 0.5, z: m.z + 0.5 }] : [];
       CF.world.set(m.x, m.y, m.z, 0);
       CF.drops.push(...drops);
@@ -148,6 +152,18 @@ window.CF = window.CF || {};
       }
     }
     CF.assert(r, 'interact.gravel-flint(' + flint + '/' + total + ')', total === 240 && flint > 6 && flint < 45);
+    // #019 leaves: 5% sapling (+0.5% apple), else nothing — statistical over 600 breaks
+    CF.drops.length = 0;
+    let sap = 0, leafTot = 0;
+    for (let t = 0; t < 600; t++) {
+      CF.world.set(hit.x, h + 1, hit.z, IDOF['leaves']);
+      CF.mineStart({ x: hit.x, y: h + 1, z: hit.z });
+      for (let i = 0; i < 10; i++) {
+        const res = CF.mineTick(0.05);
+        if (res && res.broke) { leafTot++; sap += res.drops.some((d) => d.name === 'sapling') ? 1 : 0; break; }
+      }
+    }
+    CF.assert(r, 'interact.leaves-drop(' + sap + '/' + leafTot + ')', leafTot === 600 && sap > 12 && sap < 55);
     CF.world.set(hit.x, h + 1, hit.z, 0);
     // bedrock unbreakable
     CF.assert(r, 'interact.bedrock', !isFinite(CF.breakTime(IDOF['bedrock'])));

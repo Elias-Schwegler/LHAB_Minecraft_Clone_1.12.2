@@ -85,20 +85,42 @@ window.CF = window.CF || {};
       const c = chunkAt(x, z);
       if (!c) return false;
       const lx = ((x % CX) + CX) % CX, lz = ((z % CZ) + CZ) % CZ;
-      c.arr[(y * CZ + lz) * CX + lx] = id;
+      const idx = (y * CZ + lz) * CX + lx;
+      const prev = c.arr[idx];
+      c.arr[idx] = id;
       dirty.add(c.cx + ',' + c.cz);
       if (lx === 0) dirty.add((c.cx - 1) + ',' + c.cz);
       if (lx === CX - 1) dirty.add((c.cx + 1) + ',' + c.cz);
       if (lz === 0) dirty.add(c.cx + ',' + (c.cz - 1));
       if (lz === CZ - 1) dirty.add(c.cx + ',' + (c.cz + 1));
-      if (id === 0) { // 1.12: neighbor update makes unsupported sand/gravel fall (#013)
-        for (let yy = y + 1; yy < CH; yy++) {
+      if (id === 0) {
+        for (let yy = y + 1; yy < CH; yy++) { // 1.12 update-driven gravity (#013)
           const ab = get(x, yy, z);
           if (ab === IDOF['sand'] || ab === IDOF['gravel']) fall(x, yy, z, ab);
           else if (ab) break;
         }
+        if (prev === IDOF['log']) decayLeavesNear(x, y, z); // #019: log removed -> decay check
       }
       return true;
+    }
+    // 1.12.2: leaves persist while within 6 (Chebyshev) of any log; else decay to air.
+    const LEAF = IDOF['leaves'], LOG = IDOF['log'];
+    function decayLeavesNear(x0, y0, z0) {
+      const logs = [];
+      const R = 12; // candidate leaf range 6 + leaf->log range 6
+      for (let x = x0 - R; x <= x0 + R; x++) for (let z = z0 - R; z <= z0 + R; z++) for (let y = y0 - R; y <= y0 + R; y++)
+        if (get(x, y, z) === LOG) logs.push([x, y, z]);
+      const toKill = [];
+      for (let x = x0 - 6; x <= x0 + 6; x++) for (let z = z0 - 6; z <= z0 + 6; z++) for (let y = y0 - 6; y <= y0 + 6; y++) {
+        if (get(x, y, z) !== LEAF) continue;
+        let alive = false;
+        for (const [lx, ly, lz] of logs)
+          if (Math.abs(lx - x) <= 6 && Math.abs(ly - y) <= 6 && Math.abs(lz - z) <= 6) { alive = true; break; }
+        if (!alive) toKill.push([x, y, z]);
+      }
+      let n = 0;
+      for (const [x, y, z] of toKill) if (get(x, y, z) === LEAF) { set(x, y, z, 0); n++; }
+      return n;
     }
     function ensureAround(px, pz, radius) {
       const cx = key(px, 0), cz = keyZ(pz);
@@ -163,7 +185,7 @@ window.CF = window.CF || {};
     }
     function stats() { return { chunks: chunks.size, generated, queue: genQueue.length, dirty: dirty.size, spreadEv }; }
     function heightAt(x, z) { const h = colHeight(x, z); return h; }
-    return { get, set, tick, ensureAround, stats, generate, chunks, dirty, heightAt, biome, seed };
+    return { get, set, tick, ensureAround, stats, generate, chunks, dirty, heightAt, biome, seed, decayLeavesNear };
   }
   CF.makeWorld = makeWorld;
   const seed = ((location.search.match(/seed=(\d+)/) || [0, 1337])[1] | 0);
@@ -214,5 +236,27 @@ window.CF = window.CF || {};
     w.set(gx, gh + 2, gz, ID['sand']);
     w.set(gx, gh + 1, gz, 0);
     CF.assert(r, 'world.gravity-fall', w.get(gx, gh + 2, gz) === 0 && w.get(gx, gh + 1, gz) === ID['sand']);
+    // #019 leaves decay: synthetic tree fully decays when all logs removed; control tree persists
+    const tx = 50, tz = 50, th = w.heightAt(tx, tz);
+    const build = (bx, bz) => {
+      for (let y = th + 1; y <= th + 4; y++) w.set(bx, y, bz, ID['log']);
+      for (let dy = 3; dy <= 5; dy++) for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
+        if (Math.abs(dx) === 2 && Math.abs(dz) === 2) continue;
+        w.set(bx + dx, th + dy, bz + dz, ID['leaves']);
+      }
+    };
+    build(tx, tz);
+    for (let y = th + 1; y <= th + 4; y++) w.set(tx, y, tz, 0); // chop all logs
+    let leaves = 0;
+    for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) for (let dy = 2; dy <= 6; dy++)
+      if (w.get(tx + dx, th + dy, tz + dz) === ID['leaves']) leaves++;
+    CF.assert(r, 'world.leaves-decay(' + leaves + ')', leaves === 0);
+    build(tx + 24, tz);
+    w.set(tx - 20, w.heightAt(tx - 20, tz) + 1, tz, ID['log']);
+    w.set(tx - 20, w.heightAt(tx - 20, tz) + 1, tz, 0); // unrelated chop far away
+    let kept = 0;
+    for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) for (let dy = 3; dy <= 5; dy++)
+      if (w.get(tx + 24 + dx, th + dy, tz + dz) === ID['leaves']) kept++;
+    CF.assert(r, 'world.leaves-persist(' + kept + ')', kept > 60);
   };
 })();

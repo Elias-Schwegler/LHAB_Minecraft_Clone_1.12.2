@@ -106,6 +106,24 @@
     CF.renderDraw(CF.camera);
     await new Promise((r) => setTimeout(r, 300));
   };
+  CF.shotScenarios['leaf-decay'] = async () => {
+    CF.freeCam = true;
+    const W = CF.world;
+    W.ensureAround(0, 0, 4);
+    for (let i = 0; i < 60 && W.stats().queue; i++) W.tick();
+    let tx = 0, tz = 0, found = false;
+    for (let r = 2; r < 60 && !found; r += 4) for (let a = 0; a < 16 && !found; a++) {
+      const x = Math.round(Math.cos(a * Math.PI / 8) * r), z = Math.round(Math.sin(a * Math.PI / 8) * r);
+      const h = W.heightAt(x, z);
+      for (let y = h; y < h + 8; y++) if (W.get(x, y, z) === CF.IDOF['log']) { tx = x; tz = z; found = true; }
+    }
+    const th = W.heightAt(tx, tz);
+    for (let y = th + 1; y < th + 8; y++) W.set(tx, y, tz, 0); // chop tree -> leaves decay (#019)
+    for (let i = 0; i < 80; i++) CF.renderTick();
+    CF.camera = { pos: [tx - 12, th + 9, tz - 12], yaw: Math.PI / 4, pitch: -0.4 };
+    CF.renderDraw(CF.camera);
+    await new Promise((r) => setTimeout(r, 300));
+  };
   const h = location.hash || '';
   if (h === '#test') runTests();
   else if (h.startsWith('#shot=')) runShot(h.slice(6));
