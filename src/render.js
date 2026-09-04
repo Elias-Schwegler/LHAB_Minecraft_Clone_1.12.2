@@ -209,6 +209,12 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
   CF.initRenderer = initRenderer;
   CF.renderTick = renderTick;
   CF.renderDraw = draw;
+  CF.renderReset = () => {
+    if (!gl) { meshMap.clear(); return; }
+    for (const [, e] of meshMap) { gl.deleteBuffer(e.vb); gl.deleteVertexArray(e.vao); }
+    meshMap.clear();
+    stats.meshes = 0; stats.tris = 0; stats.rebuilds = 0;
+  };
 
   CF.rendererTests = async (r) => {
     const t0 = performance.now();

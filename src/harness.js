@@ -28,6 +28,7 @@
       if (typeof CF.playerTests === 'function') await CF.playerTests(r);
       if (typeof CF.interactTests === 'function') await CF.interactTests(r);
       if (typeof CF.f3Tests === 'function') await CF.f3Tests(r);
+      if (typeof CF.persistTests === 'function') await CF.persistTests(r);
     } catch (e) {
       r.fail.push('harness.threw: ' + e.message);
     }
@@ -121,6 +122,20 @@
     for (let y = th + 1; y < th + 8; y++) W.set(tx, y, tz, 0); // chop tree -> leaves decay (#019)
     for (let i = 0; i < 80; i++) CF.renderTick();
     CF.camera = { pos: [tx - 12, th + 9, tz - 12], yaw: Math.PI / 4, pitch: -0.4 };
+    CF.renderDraw(CF.camera);
+    await new Promise((r) => setTimeout(r, 300));
+  };
+  CF.shotScenarios['tower-save'] = async () => {
+    CF.freeCam = true;
+    const W = CF.world;
+    W.ensureAround(8, 8, 3);
+    for (let i = 0; i < 40 && W.stats().queue; i++) W.tick();
+    const th = W.heightAt(8, 8);
+    for (let y = th + 1; y <= th + 6; y++) W.set(8, y, 8, CF.IDOF['cobblestone']);
+    CF.saveNow();
+    CF.loadNow(); // full round-trip through localStorage before rendering
+    for (let i = 0; i < 100; i++) CF.renderTick();
+    CF.camera = { pos: [8 - 10, th + 8, 8 - 10], yaw: Math.PI / 4, pitch: -0.35 };
     CF.renderDraw(CF.camera);
     await new Promise((r) => setTimeout(r, 300));
   };

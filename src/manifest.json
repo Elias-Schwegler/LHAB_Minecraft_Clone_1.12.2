@@ -5,6 +5,7 @@
     "src/render.js",
     "src/player.js",
     "src/interact.js",
+    "src/persist.js",
     "src/f3.js",
     "src/game.js",
     "src/harness.js"
