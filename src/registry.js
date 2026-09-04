@@ -38,6 +38,8 @@ window.CF.REGISTRY = /*REGISTRY-START*/
       const v = reg.variants[key];
       v.id = next; v.name = name; v.variant = key;
       CF.BY_ID[next] = v; CF.ID_TO_VARIANT[next] = name + (key === 'default' ? '' : ':' + key);
+      CF.IDOF = CF.IDOF || {};
+      CF.IDOF[name + (key === 'default' ? '' : ':' + key)] = next;
       next++;
     }
   }
