@@ -43,7 +43,7 @@ wood variants (no tiles), all Tier-2/3 families.
 [ ] TNT
 [ ] beds/sleep
 [ ] survival + creative
-[ ] localStorage save/load
+[x] localStorage save/load                               <- #023 save.* asserts + tower-save.png roundtrip
 [x] F3 debug                                             <- #009 asserts
 
 ### Tier-2 / Tier-3: see REFERENCE.md §tiers + backlog epics; parity.mjs prints live table.
