@@ -152,6 +152,23 @@
     CF.renderDraw(CF.camera);
     await new Promise((r) => setTimeout(r, 300));
   };
+  CF.shotScenarios['night-world'] = async () => {
+    CF.timeOffset = 18000; // ~night; stays applied for the screenshot (interval redraws)
+    await CF.shotScenarios['starter-world']();
+  };
+  CF.shotScenarios['night-glow'] = async () => {
+    CF.freeCam = true;
+    CF.timeOffset = 18000;
+    const W = CF.world;
+    W.ensureAround(0, 0, 4);
+    for (let i = 0; i < 60 && W.stats().queue; i++) W.tick();
+    const th = W.heightAt(0, 0);
+    W.set(0, th + 1, 0, CF.IDOF['glowstone']);
+    for (let i = 0; i < 120; i++) CF.renderTick();
+    CF.camera = { pos: [0 - 9, th + 4, 0 - 9], yaw: Math.PI / 4, pitch: -0.18 };
+    CF.renderDraw(CF.camera);
+    await new Promise((r) => setTimeout(r, 300));
+  };
   const h = location.hash || '';
   if (h === '#test') runTests();
   else if (h.startsWith('#shot=')) runShot(h.slice(6));
