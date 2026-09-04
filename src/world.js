@@ -340,6 +340,16 @@ window.CF = window.CF || {};
       if (open) { skyOpen = w.lightAt(sx, sh + 1, sz) >> 4; break; }
     }
     CF.assert(r, 'light.sky(' + skyOpen + ')', skyOpen === 15);
+    // AC1 (#021): fully covered cave cell = skylight 0
+    const bxc = 100, bzc = 100;
+    w.ensureAround(bxc, bzc, 1);
+    for (let i = 0; i < 10 && w.stats().queue; i++) w.tick();
+    const bhc = w.heightAt(bxc, bzc);
+    for (let x = bxc - 1; x <= bxc + 1; x++) for (let z = bzc - 1; z <= bzc + 1; z++) for (let y = bhc - 3; y <= bhc + 2; y++)
+      if (!(x === bxc && z === bzc && y === bhc - 2)) w.set(x, y, z, IDL['stone']);
+    w.ensureLight(Math.floor(bxc / 16), Math.floor(bzc / 16));
+    const caveSky = w.lightAt(bxc, bhc - 2, bzc) >> 4;
+    CF.assert(r, 'light.cave-sky0(' + caveSky + ')', caveSky === 0);
     // budgeted queue: edit far away, relight happens within <=8 ticks
     const beforeLight = w.lightAt(lx, lh, lz) & 15;
     w.set(lx, lh, lz, 0);
