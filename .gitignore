@@ -1,0 +1,7 @@
+# never ignore game/index.html (it is the deliverable)
+node_modules/
+*.tmp
+.tmp/
+__pycache__/
+*.pyc
+.cache/

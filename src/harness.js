@@ -1,0 +1,46 @@
+// Test + shot harness. Hash-routed: #test, #shot=NAME.
+// Results go to document.title as TESTRESULT:{encodeURIComponent(JSON)} for tools/test.mjs.
+(function () {
+  const CF = window.CF;
+  function report(result) {
+    document.title = 'TESTRESULT:' + encodeURIComponent(JSON.stringify(result));
+  }
+  CF.assert = (results, name, cond) => { (cond ? results.pass : results.fail).push(name); };
+
+  async function runTests() {
+    const r = { mode: 'test', pass: [], fail: [], errors: [], ticks: 0, registry: null };
+    try {
+      for (let i = 0; i < 200 && !CF.ready; i++) await new Promise((res) => setTimeout(res, 50));
+      CF.assert(r, 'boot.ready', CF.ready);
+      CF.assert(r, 'gl.webgl2', !!(CF.gl && CF.gl.getParameter && /WebGL 2/.test(CF.gl.getParameter(CF.gl.VERSION))));
+      const t0 = CF.ticks;
+      await new Promise((res) => setTimeout(res, 600));
+      CF.assert(r, 'loop.ticks', CF.ticks > t0 + 5);
+      CF.assert(r, 'registry.json', typeof CF.REGISTRY === 'object' && CF.REGISTRY !== null);
+      if (typeof CF.worldTests === 'function') await CF.worldTests(r);
+      if (typeof CF.playerTests === 'function') await CF.playerTests(r);
+    } catch (e) {
+      r.fail.push('harness.threw: ' + e.message);
+    }
+    r.errors = CF.errors.slice(0, 20);
+    r.ticks = CF.ticks;
+    r.registry = Object.keys(CF.REGISTRY || {}).length;
+    report(r);
+  }
+
+  async function runShot(name) {
+    CF.shotName = name;
+    for (let i = 0; i < 200 && !CF.ready; i++) await new Promise((res) => setTimeout(res, 50));
+    CF.shotDone = false;
+    try {
+      if (typeof CF.shotScenarios === 'object' && CF.shotScenarios[name]) await CF.shotScenarios[name]();
+    } catch (e) { CF.errors.push('shot:' + name + ' ' + e.message); }
+    setTimeout(() => { CF.shotDone = true; }, 2500);
+  }
+
+  CF.shotScenarios = {};
+
+  const h = location.hash || '';
+  if (h === '#test') runTests();
+  else if (h.startsWith('#shot=')) runShot(h.slice(6));
+})();

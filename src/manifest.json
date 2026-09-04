@@ -1,0 +1,8 @@
+{
+  "modules": [
+    "src/registry.js",
+    "src/game.js",
+    "src/harness.js"
+  ],
+  "atlas": "tools/tex/atlas.json"
+}
