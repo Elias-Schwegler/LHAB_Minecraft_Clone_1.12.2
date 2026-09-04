@@ -60,11 +60,10 @@ window.CF = window.CF || {};
           : [u0 + tw * du, v0 + th * (hh - dv)]);
       } else { stats.missingTiles.add(tile); uvAt = () => MAGENTA_UV.slice(0, 2); }
       const P = (du, dv) => coord(a, ua, va, d + 1, u + du, v + dv);
-      // face brightness from adjacent air cell's light (max of sky, block) (#020)
+      // pack raw light nibbles (sky<<4|block) into BR; daylight factor applied in shader (#021)
       const mid = coord(a, ua, va, d + 1, Math.min(dims[ua] - 1, u + (w >> 1)), Math.min(dims[va] - 1, v + (hh >> 1)));
       const packed = CF.world.lightAt(mid[0], mid[1], mid[2]);
-      const lv = Math.max(packed >> 4, packed & 15);
-      const bright = lv > 0 ? 0.25 + 0.75 * (lv / 15) : 0.16;
+      const bright = packed / 255;
       const corners = [P(0, 0), P(w, 0), P(w, hh), P(0, hh)];
       const uvs = [[0, 0], [w, 0], [w, hh], [0, hh]].map(([du, dv]) => uvAt(du, dv));
       const order = a % 2 === 0 ? [0, 2, 1, 0, 3, 2] : [0, 1, 2, 0, 2, 3];
@@ -84,11 +83,15 @@ out vec2 uv; out float sh; out float dist; out float br;
 void main(){ gl_Position = VP*vec4(P,1.); uv=Q.xy; sh=Q.z; br=BR; dist=length(E-P); }`;
   const fs = `#version 300 es
 precision mediump float;
- in vec2 uv; in float sh; in float dist; in float br;
- uniform sampler2D T; uniform vec3 FOG;
+ in vec2 uv; in float sh; in float dist; in highp float br;
+ uniform sampler2D T; uniform vec3 FOG; uniform float uDay;
  out vec4 OC;
 void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
- vec3 c = t.rgb*sh*br; c = mix(c, FOG, f);
+ float q = floor(br*255.0+0.5);
+ float skyN = floor(q/16.0)/15.0, blkN = mod(q,16.0)/15.0;
+ float eff = max(skyN*uDay, blkN);
+ float bright = mix(0.16, 0.25+0.75*eff, step(0.02, eff));
+ vec3 c = t.rgb*sh*bright; c = mix(c, FOG, f);
  if (t.a < 0.5) discard;
  OC = vec4(c,1.); }`;
 
@@ -199,12 +202,16 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
     gl.useProgram(prog);
     gl.uniform1i(uTloc, 0);
     gl.viewport(0, 0, c.width, c.height);
-    gl.clearColor(0.6, 0.75, 1.0, 1);
+    const dayF = CF.dayFactor ? CF.dayFactor() : 1;
+    const skyDay = [0.6, 0.75, 1.0], skyNight = [0.02, 0.03, 0.07];
+    const mixv = (i) => skyNight[i] + (skyDay[i] - skyNight[i]) * dayF;
+    gl.clearColor(mixv(0), mixv(1), mixv(2), 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(prog);
     const VP = tr(mm(persp(70 * Math.PI / 180, c.width / c.height, 0.1, 300), view(cam.pos, cam.yaw, cam.pitch)));
     gl.uniformMatrix4fv(uVP, false, new Float32Array(VP));
-    gl.uniform3f(uFog, 0.6, 0.75, 1.0);
+    gl.uniform3f(uFog, mixv(0), mixv(1), mixv(2));
+    gl.uniform1f(gl.getUniformLocation(prog, 'uDay'), Math.max(dayF, 0.25));
     gl.uniform3fv(gl.getUniformLocation(prog, 'E'), new Float32Array(cam.pos));
     let tris = 0, drawn = 0;
     for (const [, e] of meshMap) {
@@ -241,6 +248,13 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
     gl.readPixels(Math.max(1, (CF.canvas.width / 2) | 0), Math.max(1, (CF.canvas.height / 2) | 0), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, rp);
     stats.px = [rp[0], rp[1], rp[2]];
     CF.assert(r, 'render.px(' + stats.px + ')', rp[0] + rp[1] + rp[2] < 500);
+    // #021: same camera, night vs day pixel luminance
+    const cam = { pos: [0, CF.world.heightAt(0, 0) + 12, 0], yaw: 0.6, pitch: -1.4 };
+    const lum = () => { CF.renderDraw(cam); const q = new Uint8Array(4); gl.readPixels((CF.canvas.width / 2) | 0, (CF.canvas.height / 2) | 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, q); return q[0] + q[1] + q[2]; };
+    CF.timeOffset = 0; const dayL = lum();
+    CF.timeOffset = 18000; const nightL = lum();
+    CF.timeOffset = 0; CF.renderDraw(cam);
+    CF.assert(r, 'time.pixel-night(' + nightL + '<' + dayL + ')', nightL < dayL * 0.6 && dayL > 100);
     stats.mapped = meshMap.size;
     CF.assert(r, 'render.atlas', stats.ready === true);
     CF.assert(r, 'render.merged(' + stats.mapped + '/' + CF.world.chunks.size + ')', stats.mapped >= CF.world.chunks.size - 2);

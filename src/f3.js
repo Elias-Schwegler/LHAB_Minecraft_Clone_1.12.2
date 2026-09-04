@@ -22,6 +22,7 @@ window.CF = window.CF || {};
         `Chunk: ${Math.floor(p.pos[0] / 16)}, ${Math.floor(p.pos[2] / 16)}  facing ${yawFace(p.yaw)}\n` : '') +
       `Target: ${b ? b.name + (b.variant !== 'default' ? ':' + b.variant : '') + ` [${t.x} ${t.y} ${t.z}]` : 'none'}\n` +
       `Chunks: ${CF.world ? CF.world.stats().chunks : 0}  Tris: ${CF.rendererStats ? CF.rendererStats.tris : 0}\n` +
+      `Time: ${CF.timeOfDay ? CF.timeOfDay() : 0}  Daylight: ${CF.dayFactor ? Math.round(CF.dayFactor() * 100) : 100}%\n` +
       `Seed: ${CF.world ? CF.world.seed : '-'}  Hotbar: ${CF.hotbar ? CF.hotbar[CF.sel] : '-'}\n` +
       `Drops: ${CF.drops ? CF.drops.length : 0}`;
   }, 250);

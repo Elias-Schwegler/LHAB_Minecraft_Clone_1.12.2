@@ -32,7 +32,7 @@ wood variants (no tiles), all Tier-2/3 families.
 [ ] 1.9-style player physics + combat cooldown           <- #005 physics asserted; cooldown needs combat
 [ ] hotbar/inventory/drag-drop                           <- hotbar select only (#006)
 [ ] crafting grid + recipe book + smelting
-[ ] day/night + sky/block light engine                   <- block+sky light DONE #020; day/night factor pending #021
+[x] day/night + sky/block light engine                   <- #020 light + #021 cycle (time.* asserts, night shots)
 [ ] gravity blocks (sand/gravel/concrete_powder)  <- sand+gravel done #013 asserts; concrete_powder pending
 [ ] water/lava flow + obsidian/cobblestone
 [ ] torches + spawn-by-light rules

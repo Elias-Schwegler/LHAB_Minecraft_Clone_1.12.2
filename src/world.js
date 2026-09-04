@@ -291,6 +291,15 @@ window.CF = window.CF || {};
     return { get, set, tick, ensureAround, stats, generate, chunks, dirty, heightAt, biome, seed, decayLeavesNear, lightAt, ensureLight };
   }
   CF.makeWorld = makeWorld;
+  // #021 day/night: 24000-tick cycle; daylight factor curve (moonlight floor handled in shader).
+  CF.timeOfDay = () => ((CF.ticks + (CF.timeOffset || 0)) % 24000 + 24000) % 24000;
+  CF.dayFactor = (t) => {
+    t = (t === undefined ? CF.timeOfDay() : t) % 24000;
+    if (t < 12000) return 1;                      // day
+    if (t < 13800) { const x = (t - 12000) / 1800; return 1 - (1 - Math.cos(x * Math.PI)) / 2 * 1; } // dusk cos-ease 1->0
+    if (t < 22800) return 0;                      // night
+    const x = (t - 22800) / 1200; return (1 - Math.cos(x * Math.PI)) / 2; // dawn cos-ease 0->1
+  };
   const seed = ((location.search.match(/seed=(\d+)/) || [0, 1337])[1] | 0);
   CF.world = makeWorld(seed);
 })();
@@ -363,6 +372,15 @@ window.CF = window.CF || {};
     CF.assert(r, 'world.ores-exist', ores > 30);
     const t0 = w.stats(); w.tick(); w.tick();
     CF.assert(r, 'world.gen-budget', w.stats().generated - t0.generated <= 2);
+    // #021 day/night cycle
+    const df = CF.dayFactor;
+    CF.assert(r, 'time.day', df(1000) === 1);
+    CF.assert(r, 'time.night', df(18000) === 0);
+    CF.assert(r, 'time.dusk-monotonic', (() => { let p = 1; for (let t = 12000; t <= 13800; t += 180) { const v = df(t); if (v > p + 1e-9) return false; p = v; } return df(13800) <= 0.001; })());
+    CF.assert(r, 'time.dawn-monotonic', (() => { let p = 0; for (let t = 22800; t <= 24000; t += 120) { const v = df(t); if (v < p - 1e-9) return false; p = v; } return df(24000) === 1; })());
+    let ok2 = true;
+    try { for (let i = 0; i < 48000; i++) w.tick(); } catch (e) { ok2 = false; }
+    CF.assert(r, 'time.2days-no-crash', ok2 && CF.dayFactor(18000) === 0);
     // #013/audit-F4 mechanics: grass spread + gravity fall
     const ID = CF.IDOF;
     const hs = w.heightAt(2, 2);
