@@ -31,6 +31,7 @@ window.CF = window.CF || {};
         const p = CF.player;
         CF.world.ensureAround(p ? p.pos[0] : 0, p ? p.pos[2] : 0, 4);
         CF.world.tick();
+        CF.playerTick && CF.playerTick();
       }
       CF.renderTick && CF.renderTick();
       CF.onTick && CF.onTick();

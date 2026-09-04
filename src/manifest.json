@@ -3,6 +3,7 @@
     "src/registry.js",
     "src/world.js",
     "src/render.js",
+    "src/player.js",
     "src/game.js",
     "src/harness.js"
   ],

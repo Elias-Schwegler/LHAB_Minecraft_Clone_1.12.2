@@ -47,6 +47,7 @@
 
   CF.shotScenarios = {};
   CF.shotScenarios['starter-world'] = async () => {
+    CF.freeCam = true;
     const W = CF.world;
     W.ensureAround(0, 0, 4);
     for (let i = 0; i < 60 && W.stats().queue; i++) W.tick();
