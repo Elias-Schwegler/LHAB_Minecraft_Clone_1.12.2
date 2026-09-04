@@ -37,7 +37,7 @@ wood variants (no tiles), all Tier-2/3 families.
 [x] water/lava flow + obsidian/cobblestone            <- #022 asserts (spread/caps/3 Java interactions) + fluid shots; buckets->#031
 [ ] torches + spawn-by-light rules
 [ ] hostile mobs (zombie/skeleton/creeper/spider/enderman) + passive w/ breeding
-[ ] health/hunger/fall damage
+[x] health/hunger/fall damage                          <- #026 (surv.* asserts + hud-low.png)
 [ ] chests/furnaces
 [ ] wood→tools→mining tiers                              <- tier GATES done (#006); items/tools pending
 [ ] TNT

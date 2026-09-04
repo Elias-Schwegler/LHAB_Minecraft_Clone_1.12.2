@@ -7,6 +7,7 @@
     "src/interact.js",
     "src/items.js",
     "src/ui.js",
+    "src/survival.js",
     "src/persist.js",
     "src/f3.js",
     "src/game.js",

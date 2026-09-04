@@ -30,6 +30,7 @@
       if (typeof CF.f3Tests === 'function') await CF.f3Tests(r);
       if (typeof CF.itemTests === 'function') await CF.itemTests(r);
       if (typeof CF.uiTests === 'function') await CF.uiTests(r);
+      if (typeof CF.survivalTests === 'function') await CF.survivalTests(r);
       if (typeof CF.persistTests === 'function') await CF.persistTests(r);
     } catch (e) {
       r.fail.push('harness.threw: ' + (e && e.stack ? String(e.stack).split('\n').slice(0, 3).join(' | ') : e.message));
