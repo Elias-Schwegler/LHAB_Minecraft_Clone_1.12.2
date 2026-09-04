@@ -1,0 +1,44 @@
+<!DOCTYPE html><html><head><title>DBG</title></head><body>
+<canvas id="c" width="64" height="64"></canvas>
+<script>
+const gl = document.getElementById('c').getContext('webgl2', { preserveDrawingBuffer: true });
+const img = new Image();
+img.onload = () => {
+  const cv = document.createElement('canvas'); cv.width = 128; cv.height = 128;
+  const ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, 0, 0);
+  const px = ctx.getImageData(0, 0, 128, 128);
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  if (location.hash.indexOf('onepx') >= 0) {
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 0, 255, 255]));
+  }
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cv);
+  const vs = `#version 300 es
+  layout(location=0) in vec2 P; out vec2 uv;
+  void main(){ gl_Position=vec4(P,0.,1.); uv=(P+1.)*.5*vec2(0.125); }`;
+  const fs = `#version 300 es
+  precision mediump float; in vec2 uv; out vec4 OC; uniform sampler2D T;
+  void main(){ vec4 t=texture(T,uv); if(t.a<0.5){ OC=vec4(1,0,1,1); return; } OC=vec4(t.rgb,1.); }`;
+  const mk=(t,s)=>{const x=gl.createShader(t);gl.shaderSource(x,s);gl.compileShader(x);if(!gl.getShaderParameter(x,gl.COMPILE_STATUS))document.title='ERR '+gl.getShaderInfoLog(x);return x;};
+  const pr=gl.createProgram();gl.attachShader(pr,mk(gl.VERTEX_SHADER,vs));gl.attachShader(pr,mk(gl.FRAGMENT_SHADER,fs));gl.linkProgram(pr);gl.useProgram(pr);
+  const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+  gl.clearColor(0,0,0,1);gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+  const p=new Uint8Array(4);gl.readPixels(8,8,1,1,gl.RGBA,gl.UNSIGNED_BYTE,p);
+  const info = { px: [px.data[0],px.data[1],px.data[2],px.data[3]], pxMid:[px.data[(16*128+16)*4],px.data[(16*128+16)*4+1],px.data[(16*128+16)*4+2],px.data[(16*128+16)*4+3]], glErr: gl.getError(), sample: [p[0],p[1],p[2],p[3]] };
+  setTimeout(() => { document.title='DBG:'+encodeURIComponent(JSON.stringify(info)); }, 100);
+};
+if (location.hash.indexOf('dataurl') >= 0) {
+  fetch('../tools/tex/atlas.png').then(async (r) => {
+    const b = await r.arrayBuffer(); let bin = ''; const u8 = new Uint8Array(b);
+    for (let i = 0; i < u8.length; i += 8192) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 8192));
+    img.src = 'data:image/png;base64,' + btoa(bin);
+  });
+} else img.src = '../tools/tex/atlas.png';
+</script></body></html>

@@ -26,13 +26,27 @@ window.CF = window.CF || {};
     CF.ready = true;
     // Fixed-timestep SIM on setInterval (deterministic, works in headless virtual time);
     // RENDER on rAF. Sim never depends on rAF firing.
-    setInterval(() => { CF.onTick && CF.onTick(); CF.ticks++; }, 50);
+    setInterval(() => {
+      if (CF.world) {
+        const p = CF.player;
+        CF.world.ensureAround(p ? p.pos[0] : 0, p ? p.pos[2] : 0, 4);
+        CF.world.tick();
+      }
+      CF.renderTick && CF.renderTick();
+      CF.onTick && CF.onTick();
+      if (CF.renderDraw) CF.renderDraw(CF.camera || { pos: [8, CF.world ? CF.world.heightAt(0, 0) + 26 : 90, 8], yaw: 0.7, pitch: -0.9 });
+      CF.ticks++;
+    }, 50);
     function frame() {
-      gl.clearColor(0.6, 0.75, 1.0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
-      CF.onDraw && CF.onDraw();
+      if (CF.renderDraw) {
+        CF.renderDraw(CF.camera || { pos: [8, CF.world ? CF.world.heightAt(0, 0) + 26 : 90, 8], yaw: 0.7, pitch: -0.9 });
+      } else {
+        gl.clearColor(0.6, 0.75, 1.0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+      }
       requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
+    CF.initRenderer && CF.initRenderer(gl);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();

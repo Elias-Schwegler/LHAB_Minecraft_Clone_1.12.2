@@ -2,6 +2,7 @@
   "modules": [
     "src/registry.js",
     "src/world.js",
+    "src/render.js",
     "src/game.js",
     "src/harness.js"
   ],
