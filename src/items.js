@@ -148,7 +148,7 @@ window.CF = window.CF || {};
 
   // ---- furnace block entities + smelting (200t/item, coal fuel 1600t)
   CF.blockEntities = {};
-  const SMELT = { iron_ore: 'iron_ingot', gold_ore: 'gold_ingot', sand: 'glass', raw: null };
+  const SMELT = { iron_ore: 'iron_ingot', gold_ore: 'gold_ingot', sand: 'glass' };
   CF.FUEL = { coal: 1600, planks: 300, log: 300, stick: 100 };
   CF.furnacePlace = (x, y, z) => { CF.blockEntities[x + ',' + y + ',' + z] = { type: 'furnace', input: null, fuel: null, out: null, burn: 0, cook: 0 }; };
   CF.furnaceTick = () => {

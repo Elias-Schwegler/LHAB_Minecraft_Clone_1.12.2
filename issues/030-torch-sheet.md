@@ -1,5 +1,5 @@
 # Issue: 030 — Regenerate broken torch parity evidence sheet
-- Type: FIX (audit #3 F1, P1) | Status: READY | Epic: E4 | Sprint: 02 | Depends on: #024 (DONE)
+- Type: FIX (audit #3 F1, P1) | Status: DONE | Epic: E4 | Sprint: 02 | Depends on: #024 (DONE)
 - Time-box: <= 1 iteration-day
 
 ## SMART
@@ -27,3 +27,6 @@ None; current build reproduction clean.
 
 ## Evidence (fill at close)
 - (from audit #3, docs/audits/2026-09-04-c.md F1: HEAD sheet = green-field mess with grid-patterned garbage quads, no subject, room unmeshed = captured the pre-fix cross-model const-assignment bug; fixed build renders correctly)
+## Evidence (close - audit #3 F1)
+- qa/blocks/torch.png regenerated post-const-fix: cross-model torch with lit tip on pedestal sheet (vision PASS, 52KB, shows model not garbage quads).
+- Also: added missing #021 AC1 cave-sky0 assert (cave cell skylight=0 under 3x3x6 stone shell); SMELT junk key removed; AGENTS backtick corruption fixed; assert count 80.

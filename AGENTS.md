@@ -11,12 +11,14 @@ Read docs/MASTERPROMPT.md for the law. This file = current state, 1-minute groun
   render, collision, physics, break/place+drops, F3 done-ish; lighting/UI/mobs/fluids next.
 - Merged: #002 worldgen, #003 renderer, #004 registry, #005 player, #006 interact,
   #007 textures, #008 shots+baseline, #009 F3. Audit #1 fixes #010-#019.
-- test.mjs: 74 asserts green. Audit #2 done (scoped). #029 drop-spec resolved (Java: sapling .05, apple .005, no sticks). 16 blocks w/ qa/blocks sheets + proof-bound flags. Sprint 02: #019 leaves, #020 light (packed sky<<4|block, region relight), #023 save/load done.
-- Seed 5 = plains spawn (nice shots): `node tools/shot.mjs starter-world seed=5`.
+- test.mjs: 80 asserts green. Audit #2 done (scoped). #029 drop-spec resolved (Java: sapling .05, apple .005, no sticks). 16 blocks w/ qa/blocks sheets + proof-bound flags. Sprint 02: #019 leaves, #020 light (packed sky<<4|block, region relight), #023 save/load done.
+- Seed 5 = plains spawn (nice shots): 
+ode tools/shot.mjs starter-world seed=5`.
 
 ## How to work (condensed law)
 1. Loop priority: P0/P1 → committed sprint issues → refine backlog to DoR → plan sprint from parity gap.
-2. Branch feature/NNN-slug from main; quality gate = `node tools/build.mjs && node tools/test.mjs && node tools/shot.mjs <name>`;
+2. Branch feature/NNN-slug from main; quality gate = 
+ode tools/build.mjs && node tools/test.mjs && node tools/shot.mjs <name>`;
    merge `--no-ff` "feat(scope): subject (#NNN)"; close issue w/ evidence; update AGENTS.md + PARITY.md in the merge.
 3. Never: npm deps, downloads, three.js, placeholder flat textures shipped, counts without evidence.
 4. Textures: Blender via tools/tex scripts (abs path in ENVIRONMENT.md), atlas → build embeds base64.
@@ -50,7 +52,9 @@ node tools/tex/gen.mjs                # regen atlas via Blender + manifest
   grav32; CF.freeCam=true for camera-owning scenarios
 - src/interact.js: DDA raycast, breakTime=hardness*1.5 (x5 if below tool tier, no drop),
   bedrock Infinity, place w/ player-AABB reject, hotbar 1-9/wheel
-- src/f3.js: F3 overlay (fps/xyz/chunk/target/tris)`n- src/world.js light: chunk.light Uint8 packed (sky<<4|block); relight = 5x5-chunk region BFS`n  (ring seeds + sky columns + sources), queue <=2/tick; render merges greedy quads by id+light/4 bucket
+- src/f3.js: F3 overlay (fps/xyz/chunk/target/tris)
+- src/world.js light: chunk.light Uint8 packed (sky<<4|block); relight = 5x5-chunk region BFS
+  (ring seeds + sky columns + sources), queue <=2/tick; render merges greedy quads by id+light/4 bucket
 - tools/blockshots.mjs: regenerates qa/blocks/<n>[-variant].png evidence sheets
 - Gotcha log: greedy init budget must count UNMESHED chunks (advance-past-mapped), or
   remesh loop never progresses past first two chunks.
