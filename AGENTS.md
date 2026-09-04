@@ -7,13 +7,13 @@ Read docs/MASTERPROMPT.md for the law. This file = current state, 1-minute groun
 ## Current state (2026-09-04, end of iteration 2)
 - Sprint: 02 near close: DONE #019 leaves, #020 light, #021 day/night, #022 fluids (+#031 carve:
   water banding/lava brightness/buckets), #023 save, #024 items/crafting/smelting/torch, #025 UI,
-  #026 survival+HUD, #027 F3v2. Remaining: #028 torch wall-attach, then audit #4 + v0.2.0 tag.
+  #026 survival+HUD, #027 F3v2. All closed. Audit #4 (sprint close) + v0.2.0 tag next.
   Sprint 03 draft: mobs (SPK-4 heap A*), chests, beds/sleep, weather, TNT, nether portal (SPK-7 spike?).
 - Block%: 17/399 (4.3%) proof-bound functional: +glowstone #020, +torch #024. Sprint02 done: #021 day/night, #024 items/tools/crafting/smelting/cross-model torch. torch wall-attach -> #028; furnace/GUI -> #025. Tier-1 mechanics: worldgen,
   render, collision, physics, break/place+drops, F3 done-ish; lighting/UI/mobs/fluids next.
 - Merged: #002 worldgen, #003 renderer, #004 registry, #005 player, #006 interact,
   #007 textures, #008 shots+baseline, #009 F3. Audit #1 fixes #010-#019.
-- test.mjs: 104 asserts green. Audits #2+#3 done (scoped); #4 at sprint close. #029 drop-spec resolved (Java: sapling .05, apple .005, no sticks). 16 blocks w/ qa/blocks sheets + proof-bound flags. Sprint 02: #019 leaves, #020 light (packed sky<<4|block, region relight), #023 save/load done.
+- test.mjs: 107 asserts green. Audits #2+#3 done (scoped); #4 at sprint close. #029 drop-spec resolved (Java: sapling .05, apple .005, no sticks). 16 blocks w/ qa/blocks sheets + proof-bound flags. Sprint 02: #019 leaves, #020 light (packed sky<<4|block, region relight), #023 save/load done.
 - Seed 5 = plains spawn (nice shots): 
 ode tools/shot.mjs starter-world seed=5`.
 
