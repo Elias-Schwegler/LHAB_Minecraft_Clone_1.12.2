@@ -1,1 +1,135 @@
-{}
+{
+ "grass_top": {
+  "x": 0,
+  "y": 0,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "grass_side": {
+  "x": 16,
+  "y": 0,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "dirt": {
+  "x": 32,
+  "y": 0,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "stone": {
+  "x": 48,
+  "y": 0,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "cobblestone": {
+  "x": 64,
+  "y": 0,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "planks_oak": {
+  "x": 80,
+  "y": 0,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "log_side_oak": {
+  "x": 96,
+  "y": 0,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "log_top_oak": {
+  "x": 112,
+  "y": 0,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "sand": {
+  "x": 0,
+  "y": 16,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "gravel": {
+  "x": 16,
+  "y": 16,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "bedrock": {
+  "x": 32,
+  "y": 16,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "coal_ore": {
+  "x": 48,
+  "y": 16,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "iron_ore": {
+  "x": 64,
+  "y": 16,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "gold_ore": {
+  "x": 80,
+  "y": 16,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "diamond_ore": {
+  "x": 96,
+  "y": 16,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "water": {
+  "x": 112,
+  "y": 16,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "glass": {
+  "x": 0,
+  "y": 32,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "snow": {
+  "x": 16,
+  "y": 32,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "obsidian": {
+  "x": 32,
+  "y": 32,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ }
+}

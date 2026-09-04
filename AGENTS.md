@@ -43,4 +43,5 @@ node tools/tex/gen.mjs                # regen atlas via Blender + manifest
 (see issues/ dir + docs/sprints/01.md)
 
 ## Recent merges (newest first)
+- #001 spikes SPK-1..6 all GO / GO-WITH-ALT (SPK-4 heap-A*); texture pipeline promoted (19 tiles)
 - bootstrap: scaffold + docs + tooling + spikes (v0.0.0)
