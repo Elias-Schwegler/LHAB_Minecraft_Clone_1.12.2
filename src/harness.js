@@ -22,6 +22,7 @@
         const ok = await new Promise((res) => { img.onload = () => res(true); img.onerror = () => res(false); img.src = 'data:image/png;base64,' + window.__ATLAS_B64; });
         CF.assert(r, 'atlas.decoded', ok && img.width === 128 && img.height === 128);
       }
+      if (typeof CF.registryTests === 'function') await CF.registryTests(r);
       if (typeof CF.worldTests === 'function') await CF.worldTests(r);
       if (typeof CF.playerTests === 'function') await CF.playerTests(r);
     } catch (e) {
