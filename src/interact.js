@@ -10,8 +10,9 @@ window.CF = window.CF || {};
   CF.drops = [];
 
   CF.hotId = () => {
-    const n = CF.hotbar[CF.sel];
-    const reg = CF.REGISTRY[n];
+    const h = CF.held && CF.held();
+    if (!h) return 0;
+    const reg = CF.REGISTRY[h];
     if (!reg) return 0;
     const k = Object.keys(reg.variants)[0];
     return reg.variants[k].id;
@@ -46,11 +47,7 @@ window.CF = window.CF || {};
   function breakTime(id) {
     const v = CF.BY_ID[id];
     if (!v) return Infinity;
-    if (v.hardness < 0) return Infinity;
-    const tierOk = HAND_TIER >= v.minTier || !v.tool;
-    let t = v.hardness * 1.5 / HAND_SPEED;
-    if (HAND_TIER < v.minTier) t *= 10 / 3; // 1.12: raw/30 vs /100 dig speed ratio (audit #010)
-    return t;
+    return CF.breakTimeFor ? CF.breakTimeFor(v, CF.held && CF.held()) : (v.hardness < 0 ? Infinity : v.hardness * 5);
   }
   CF.breakTime = breakTime;
 
@@ -69,7 +66,8 @@ window.CF = window.CF || {};
     m.progress += dt;
     if (m.progress >= m.need) {
       const v = CF.BY_ID[id];
-      const tierOk = HAND_TIER >= v.minTier || !v.tool;
+      const heldName = CF.held && CF.held();
+      const tierOk = CF.canHarvest ? CF.canHarvest(v, heldName) : (HAND_TIER >= v.minTier || !v.tool);
       let dropName = v.drop;
       if (v.name === 'gravel' && dropName && Math.random() < 0.1) dropName = 'flint'; // 1.12: 10% flint
       if (v.name === 'leaves') { // 1.12: oak leaves 5% sapling, 0.5% apple, else nothing (#019)
@@ -78,6 +76,7 @@ window.CF = window.CF || {};
       }
       const drops = tierOk && dropName ? [{ name: dropName, n: 1, x: m.x + 0.5, y: m.y + 0.5, z: m.z + 0.5 }] : [];
       CF.world.set(m.x, m.y, m.z, 0);
+      for (const d of drops) CF.give ? CF.give(d.name, d.n) : 0;
       CF.drops.push(...drops);
       CF.mining = null;
       return { broke: [m.x, m.y, m.z], drops, noDrop: !tierOk };
@@ -93,7 +92,12 @@ window.CF = window.CF || {};
     const ox = Math.abs(p.pos[0] - (tx + 0.5)) < 0.3 + 0.5 && Math.abs(p.pos[2] - (tz + 0.5)) < 0.3 + 0.5;
     const oy = p.pos[1] - 0.9 < ty + 1 && p.pos[1] + 0.9 > ty;
     if (ox && oy) return false;
-    return CF.world.set(tx, ty, tz, CF.hotId());
+    const id = CF.hotId();
+    if (!id) return false;
+    const ok = CF.world.set(tx, ty, tz, id);
+    if (ok && !CF.creative && CF.consume) CF.consume(CF.held(), 1);
+    if (ok && CF.BY_ID[id].name === 'furnace' && CF.furnacePlace) CF.furnacePlace(tx, ty, tz);
+    return ok;
   };
 
   // input wiring (real browser)
