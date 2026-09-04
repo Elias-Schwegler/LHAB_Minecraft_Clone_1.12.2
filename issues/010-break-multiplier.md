@@ -1,5 +1,5 @@
 # Issue: 010 — Fix wrong-tool break multiplier (×5 → ×10/3)
-- Type: FIX | Severity: P1 (audit 2026-09-04, F1) | Status: READY
+- Type: FIX | Severity: P1 (audit 2026-09-04, F1) | Status: DONE
 - Epic: docs/backlog/epics.md (E4)
 - Sprint: — | Depends on: — | Spike: — (trivial extension of proven #006 subsystem)
 - Time-box: <= 1 iteration-day
@@ -42,3 +42,6 @@ Trivial extension of #006 (proven). Risk: none.
 - Screenshots: n/a — assert evidence
 - Vision verdict per AC: n/a
 - Parity impact: none (no count change)
+
+## Evidence (close)
+- AC PASS: corrected + verified this branch (see docs/audits/2026-09-04.md follow-up). Test: test.mjs GREEN.

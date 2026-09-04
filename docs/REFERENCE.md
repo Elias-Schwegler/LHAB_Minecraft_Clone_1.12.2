@@ -36,7 +36,7 @@ The machine-readable catalog is `docs/catalog.json`:
 | 7 | bedrock | 1 | unbreakable (hardness -1); creative only |
 | 12 | sand | 1 | falls as entity when unsupported |
 | 13 | gravel | 1 | falls; drops flint 10% **[TBC %]** |
-| 14 | gold_ore | 1 | needs iron pick (else drops nothing); drops raw gold item (1.12: `gold_ingot`? no — 1.12 ore drops item `raw`? in 1.12 gold/redstone/quartz/diamond/emerald/lapis ore drop items directly: gold ore -> 1 gold_ingot? NO: gold ore drops "raw gold"? raw items are 1.17+; in 1.12 gold ore drops 1 gold_ingot? actually gold_ore drops `gold_ingot`? — gold ore drops 1 item: `raw_gold` does not exist pre-1.17; in 1.12 gold ore drops gold_ingot? **[TBC: gold ore vs pig-lot drop table]**; drop table says gold ore -> item gold_ore? block item exists; drops: gold_ore drops gold_ingot? Decision: treat gold_ore as dropping `gold_ingot` (as pre-raw-era) **[TBC]** |
+| 14 | gold_ore | 1 | needs iron pick (else drops nothing); RESOLVED (audit #011): 1.12.2 has no raw items (raw_* are 1.17+) — gold ore drops `gold_ingot` directly |
 | 15 | iron_ore | 1 | needs stone pick; drops `iron_ore` item (smelt to ingot) |
 | 16 | coal_ore | 1 | needs wooden pick; drops `coal` item |
 | 17 | log | 6 | oak/spruce/birch/jungle small + acacia/dark_oak big-trunk variants counted via planks/log textures; drops itself |
@@ -229,10 +229,11 @@ coral was removed; 1.12 has coral_fab+dead? 1.12.2 removed coral? coral added 1.
 snapshots then removed pre-1.12 release? **[TBC — likely not present]**).
 
 ## Item/tool tier rules (Tier-1)
-Break time = base: breakTime = hardness × 1.5 (correct tool, right tier) × (speed
-multiplier: wood 2? tiers: wood 2, stone 4, iron 6, diamond 8, gold 12; hand 1) —
-exact formula: time = (hardness × 1.5) / speedMult (× haste, ÷ mining fatigue);
-wrong tier that can break = ×5; cannot break = unbreakable (∞).
+Break time = base: breakTime = hardness × 1.5 / speedMult (right tool type AND tier;
+speeds: wood 2, stone 4, iron 6, diamond 8, gold 12, hand 1). If canHarvest FAILS
+(wrong tool class OR tier below requirement): time = hardness × 5 (ratio 100/30 vs
+/30) and NO drop. Cannot harvest at all (obsidian w/o diamond, etc.) still follows
+×5 path but drops nothing; bedrock = ∞. (Audit #010: stone by hand = 7.5s, dirt 0.75s.)
 Tiers: hand(1), wood(2), stone(4), iron(6), gold(12), diamond(8).
 Gates (must break AND drop): coal/cobble/stone = wood+; iron/lapis = stone+; gold,
 redstone, diamond, emerald, obsidian = iron+ (obsidian also diamond+? obsidian drops

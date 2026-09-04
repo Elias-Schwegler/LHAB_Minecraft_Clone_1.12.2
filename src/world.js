@@ -37,7 +37,7 @@ window.CF = window.CF || {};
         for (let y = 0; y <= h; y++) {
           let id;
           if (y === 0) id = IDOF['bedrock'];
-          else if (y === h) id = bm === 'desert' ? IDOF['sand'] : bm === 'frozen' ? IDOF['snow'] : IDOF['grass'];
+          else if (y === h) id = bm === 'desert' ? IDOF['sand'] : IDOF['grass'];
           else if (y > h - 4) id = bm === 'desert' ? IDOF['sand'] : IDOF['dirt'];
           else id = IDOF['stone'];
           if (id === IDOF['stone'] && y > 2) {
@@ -91,6 +91,13 @@ window.CF = window.CF || {};
       if (lx === CX - 1) dirty.add((c.cx + 1) + ',' + c.cz);
       if (lz === 0) dirty.add(c.cx + ',' + (c.cz - 1));
       if (lz === CZ - 1) dirty.add(c.cx + ',' + (c.cz + 1));
+      if (id === 0) { // 1.12: neighbor update makes unsupported sand/gravel fall (#013)
+        for (let yy = y + 1; yy < CH; yy++) {
+          const ab = get(x, yy, z);
+          if (ab === IDOF['sand'] || ab === IDOF['gravel']) fall(x, yy, z, ab);
+          else if (ab) break;
+        }
+      }
       return true;
     }
     function ensureAround(px, pz, radius) {
@@ -110,8 +117,51 @@ window.CF = window.CF || {};
         const k = genQueue.shift();
         if (!chunks.has(k)) { const [cx, cz] = k.split(',').map(Number); generate(cx, cz); }
       }
+      randomTicks();
     }
-    function stats() { return { chunks: chunks.size, generated, queue: genQueue.length, dirty: dirty.size }; }
+    // 1.12 random block ticks: grass spread + sand/gravel gravity (issue #014, audit F4)
+    let rtA = (seed * 31 + 7) | 0;
+    let spreadEv = 0;
+    const rtRng = () => { rtA |= 0; rtA = (rtA + 0x6D2B79F5) | 0; let t = Math.imul(rtA ^ (rtA >>> 15), 1 | rtA); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const DIRT = IDOF['dirt'], GRASS = IDOF['grass'], SAND = IDOF['sand'], GRAVEL = IDOF['gravel'];
+    function skyAccess(x, y, z) {
+      for (let yy = y + 1; yy < CH; yy++) if (get(x, yy, z)) return false;
+      return true;
+    }
+    function fall(x, y, z, id) {
+      let yy = y;
+      while (yy - 1 >= 1 && !get(x, yy - 1, z)) yy--;
+      if (yy === y) return false;
+      set(x, y, z, 0);
+      set(x, yy, z, id);
+      return true;
+    }
+    function randomTicks() {
+      if (!chunks.size) return;
+      const arr = [...chunks.keys()];
+      for (let i = 0; i < 40; i++) {
+        const k = arr[(rtRng() * arr.length) | 0];
+        if (!k) continue;
+        const [cx, cz] = k.split(',').map(Number);
+        const x = cx * CX + ((rtRng() * CX) | 0), z = cz * CZ + ((rtRng() * CZ) | 0);
+        const y = 1 + ((rtRng() * (CH - 1)) | 0);
+        const id = get(x, y, z);
+        if (!id) continue;
+        if (id === GRASS) {
+          if (get(x, y + 1, z) || !skyAccess(x, y + 1, z)) continue;
+          for (let t = 0; t < 4; t++) {
+            const dx = ((rtRng() * 5) | 0) - 2, dz = ((rtRng() * 5) | 0) - 2, dy = ((rtRng() * 3) | 0) - 1;
+            if (get(x + dx, y + dy, z + dz) === DIRT && !get(x + dx, y + dy + 1, z + dz) && skyAccess(x + dx, y + dy + 1, z + dz)) {
+              spreadEv++;
+              set(x + dx, y + dy, z + dz, GRASS);
+            }
+          }
+        } else if (id === SAND || id === GRAVEL) {
+          fall(x, y, z, id);
+        }
+      }
+    }
+    function stats() { return { chunks: chunks.size, generated, queue: genQueue.length, dirty: dirty.size, spreadEv }; }
     function heightAt(x, z) { const h = colHeight(x, z); return h; }
     return { get, set, tick, ensureAround, stats, generate, chunks, dirty, heightAt, biome, seed };
   }
@@ -150,5 +200,19 @@ window.CF = window.CF || {};
     CF.assert(r, 'world.ores-exist', ores > 30);
     const t0 = w.stats(); w.tick(); w.tick();
     CF.assert(r, 'world.gen-budget', w.stats().generated - t0.generated <= 2);
+    // #013/audit-F4 mechanics: grass spread + gravity fall
+    const ID = CF.IDOF;
+    const hs = w.heightAt(2, 2);
+    for (let dx = 0; dx < 5; dx++) for (let dz = 0; dz < 5; dz++) w.set(1 + dx, hs, 1 + dz, ID['dirt']);
+    for (let i = 0; i < 24000; i++) w.tick();
+    let grassed = 0;
+    for (let dx = 0; dx < 5; dx++) for (let dz = 0; dz < 5; dz++) if (w.get(1 + dx, hs, 1 + dz) === ID['grass']) grassed++;
+    CF.assert(r, 'world.grass-spread(' + grassed + ',ev' + w.stats().spreadEv + ')', grassed >= 2);
+    // gravity: sand pillar collapses when under-block is removed (1.12 update-driven fall)
+    const gx = 30, gz = 30, gh = w.heightAt(gx, gz);
+    w.set(gx, gh + 1, gz, ID['sand']);
+    w.set(gx, gh + 2, gz, ID['sand']);
+    w.set(gx, gh + 1, gz, 0);
+    CF.assert(r, 'world.gravity-fall', w.get(gx, gh + 2, gz) === 0 && w.get(gx, gh + 1, gz) === ID['sand']);
   };
 })();

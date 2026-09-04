@@ -14,14 +14,14 @@ Blender-sourced (`tools/tex` manifest). No self-declared counts.
 ## Block % (tiered) — live from parity.mjs (2026-09-04)
 | Tier | variants total | functional | % |
 |------|---------------|-----------|---|
-| 1 | 125 | 15 | 12.0% |
-| 2 | 163 | 1 | 0.6% |
+| 1 | 125 | 14 | 11.2% |
+| 2 | 163 | 0 | 0% |
 | 3 | 111 | 0 | 0% |
-| **all** | **399** | **16** | **4.0%** |
+| **all** | **399** | **14** | **3.5%** |
 
 Counted (evidence: qa/blocks/*.png + blender tiles + functional flag + test asserts):
 stone, grass, dirt, cobblestone, planks:oak, log:oak, leaves:oak, sand, gravel, glass,
-obsidian, coal/iron/gold/diamond ore (t1); snow (t2).
+obsidian, coal/iron/gold/diamond ore (t1). (2026-09-04 audit: snow cube was 1.13-era -> snow_layer t2 unimplemented; leaves de-counted pending #019; functional flags now proof-bound via parity.mjs)
 Not counted though registered: bedrock (creative-only, §7 'breakable' fails), red_sand +
 wood variants (no tiles), all Tier-2/3 families.
 
@@ -33,7 +33,7 @@ wood variants (no tiles), all Tier-2/3 families.
 [ ] hotbar/inventory/drag-drop                           <- hotbar select only (#006)
 [ ] crafting grid + recipe book + smelting
 [ ] day/night + sky/block light engine                   <- flat-shaded only (#013 lighting)
-[ ] gravity blocks (sand/gravel/concrete_powder)
+[ ] gravity blocks (sand/gravel/concrete_powder)  <- sand+gravel done #013 asserts; concrete_powder pending
 [ ] water/lava flow + obsidian/cobblestone
 [ ] torches + spawn-by-light rules
 [ ] hostile mobs (zombie/skeleton/creeper/spider/enderman) + passive w/ breeding

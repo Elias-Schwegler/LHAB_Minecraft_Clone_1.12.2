@@ -33,6 +33,13 @@ for (const b of catalog.blocks) {
     const v = r && (r.variants ? r.variants[lab] : r);
     let ok = !!v && !!v.functional;
     if (ok) {
+      // #014: functional flag must carry proof binding (audit finding F5)
+      const pr = v.proof;
+      ok = !!(pr && Array.isArray(pr.tests) && pr.tests.length &&
+        pr.tests.every((t) => html.includes(t)));
+      if (!ok) rows.push(`${b.n}${lab ? ' ' + lab : ''}: functional:true WITHOUT valid proof.tests`);
+    }
+    if (ok) {
       const tiles = v.tiles || [];
       ok = tiles.length > 0 && tiles.every((t) => texmeta[t] && /^blender:/.test(texmeta[t].src || ''));
     }

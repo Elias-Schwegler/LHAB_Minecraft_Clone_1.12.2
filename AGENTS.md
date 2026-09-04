@@ -5,13 +5,13 @@ Cubeforge: offline single-file (game/index.html) clean-room Minecraft Java 1.12.
 Read docs/MASTERPROMPT.md for the law. This file = current state, 1-minute grounding.
 
 ## Current state (2026-09-04, end of iteration 2)
-- Sprint 01 core DONE: walk on Blender-textured grass in lit, meshed, collideable chunk
-  world (sprint exit screenshot: qa/baseline/walking.png, vision-verified).
-- Block%: 16/399 (4.0%) proven-functional (parity.mjs). Tier-1 mechanics: worldgen,
+- Sprint: 01 CLOSED (v0.1.0 + audit fixes v0.1.1 pending merge). Next: Sprint 02 = lighting
+  (#013-line), fluids, items/tools/combat, inventory UI, save/load, mobs (SPK-4 alt A*).
+- Block%: 14/399 (3.5%) proof-bound functional (parity.mjs; audit #1 fixed, flags carry proof.tests). Tier-1 mechanics: worldgen,
   render, collision, physics, break/place+drops, F3 done-ish; lighting/UI/mobs/fluids next.
 - Merged: #002 worldgen, #003 renderer, #004 registry, #005 player, #006 interact,
-  #007 textures, #008 shots+baseline, #009 F3. Tag v0.1.0 at sprint close pending.
-- test.mjs: 41 asserts green. 17 blocks w/ qa/blocks sheets.
+  #007 textures, #008 shots+baseline, #009 F3. Audit #1 fixes #010-#019.
+- test.mjs: 46 asserts green. 14 blocks w/ qa/blocks sheets + proof-bound flags.
 - Seed 5 = plains spawn (nice shots): `node tools/shot.mjs starter-world seed=5`.
 
 ## How to work (condensed law)
@@ -59,6 +59,8 @@ node tools/tex/gen.mjs                # regen atlas via Blender + manifest
 (see issues/ dir + docs/sprints/01.md)
 
 ## Recent merges (newest first)
+- #010-#019 audit #1 fixes: wrong-tool x3.33 (stone 7.5s), gold_ingot drop, snow->snow_layer,
+  grass spread + sand/gravel gravity + gravel-flint, proof-bound parity, wall assert, F3 content
 - #002..#009 sprint-01 core: worldgen, renderer, registry(17 blocks), player, interact,
   textures+leaves, shot scenarios+baseline, F3 (parity 16/399)
 - #001 spikes SPK-1..6 all GO / GO-WITH-ALT (SPK-4 heap-A*); texture pipeline promoted (19 tiles)

@@ -53,14 +53,14 @@ window.CF = window.CF || {};
     // per-axis sweep
     let nx = x + player.vel[0] * dt;
     if (boxHits(nx, y, z)) {
-      const stepY = y + 0.55;
+      const stepY = y + 0.6;
       if (player.onGround && !boxHits(nx, stepY, z)) { y = stepY; nx = x + player.vel[0] * dt * 0.75; }
       else nx = x;
     }
     x = nx;
     let nz = z + player.vel[2] * dt;
     if (boxHits(x, y, nz)) {
-      const stepY = y + 0.55;
+      const stepY = y + 0.6;
       if (player.onGround && !boxHits(x, stepY, nz)) { y = stepY; nz = z + player.vel[2] * dt * 0.75; }
       else nz = z;
     }
@@ -112,5 +112,19 @@ window.CF = window.CF || {};
     const hAt = CF.world.heightAt(Math.floor(P.pos[0]), Math.floor(P.pos[2]));
     CF.assert(r, 'player.gravity-fall', P.onGround && P.pos[1] >= hAt);
     CF.assert(r, 'player.camera', !!CF.camera && Math.abs(CF.camera.pos[1] - (P.pos[1] - 0.9 + 1.62)) < 0.5);
+    // #018: horizontal wall blocking — build a cobble wall, walk into it, must not pass
+    const wx = Math.floor(P.pos[0]) + 2, wz = Math.floor(P.pos[2]);
+    const wy = Math.floor(P.pos[1] - 0.9);
+    CF.world.ensureAround(wx, wz, 1);
+    for (let i = 0; i < 10 && CF.world.stats().queue; i++) CF.world.tick();
+    for (let yy = wy; yy <= wy + 2; yy++) for (let dz = -2; dz <= 2; dz++) CF.world.set(wx, yy, wz + dz, CF.IDOF['cobblestone']);
+    P.yaw = 0; // face +Z? wall is +X away -> face +X:
+    P.yaw = Math.PI / 2;
+    P.input.f = 1;
+    const xBefore = P.pos[0];
+    for (let i = 0; i < 60; i++) tick();
+    P.input.f = 0;
+    CF.assert(r, 'player.wall-block(' + (P.pos[0] - xBefore).toFixed(2) + ')', P.pos[0] < wx - 0.25 && P.pos[0] > xBefore - 0.01);
+    for (let yy = wy; yy <= wy + 2; yy++) for (let dz = -2; dz <= 2; dz++) CF.world.set(wx, yy, wz + dz, 0);
   };
 })();

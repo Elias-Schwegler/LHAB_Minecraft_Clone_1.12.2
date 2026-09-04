@@ -78,7 +78,7 @@
     {"n":"stone_button","id":77,"v":1,"tier":2},
     {"n":"snow_layer","id":78,"v":1,"tier":2,"note":"thickness 1-8 = one variant behavior"},
     {"n":"ice","id":79,"v":1,"tier":2},
-    {"n":"snow","id":80,"v":1,"tier":2,"note":"snow block"},
+    {"n":"snow_layer","id":78,"v":1,"tier":2,"note":"1-8 thickness metas counted as one behavior (audit #013: 1.12.2 has no full snow cube)"},
     {"n":"cactus","id":81,"v":1,"tier":2},
     {"n":"clay","id":82,"v":1,"tier":1},
     {"n":"reeds","id":83,"v":1,"tier":2,"note":"sugar cane"},
