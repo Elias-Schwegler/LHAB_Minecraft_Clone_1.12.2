@@ -1,6 +1,7 @@
 {
   "modules": [
     "src/registry.js",
+    "src/world.js",
     "src/game.js",
     "src/harness.js"
   ],
