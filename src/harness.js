@@ -7,37 +7,56 @@
   }
   CF.assert = (results, name, cond) => { (cond ? results.pass : results.fail).push(name); };
 
-  async function runTests() {
-    const r = { mode: 'test', pass: [], fail: [], errors: [], ticks: 0, registry: null };
+  const SUITES = [
+    { name: 'boot', run: async (r) => {
+        for (let i = 0; i < 200 && !CF.ready; i++) await new Promise((res) => setTimeout(res, 50));
+        CF.assert(r, 'boot.ready', CF.ready);
+        CF.assert(r, 'gl.webgl2', !!(CF.gl && CF.gl.getParameter && /WebGL 2/.test(CF.gl.getParameter(CF.gl.VERSION))));
+        const t0 = CF.ticks;
+        await new Promise((res) => setTimeout(res, 600));
+        CF.assert(r, 'loop.ticks', CF.ticks > t0 + 5);
+        CF.stopGameLoop && CF.stopGameLoop(); // suites drive sim manually; frees CPU + virtual time
+        CF.assert(r, 'registry.json', typeof CF.REGISTRY === 'object' && CF.REGISTRY !== null);
+        if (window.__ATLAS_B64) {
+          const img = new Image();
+          const ok = await new Promise((res) => { img.onload = () => res(true); img.onerror = () => res(false); img.src = 'data:image/png;base64,' + window.__ATLAS_B64; });
+          CF.assert(r, 'atlas.decoded', ok && img.width === 128 && img.height === 128);
+        }
+        if (typeof CF.registryTests === 'function') await CF.registryTests(r);
+      } },
+    { name: 'world', run: (r) => CF.worldTests && CF.worldTests(r) },
+    { name: 'light', run: (r) => CF.lightTests && CF.lightTests(r) },
+    { name: 'grass', slow: true, run: (r) => CF.grassTests && CF.grassTests(r) },
+    { name: 'time', slow: true, run: (r) => CF.timeTests && CF.timeTests(r) },
+    { name: 'fluids', slow: true, run: (r) => CF.fluidTests && CF.fluidTests(r) },
+    { name: 'render', run: (r) => CF.rendererTests && CF.rendererTests(r) },
+    { name: 'player', run: (r) => CF.playerTests && CF.playerTests(r) },
+    { name: 'interact', run: (r) => CF.interactTests && CF.interactTests(r) },
+    { name: 'f3', run: (r) => CF.f3Tests && CF.f3Tests(r) },
+    { name: 'items', run: (r) => CF.itemTests && CF.itemTests(r) },
+    { name: 'ui', run: (r) => CF.uiTests && CF.uiTests(r) },
+    { name: 'survival', run: (r) => CF.survivalTests && CF.survivalTests(r) },
+    { name: 'save', run: (r) => CF.persistTests && CF.persistTests(r) },
+  ];
+
+  async function runTests(spec) {
+    const r = { mode: 'test', pass: [], fail: [], errors: [], times: {}, ticks: 0, registry: null };
+    let chosen = SUITES;
+    if (spec === 'quick') chosen = SUITES.filter((s) => !s.slow);
+    else if (spec && spec !== 'all') { const want = spec.split(','); chosen = SUITES.filter((s) => want.includes(s.name)); }
     try {
-      for (let i = 0; i < 200 && !CF.ready; i++) await new Promise((res) => setTimeout(res, 50));
-      CF.assert(r, 'boot.ready', CF.ready);
-      CF.assert(r, 'gl.webgl2', !!(CF.gl && CF.gl.getParameter && /WebGL 2/.test(CF.gl.getParameter(CF.gl.VERSION))));
-      const t0 = CF.ticks;
-      await new Promise((res) => setTimeout(res, 600));
-      CF.assert(r, 'loop.ticks', CF.ticks > t0 + 5);
-      CF.assert(r, 'registry.json', typeof CF.REGISTRY === 'object' && CF.REGISTRY !== null);
-      if (window.__ATLAS_B64) {
-        const img = new Image();
-        const ok = await new Promise((res) => { img.onload = () => res(true); img.onerror = () => res(false); img.src = 'data:image/png;base64,' + window.__ATLAS_B64; });
-        CF.assert(r, 'atlas.decoded', ok && img.width === 128 && img.height === 128);
+      for (const s of chosen) {
+        const t0 = performance.now();
+        await s.run(r);
+        r.times[s.name] = Math.round(performance.now() - t0);
       }
-      if (typeof CF.registryTests === 'function') await CF.registryTests(r);
-      if (typeof CF.worldTests === 'function') await CF.worldTests(r);
-      if (typeof CF.rendererTests === 'function') await CF.rendererTests(r);
-      if (typeof CF.playerTests === 'function') await CF.playerTests(r);
-      if (typeof CF.interactTests === 'function') await CF.interactTests(r);
-      if (typeof CF.f3Tests === 'function') await CF.f3Tests(r);
-      if (typeof CF.itemTests === 'function') await CF.itemTests(r);
-      if (typeof CF.uiTests === 'function') await CF.uiTests(r);
-      if (typeof CF.survivalTests === 'function') await CF.survivalTests(r);
-      if (typeof CF.persistTests === 'function') await CF.persistTests(r);
     } catch (e) {
       r.fail.push('harness.threw: ' + (e && e.stack ? String(e.stack).split('\n').slice(0, 3).join(' | ') : e.message));
     }
     r.errors = CF.errors.slice(0, 20);
     r.ticks = CF.ticks;
     r.registry = Object.keys(CF.REGISTRY || {}).length;
+    r.suites = chosen.map((s) => s.name);
     report(r);
   }
 
@@ -250,6 +269,7 @@
     await new Promise((r) => setTimeout(r, 300));
   };
   const h = location.hash || '';
-  if (h === '#test') runTests();
+  if (h === '#test') runTests('all');
+  else if (h.startsWith('#test=')) runTests(decodeURIComponent(h.slice(6)));
   else if (h.startsWith('#shot=')) runShot(h.slice(6));
 })();
