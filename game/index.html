@@ -1124,9 +1124,8 @@ window.CF = window.CF || {};
 // Harness asserts (#002)
 (function () {
   const CF = window.CF;
-  CF.worldTests = async (r) => {
+  CF.lightTests = async (r) => {
     const w = CF.world;
-    // #020 light engine (run first: relight is global-conservative)
     const IDL = CF.IDOF;
     const lx = 44, lz = 44;
     let hmax = 0;
@@ -1174,6 +1173,9 @@ window.CF = window.CF || {};
     for (let i = 0; i < 10 && (w.lightAt(lx, lh, lz) & 15) > 0; i++) w.tick();
     const afterLight = w.lightAt(lx, lh, lz) & 15;
     CF.assert(r, 'light.queue-off(' + beforeLight + '->' + afterLight + ')', afterLight === 0);
+  };
+  CF.worldTests = async (r) => {
+    const w = CF.world;
     w.ensureAround(0, 0, 4);
     for (let i = 0; i < 60 && w.stats().queue; i++) w.tick();
     CF.assert(r, 'world.chunks', w.stats().chunks >= 40);
@@ -1199,23 +1201,7 @@ window.CF = window.CF || {};
     CF.assert(r, 'world.ores-exist', ores > 30);
     const t0 = w.stats(); w.tick(); w.tick();
     CF.assert(r, 'world.gen-budget', w.stats().generated - t0.generated <= 2);
-    // #021 day/night cycle
-    const df = CF.dayFactor;
-    CF.assert(r, 'time.day', df(1000) === 1);
-    CF.assert(r, 'time.night', df(18000) === 0);
-    CF.assert(r, 'time.dusk-monotonic', (() => { let p = 1; for (let t = 12000; t <= 13800; t += 180) { const v = df(t); if (v > p + 1e-9) return false; p = v; } return df(13800) <= 0.001; })());
-    CF.assert(r, 'time.dawn-monotonic', (() => { let p = 0; for (let t = 22800; t <= 24000; t += 120) { const v = df(t); if (v < p - 1e-9) return false; p = v; } return df(24000) === 1; })());
-    let ok2 = true;
-    try { for (let i = 0; i < 48000; i++) w.tick(); } catch (e) { ok2 = false; }
-    CF.assert(r, 'time.2days-no-crash', ok2 && CF.dayFactor(18000) === 0);
-    // #013/audit-F4 mechanics: grass spread + gravity fall
     const ID = CF.IDOF;
-    const hs = w.heightAt(2, 2);
-    for (let dx = 0; dx < 5; dx++) for (let dz = 0; dz < 5; dz++) w.set(1 + dx, hs, 1 + dz, ID['dirt']);
-    for (let i = 0; i < 24000; i++) w.tick();
-    let grassed = 0;
-    for (let dx = 0; dx < 5; dx++) for (let dz = 0; dz < 5; dz++) if (w.get(1 + dx, hs, 1 + dz) === ID['grass']) grassed++;
-    CF.assert(r, 'world.grass-spread(' + grassed + ',ev' + w.stats().spreadEv + ')', grassed >= 2);
     // gravity: sand pillar collapses when under-block is removed (1.12 update-driven fall)
     const gx = 30, gz = 30, gh = w.heightAt(gx, gz);
     w.set(gx, gh + 1, gz, ID['sand']);
@@ -1244,7 +1230,31 @@ window.CF = window.CF || {};
     for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) for (let dy = 3; dy <= 5; dy++)
       if (w.get(tx + 24 + dx, th + dy, tz + dz) === ID['leaves']) kept++;
     CF.assert(r, 'world.leaves-persist(' + kept + ')', kept > 60);
-    // #022 fluids: spread, distance cap, Java interaction rules
+  };
+  CF.grassTests = async (r) => {
+    const w = CF.world;
+    const ID = CF.IDOF;
+    const hs = w.heightAt(2, 2);
+    for (let dx = 0; dx < 5; dx++) for (let dz = 0; dz < 5; dz++) w.set(1 + dx, hs, 1 + dz, ID['dirt']);
+    for (let i = 0; i < 24000; i++) w.tick();
+    let grassed = 0;
+    for (let dx = 0; dx < 5; dx++) for (let dz = 0; dz < 5; dz++) if (w.get(1 + dx, hs, 1 + dz) === ID['grass']) grassed++;
+    CF.assert(r, 'world.grass-spread(' + grassed + ',ev' + w.stats().spreadEv + ')', grassed >= 2);
+  };
+  CF.timeTests = async (r) => {
+    const w = CF.world;
+    const df = CF.dayFactor;
+    CF.assert(r, 'time.day', df(1000) === 1);
+    CF.assert(r, 'time.night', df(18000) === 0);
+    CF.assert(r, 'time.dusk-monotonic', (() => { let p = 1; for (let t = 12000; t <= 13800; t += 180) { const v = df(t); if (v > p + 1e-9) return false; p = v; } return df(13800) <= 0.001; })());
+    CF.assert(r, 'time.dawn-monotonic', (() => { let p = 0; for (let t = 22800; t <= 24000; t += 120) { const v = df(t); if (v < p - 1e-9) return false; p = v; } return df(24000) === 1; })());
+    let ok2 = true;
+    try { for (let i = 0; i < 48000; i++) w.tick(); } catch (e) { ok2 = false; }
+    CF.assert(r, 'time.2days-no-crash', ok2 && CF.dayFactor(18000) === 0);
+  };
+  CF.fluidTests = async (r) => {
+    const w = CF.world;
+    const ID = CF.IDOF;
     const W2 = w;
     const fx = 140, fz = 140;
     W2.ensureAround(fx, fz, 2);
@@ -2946,7 +2956,7 @@ window.CF = window.CF || {};
     CF.ready = true;
     // Fixed-timestep SIM on setInterval (deterministic, works in headless virtual time);
     // RENDER on rAF. Sim never depends on rAF firing.
-    setInterval(() => {
+    const loopId = setInterval(() => {
       const t0 = performance.now();
       if (CF.world) {
         const p = CF.player;
@@ -2960,7 +2970,9 @@ window.CF = window.CF || {};
       CF.simMs = performance.now() - t0;
       CF.ticks++;
     }, 50);
+    CF.stopGameLoop = () => { clearInterval(loopId); CF.stopDraw = true; };
     function frame() {
+      if (CF.stopDraw) return;
       if (CF.renderDraw) {
         CF.renderDraw(CF.camera || { pos: [8, CF.world ? CF.world.heightAt(0, 0) + 26 : 90, 8], yaw: 0.7, pitch: -0.9 });
       } else {
@@ -2984,37 +2996,56 @@ window.CF = window.CF || {};
   }
   CF.assert = (results, name, cond) => { (cond ? results.pass : results.fail).push(name); };
 
-  async function runTests() {
-    const r = { mode: 'test', pass: [], fail: [], errors: [], ticks: 0, registry: null };
+  const SUITES = [
+    { name: 'boot', run: async (r) => {
+        for (let i = 0; i < 200 && !CF.ready; i++) await new Promise((res) => setTimeout(res, 50));
+        CF.assert(r, 'boot.ready', CF.ready);
+        CF.assert(r, 'gl.webgl2', !!(CF.gl && CF.gl.getParameter && /WebGL 2/.test(CF.gl.getParameter(CF.gl.VERSION))));
+        const t0 = CF.ticks;
+        await new Promise((res) => setTimeout(res, 600));
+        CF.assert(r, 'loop.ticks', CF.ticks > t0 + 5);
+        CF.stopGameLoop && CF.stopGameLoop(); // suites drive sim manually; frees CPU + virtual time
+        CF.assert(r, 'registry.json', typeof CF.REGISTRY === 'object' && CF.REGISTRY !== null);
+        if (window.__ATLAS_B64) {
+          const img = new Image();
+          const ok = await new Promise((res) => { img.onload = () => res(true); img.onerror = () => res(false); img.src = 'data:image/png;base64,' + window.__ATLAS_B64; });
+          CF.assert(r, 'atlas.decoded', ok && img.width === 128 && img.height === 128);
+        }
+        if (typeof CF.registryTests === 'function') await CF.registryTests(r);
+      } },
+    { name: 'world', run: (r) => CF.worldTests && CF.worldTests(r) },
+    { name: 'light', run: (r) => CF.lightTests && CF.lightTests(r) },
+    { name: 'grass', slow: true, run: (r) => CF.grassTests && CF.grassTests(r) },
+    { name: 'time', slow: true, run: (r) => CF.timeTests && CF.timeTests(r) },
+    { name: 'fluids', slow: true, run: (r) => CF.fluidTests && CF.fluidTests(r) },
+    { name: 'render', run: (r) => CF.rendererTests && CF.rendererTests(r) },
+    { name: 'player', run: (r) => CF.playerTests && CF.playerTests(r) },
+    { name: 'interact', run: (r) => CF.interactTests && CF.interactTests(r) },
+    { name: 'f3', run: (r) => CF.f3Tests && CF.f3Tests(r) },
+    { name: 'items', run: (r) => CF.itemTests && CF.itemTests(r) },
+    { name: 'ui', run: (r) => CF.uiTests && CF.uiTests(r) },
+    { name: 'survival', run: (r) => CF.survivalTests && CF.survivalTests(r) },
+    { name: 'save', run: (r) => CF.persistTests && CF.persistTests(r) },
+  ];
+
+  async function runTests(spec) {
+    const r = { mode: 'test', pass: [], fail: [], errors: [], times: {}, ticks: 0, registry: null };
+    let chosen = SUITES;
+    if (spec === 'quick') chosen = SUITES.filter((s) => !s.slow);
+    else if (spec && spec !== 'all') { const want = spec.split(','); chosen = SUITES.filter((s) => want.includes(s.name)); }
     try {
-      for (let i = 0; i < 200 && !CF.ready; i++) await new Promise((res) => setTimeout(res, 50));
-      CF.assert(r, 'boot.ready', CF.ready);
-      CF.assert(r, 'gl.webgl2', !!(CF.gl && CF.gl.getParameter && /WebGL 2/.test(CF.gl.getParameter(CF.gl.VERSION))));
-      const t0 = CF.ticks;
-      await new Promise((res) => setTimeout(res, 600));
-      CF.assert(r, 'loop.ticks', CF.ticks > t0 + 5);
-      CF.assert(r, 'registry.json', typeof CF.REGISTRY === 'object' && CF.REGISTRY !== null);
-      if (window.__ATLAS_B64) {
-        const img = new Image();
-        const ok = await new Promise((res) => { img.onload = () => res(true); img.onerror = () => res(false); img.src = 'data:image/png;base64,' + window.__ATLAS_B64; });
-        CF.assert(r, 'atlas.decoded', ok && img.width === 128 && img.height === 128);
+      for (const s of chosen) {
+        const t0 = performance.now();
+        await s.run(r);
+        r.times[s.name] = Math.round(performance.now() - t0);
       }
-      if (typeof CF.registryTests === 'function') await CF.registryTests(r);
-      if (typeof CF.worldTests === 'function') await CF.worldTests(r);
-      if (typeof CF.rendererTests === 'function') await CF.rendererTests(r);
-      if (typeof CF.playerTests === 'function') await CF.playerTests(r);
-      if (typeof CF.interactTests === 'function') await CF.interactTests(r);
-      if (typeof CF.f3Tests === 'function') await CF.f3Tests(r);
-      if (typeof CF.itemTests === 'function') await CF.itemTests(r);
-      if (typeof CF.uiTests === 'function') await CF.uiTests(r);
-      if (typeof CF.survivalTests === 'function') await CF.survivalTests(r);
-      if (typeof CF.persistTests === 'function') await CF.persistTests(r);
     } catch (e) {
       r.fail.push('harness.threw: ' + (e && e.stack ? String(e.stack).split('\n').slice(0, 3).join(' | ') : e.message));
     }
     r.errors = CF.errors.slice(0, 20);
     r.ticks = CF.ticks;
     r.registry = Object.keys(CF.REGISTRY || {}).length;
+    r.suites = chosen.map((s) => s.name);
     report(r);
   }
 
@@ -3227,7 +3258,8 @@ window.CF = window.CF || {};
     await new Promise((r) => setTimeout(r, 300));
   };
   const h = location.hash || '';
-  if (h === '#test') runTests();
+  if (h === '#test') runTests('all');
+  else if (h.startsWith('#test=')) runTests(decodeURIComponent(h.slice(6)));
   else if (h.startsWith('#shot=')) runShot(h.slice(6));
 })();
 

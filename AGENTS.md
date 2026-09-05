@@ -8,7 +8,7 @@ Read docs/MASTERPROMPT.md for the law. This file = current state, 1-minute groun
 - Sprint: 02 near close: DONE #019 leaves, #020 light, #021 day/night, #022 fluids (+#031 carve:
   water banding/lava brightness/buckets), #023 save, #024 items/crafting/smelting/torch, #025 UI,
   #026 survival+HUD, #027 F3v2. All closed. Audit #4 (sprint close) + v0.2.0 tag next.
-  Sprint 03 PLANNED (docs/sprints/03.md): mobs+spawn rules, chests, beds/weather, TNT, SPK-7, gate-speed #033. Start with #033 then #035 mob core.
+  Sprint 03 PLANNED (docs/sprints/03.md): mobs+spawn rules, chests, beds/weather, TNT, SPK-7, gate-speed #033. Start with #035 mob core (#033 done: --quick 32s).
 - Block%: 17/399 (4.3%) proof-bound functional: +glowstone #020, +torch #024. Sprint02 done: #021 day/night, #024 items/tools/crafting/smelting/cross-model torch. torch wall-attach -> #028; furnace/GUI -> #025. Tier-1 mechanics: worldgen,
   render, collision, physics, break/place+drops, F3 done-ish; lighting/UI/mobs/fluids next.
 - Merged: #002 worldgen, #003 renderer, #004 registry, #005 player, #006 interact,
@@ -20,7 +20,8 @@ ode tools/shot.mjs starter-world seed=5`.
 ## How to work (condensed law)
 1. Loop priority: P0/P1 → committed sprint issues → refine backlog to DoR → plan sprint from parity gap.
 2. Branch feature/NNN-slug from main; quality gate = 
-ode tools/build.mjs && node tools/test.mjs && node tools/shot.mjs <name>`;
+ode tools/build.mjs && node tools/test.mjs            # full gate (~96s)
+node tools/test.mjs --quick   # dev loop (~32s; skips slow grass/time/fluids) && node tools/shot.mjs <name>`;
    merge `--no-ff` "feat(scope): subject (#NNN)"; close issue w/ evidence; update AGENTS.md + PARITY.md in the merge.
 3. Never: npm deps, downloads, three.js, placeholder flat textures shipped, counts without evidence.
 4. Textures: Blender via tools/tex scripts (abs path in ENVIRONMENT.md), atlas → build embeds base64.

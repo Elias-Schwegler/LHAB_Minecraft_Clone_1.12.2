@@ -398,9 +398,8 @@ window.CF = window.CF || {};
 // Harness asserts (#002)
 (function () {
   const CF = window.CF;
-  CF.worldTests = async (r) => {
+  CF.lightTests = async (r) => {
     const w = CF.world;
-    // #020 light engine (run first: relight is global-conservative)
     const IDL = CF.IDOF;
     const lx = 44, lz = 44;
     let hmax = 0;
@@ -448,6 +447,9 @@ window.CF = window.CF || {};
     for (let i = 0; i < 10 && (w.lightAt(lx, lh, lz) & 15) > 0; i++) w.tick();
     const afterLight = w.lightAt(lx, lh, lz) & 15;
     CF.assert(r, 'light.queue-off(' + beforeLight + '->' + afterLight + ')', afterLight === 0);
+  };
+  CF.worldTests = async (r) => {
+    const w = CF.world;
     w.ensureAround(0, 0, 4);
     for (let i = 0; i < 60 && w.stats().queue; i++) w.tick();
     CF.assert(r, 'world.chunks', w.stats().chunks >= 40);
@@ -473,23 +475,7 @@ window.CF = window.CF || {};
     CF.assert(r, 'world.ores-exist', ores > 30);
     const t0 = w.stats(); w.tick(); w.tick();
     CF.assert(r, 'world.gen-budget', w.stats().generated - t0.generated <= 2);
-    // #021 day/night cycle
-    const df = CF.dayFactor;
-    CF.assert(r, 'time.day', df(1000) === 1);
-    CF.assert(r, 'time.night', df(18000) === 0);
-    CF.assert(r, 'time.dusk-monotonic', (() => { let p = 1; for (let t = 12000; t <= 13800; t += 180) { const v = df(t); if (v > p + 1e-9) return false; p = v; } return df(13800) <= 0.001; })());
-    CF.assert(r, 'time.dawn-monotonic', (() => { let p = 0; for (let t = 22800; t <= 24000; t += 120) { const v = df(t); if (v < p - 1e-9) return false; p = v; } return df(24000) === 1; })());
-    let ok2 = true;
-    try { for (let i = 0; i < 48000; i++) w.tick(); } catch (e) { ok2 = false; }
-    CF.assert(r, 'time.2days-no-crash', ok2 && CF.dayFactor(18000) === 0);
-    // #013/audit-F4 mechanics: grass spread + gravity fall
     const ID = CF.IDOF;
-    const hs = w.heightAt(2, 2);
-    for (let dx = 0; dx < 5; dx++) for (let dz = 0; dz < 5; dz++) w.set(1 + dx, hs, 1 + dz, ID['dirt']);
-    for (let i = 0; i < 24000; i++) w.tick();
-    let grassed = 0;
-    for (let dx = 0; dx < 5; dx++) for (let dz = 0; dz < 5; dz++) if (w.get(1 + dx, hs, 1 + dz) === ID['grass']) grassed++;
-    CF.assert(r, 'world.grass-spread(' + grassed + ',ev' + w.stats().spreadEv + ')', grassed >= 2);
     // gravity: sand pillar collapses when under-block is removed (1.12 update-driven fall)
     const gx = 30, gz = 30, gh = w.heightAt(gx, gz);
     w.set(gx, gh + 1, gz, ID['sand']);
@@ -518,7 +504,31 @@ window.CF = window.CF || {};
     for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) for (let dy = 3; dy <= 5; dy++)
       if (w.get(tx + 24 + dx, th + dy, tz + dz) === ID['leaves']) kept++;
     CF.assert(r, 'world.leaves-persist(' + kept + ')', kept > 60);
-    // #022 fluids: spread, distance cap, Java interaction rules
+  };
+  CF.grassTests = async (r) => {
+    const w = CF.world;
+    const ID = CF.IDOF;
+    const hs = w.heightAt(2, 2);
+    for (let dx = 0; dx < 5; dx++) for (let dz = 0; dz < 5; dz++) w.set(1 + dx, hs, 1 + dz, ID['dirt']);
+    for (let i = 0; i < 24000; i++) w.tick();
+    let grassed = 0;
+    for (let dx = 0; dx < 5; dx++) for (let dz = 0; dz < 5; dz++) if (w.get(1 + dx, hs, 1 + dz) === ID['grass']) grassed++;
+    CF.assert(r, 'world.grass-spread(' + grassed + ',ev' + w.stats().spreadEv + ')', grassed >= 2);
+  };
+  CF.timeTests = async (r) => {
+    const w = CF.world;
+    const df = CF.dayFactor;
+    CF.assert(r, 'time.day', df(1000) === 1);
+    CF.assert(r, 'time.night', df(18000) === 0);
+    CF.assert(r, 'time.dusk-monotonic', (() => { let p = 1; for (let t = 12000; t <= 13800; t += 180) { const v = df(t); if (v > p + 1e-9) return false; p = v; } return df(13800) <= 0.001; })());
+    CF.assert(r, 'time.dawn-monotonic', (() => { let p = 0; for (let t = 22800; t <= 24000; t += 120) { const v = df(t); if (v < p - 1e-9) return false; p = v; } return df(24000) === 1; })());
+    let ok2 = true;
+    try { for (let i = 0; i < 48000; i++) w.tick(); } catch (e) { ok2 = false; }
+    CF.assert(r, 'time.2days-no-crash', ok2 && CF.dayFactor(18000) === 0);
+  };
+  CF.fluidTests = async (r) => {
+    const w = CF.world;
+    const ID = CF.IDOF;
     const W2 = w;
     const fx = 140, fz = 140;
     W2.ensureAround(fx, fz, 2);
