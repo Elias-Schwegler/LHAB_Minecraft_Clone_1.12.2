@@ -36,6 +36,7 @@
     { name: 'items', run: (r) => CF.itemTests && CF.itemTests(r) },
     { name: 'ui', run: (r) => CF.uiTests && CF.uiTests(r) },
     { name: 'survival', run: (r) => CF.survivalTests && CF.survivalTests(r) },
+    { name: 'mobs', run: (r) => CF.mobTests && CF.mobTests(r) },
     { name: 'save', run: (r) => CF.persistTests && CF.persistTests(r) },
   ];
 

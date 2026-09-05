@@ -84,6 +84,7 @@ window.CF = window.CF || {};
     if (!save || save.v !== 1) { loadNow._rej = 'ver'; localStorage.removeItem(KEY); return false; }
     CF.world = CF.makeWorld(save.seed);
     CF.renderReset && CF.renderReset();
+    CF.mobs && CF.mobs.clear(); // mobs are transient (persistence = backlog #044)
     initEditTracking(CF.world);
     for (const [k, b] of Object.entries(save.chunks || {})) {
       const [cx, cz] = k.split(',').map(Number);

@@ -1,23 +1,28 @@
 # AGENTS.md — project STATE memory (1-minute grounding)
 Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each session) · Spec: docs/REFERENCE.md
 
-## Current state (2026-09-05, sprint 03 it7)
+## Current state (2026-09-05, sprint 03 it8)
 - Tags: v0.0.0 scaffold → v0.1.0 sprint01+fixes → v0.2.0 SPRINT 02 CLOSED (audit #4 READY).
-- Sprint 03 ACTIVE (docs/sprints/03.md): #033 DONE (suite split, --quick 32s). NEXT: #035 mob core
-  (entity system + zombie), then #036 heap-A* AI, #037 skeleton/creeper, #038 passives+breeding,
-  #039 spawn rules, #040 chests, #041 beds/weather, #042 TNT, #043 fluids polish. SPK-7 (nether scale)
-  before any nether work.
-- Gate: TEST GREEN 107 asserts full / 96 quick, 0 errors. Parity: 17/399 proof-bound (t1 17/125):
-  16 core blocks + torch; water/lava NOT counted until buckets (#031).
+- Sprint 03 ACTIVE (docs/sprints/03.md): #033 + #035 DONE. NEXT: #036 mob AI (heap A* chase per SPK-4,
+  1.12 attack cooldown - mobs still harmless until then), then #037 skeleton/creeper, #038 passives+breeding,
+  #039 spawn caps polish, #040 chests, #041 beds/weather, #042 TNT, #043 fluids polish, #044 mob art/polish.
+  SPK-7 (nether scale) before any nether work.
+- Gate: TEST GREEN 125 asserts full / 96 quick (mobs suite +18), 0 errors. Parity: 17/399 proof-bound
+  (t1 17/125): 16 core blocks + torch; water/lava NOT counted until buckets (#031). PARITY tier-table
+  had been drifting (said 14) - fixed 2026-09-05; mechanic rows re-synced w/ verified assert names.
 - Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy+AO-less shaded+light+fog),
   break/place/drops/tiers+crafting+smelting, items/inventory/UI, physics, day/night, block+sky light,
-  fluids v1, survival stats+HUD, save/load, F3 v2, torch per-face. Remaining Tier-1: mobs+spawn rules,
-  chests/furnace-GUI(#032), TNT, beds/sleep, combat cooldown polish, infinite-streaming verify.
+  fluids v1, survival stats+HUD, save/load, F3 v2, torch per-face, MOB CORE v1 (entity physics, light<=7
+  night/cave spawning survival-gated, sun burn, player-kill loot; mobs render as palette-lit boxes).
+  Remaining Tier-1: mob AI+combat(#036), more mobs(#037-#039), chests/furnace-GUI(#032), TNT, beds/sleep,
+  combat cooldown polish, infinite-streaming verify, recipe book UI.
 - Carried FIXes: #031 (water banding rows + lava tile brightness + buckets→+2 parity), #032 (furnace UI).
 - Nice dev seed: 5 = plains (all baselines use it). Play mode = open game/index.html (F4 survival, E inv,
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #035 mob core: src/mobs.js (CF.mobs entity store, physics sweep, light<=7 spawn, sun burn, loot) +
+  render mob pass (palette tex unit1, SAME shader, atlas untouched) + night-mobs.png; +18 asserts
 - be32c08 #033 suite split (--quick 32s; CF.stopGameLoop fix)
 - v0.2.0 close: sprint02 review/retro + audit#4 (1 P1 escaped: false furnace-UI checkbox -> #032)
 - #028 torch per-face attach+pop · #027 F3v2 · #026 survival+HUD · #025 UI · #022 fluids+obsidian/
@@ -26,8 +31,9 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
 - v0.1.x: #002-#009 sprint01 core + audit#1 (#010-#019) · #001 spikes (SPK-1..6: GO / SPK-4 ALT=heap A*)
 
 ## Architecture pointers (code comments are authoritative)
-registry.js → world.js (chunks/light/flat-fluids/decay) → render.js (opaque|cross|liquid passes) →
-player.js → items.js → interact.js → ui.js → survival.js → persist.js → f3.js → game.js → harness.js.
+registry.js → world.js (chunks/light/flat-fluids/decay) → render.js (opaque|cross|liquid + MOB passes) →
+player.js → items.js → interact.js → ui.js → survival.js → persist.js → f3.js → mobs.js (entities;
+CF.mobTick in game loop, spawn survival-gated) → game.js → harness.js.
 tools/: build/test/shot/parity/blockshots/tex. All zero-dependency. PowerShell quirks + WebGL rules
 + probe patterns: see PLAYBOOK §4 before touching render/fluids/harness — each gotcha cost hours once.
 

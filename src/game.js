@@ -33,6 +33,7 @@ window.CF = window.CF || {};
         CF.world.ensureAround(p ? p.pos[0] : 0, p ? p.pos[2] : 0, 4);
         CF.world.tick();
         CF.playerTick && CF.playerTick();
+        CF.mobTick && CF.mobTick(); // #035 entities (spawn scheduler is survival-gated)
       }
       CF.renderTick && CF.renderTick();
       CF.onTick && CF.onTick();
