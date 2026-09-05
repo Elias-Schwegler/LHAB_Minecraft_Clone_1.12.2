@@ -7,7 +7,7 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   1.12 attack cooldown - mobs still harmless until then), then #037 skeleton/creeper, #038 passives+breeding,
   #039 spawn caps polish, #040 chests, #041 beds/weather, #042 TNT, #043 fluids polish, #044 mob art/polish.
   SPK-7 (nether scale) before any nether work.
-- Gate: TEST GREEN 125 asserts full / 96 quick (mobs suite +18), 0 errors. Parity: 17/399 proof-bound
+- Gate: TEST GREEN 125 asserts full / 114 quick (mobs suite +18 runs in quick too), 0 errors. Parity: 17/399 proof-bound
   (t1 17/125): 16 core blocks + torch; water/lava NOT counted until buckets (#031). PARITY tier-table
   had been drifting (said 14) - fixed 2026-09-05; mechanic rows re-synced w/ verified assert names.
 - Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy+AO-less shaded+light+fog),

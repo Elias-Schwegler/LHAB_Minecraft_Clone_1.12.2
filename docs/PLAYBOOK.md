@@ -21,7 +21,7 @@ Operational manual for the Cubeforge loop. Update this file when a process learn
 ## 2. Tools (all zero-npm-dep; run from repo root, PowerShell)
 ```powershell
 node tools/build.mjs                      # src/* (+atlas b64) -> game/index.html; fails on external refs
-node tools/test.mjs                       # full gate: 14 suites, ~96s, expect "TEST GREEN", 107 asserts
+node tools/test.mjs                       # full gate: 15 suites, ~96s, expect "TEST GREEN", 125 asserts
 node tools/test.mjs --quick               # dev loop ~32s (skips slow: grass/time/fluids)
 node tools/test.mjs --suites=world,light  # surgical
 node tools/shot.mjs <scenario> [seed=N]   # qa/YYYY-MM-DD/<scenario>.png — then VIEW it (Read tool)

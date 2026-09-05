@@ -78,7 +78,8 @@ Pathfinding is explicitly OUT (SPK-4 heap A* lands in #036); #035 mobs only wand
 - Build: game/index.html 175.6 KB. Full gate: **125 pass / 0 fail / 0 errors** (was 107; +18 mob asserts:
   land, no-sink, wall-block, spawn-scan-found, spawn-dark, no-spawn-noon, no-spawn-lit, min-dist(x2),
   spawn-night(scheduler), cap, burn-setup, burn-day, no-burn-night, drop, env-kill-no-loot, px-draw, glErr).
-  Quick gate unchanged 96 (mobs suite is not slow-tagged; runs in the 32s loop).
+  Quick gate 114 (96 + the 18 mob asserts; mobs suite is not slow-tagged) - audit #5 F1 corrected the
+  stale "96" claim here same iteration.
 - Render integration shipped as designed: NO shader change, NO atlas change — mobs reuse the block shader
   via a solid-color 8x1 palette on texture unit 1, sampler T switched only for the (dynamic, culled) mob pass.
   stats.mtris/mobCount tracked; render.glErr stays 0; readCenter helper added for pixel-presence asserts.
