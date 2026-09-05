@@ -13,6 +13,7 @@ window.CF = window.CF || {};
     gold_ingot: { tile: 'item_gold_ingot' },
     diamond: { tile: 'item_diamond' },
     apple: { tile: 'item_apple', food: 4 },
+    rotten_flesh: { food: 4, poison: true }, // 1.12: +4 food, 80% poison II 4s (poison effect lands with #036 combat)
     sapling: { tile: 'item_sapling' },
     flint: { tile: 'item_flint' },
     shears: { tile: 'item_shears', tool: { type: 'shears', tier: 0, speed: 1 } },

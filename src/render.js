@@ -5,6 +5,7 @@ window.CF = window.CF || {};
   const CF = window.CF;
   const CX = 16, CH = 128, CZ = 16;
   let gl, prog, uVP, uFog, uTloc, tex, meshMap = new Map(), texReady = false;
+  let palTex, mobVAO, mobVB; // #035: mobs reuse this shader, sampling a solid-color palette on unit 1
   const stats = { meshes: 0, tris: 0, rebuilds: 0, glErr: 0, missingTiles: new Set() };
   CF.rendererStats = stats;
   const SHADE = { 0: 0.8, 1: 1.0, 2: 0.6 }; // +x,+y,+z faces; opposite = slightly darker
@@ -188,6 +189,28 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
       texReady = true;
     };
     if (window.__ATLAS_B64) img.src = 'data:image/png;base64,' + window.__ATLAS_B64;
+    // #035 solid-color palette for mob boxes (8x1, texture unit 1). Generated in-code: zero assets,
+    // atlas untouched (block parity safe), shader untouched (mobs just switch sampler T -> unit 1).
+    CF.MOBCOLOR = { white: 0, zskin: 1, zcloth: 2, zdark: 3, pig: 4, cow: 5, sheep: 6, dark: 7 };
+    const PAL = new Uint8Array([
+      255, 255, 255, 255, 68, 118, 86, 255, 84, 92, 120, 255, 40, 54, 44, 255,
+      232, 136, 136, 255, 96, 76, 60, 255, 226, 224, 214, 255, 24, 24, 28, 255]);
+    palTex = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, palTex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 8, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, PAL);
+    gl.activeTexture(gl.TEXTURE0);
+    mobVAO = gl.createVertexArray(); gl.bindVertexArray(mobVAO);
+    mobVB = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, mobVB);
+    gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 28, 0);
+    gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 28, 12);
+    gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 28, 24);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(7), gl.STREAM_DRAW);
+    gl.bindVertexArray(null);
   }
 
   function upload(cx, cz, m) {
@@ -295,6 +318,22 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
       gl.drawArrays(gl.TRIANGLES, 0, e.n);
       tris += e.n / 3; drawn++;
     }
+    // #035 mob boxes: opaque, depth-tested, same shader via palette on unit 1 (dynamic VBO each frame)
+    stats.mtris = 0; stats.mobCount = CF.mobs ? CF.mobs.list.length : 0;
+    if (CF.buildMobVerts) {
+      const mv = CF.buildMobVerts(cam);
+      if (mv && mv.length) {
+        gl.depthMask(true); gl.disable(gl.BLEND);
+        gl.bindBuffer(gl.ARRAY_BUFFER, mobVB);
+        gl.bufferData(gl.ARRAY_BUFFER, mv, gl.STREAM_DRAW);
+        gl.bindVertexArray(mobVAO);
+        gl.uniform1i(uTloc, 1);
+        gl.drawArrays(gl.TRIANGLES, 0, mv.length / 7);
+        gl.uniform1i(uTloc, 0);
+        gl.bindVertexArray(null);
+        stats.mtris = mv.length / 21;
+      }
+    }
     // translucent liquid pass (no depth write) (#022) - premultiplied blending
     gl.enable(gl.BLEND);
     gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -316,11 +355,17 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
   CF.initRenderer = initRenderer;
   CF.renderTick = renderTick;
   CF.renderDraw = draw;
+  CF.readCenter = () => {
+    if (!gl) return [0, 0, 0];
+    const q = new Uint8Array(4);
+    gl.readPixels((CF.canvas.width / 2) | 0, (CF.canvas.height / 2) | 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, q);
+    return [q[0], q[1], q[2]];
+  };
   CF.renderReset = () => {
     if (!gl) { meshMap.clear(); return; }
     for (const [, e] of meshMap) { gl.deleteBuffer(e.vb); gl.deleteVertexArray(e.vao); gl.deleteBuffer(e.wvb); gl.deleteVertexArray(e.wvao); }
     meshMap.clear();
-    stats.meshes = 0; stats.tris = 0; stats.rebuilds = 0;
+    stats.meshes = 0; stats.tris = 0; stats.rebuilds = 0; stats.mtris = 0;
   };
 
   CF.rendererTests = async (r) => {

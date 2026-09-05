@@ -11,17 +11,20 @@ shot.mjs PNG + vision verdict. `parity.mjs` counts a variant ONLY if the game re
 marks it `functional:true` AND `qa/blocks/<variant>.png` exists AND a texture tile is
 Blender-sourced (`tools/tex` manifest). No self-declared counts.
 
-## Block % (tiered) — live from parity.mjs (2026-09-04)
+## Block % (tiered) — live from parity.mjs (2026-09-05, re-verified; earlier table had drifted at 14)
 | Tier | variants total | functional | % |
 |------|---------------|-----------|---|
-| 1 | 125 | 14 | 11.2% |
+| 1 | 125 | 17 | 13.6% |
 | 2 | 163 | 0 | 0% |
 | 3 | 111 | 0 | 0% |
-| **all** | **399** | **14** | **3.5%** |
+| **all** | **399** | **17** | **4.3%** |
 
 Counted (evidence: qa/blocks/*.png + blender tiles + functional flag + test asserts):
 stone, grass, dirt, cobblestone, planks:oak, log:oak, leaves:oak, sand, gravel, glass,
-obsidian, coal/iron/gold/diamond ore (t1). (2026-09-04 audit: snow cube was 1.13-era -> snow_layer t2 unimplemented; leaves de-counted pending #019; functional flags now proof-bound via parity.mjs)
+obsidian, coal/iron/gold/diamond ore (t1) = 15, + glowstone (#020, qa/blocks + light asserts),
++ torch (#024, cross-model + per-face attach asserts) = **17**.
+(2026-09-04 audit: snow cube was 1.13-era -> snow_layer t2 unimplemented; functional flags now proof-bound
+via parity.mjs; water/lava NOT counted until buckets #031)
 Not counted though registered: bedrock (creative-only, §7 'breakable' fails), red_sand +
 wood variants (no tiles), all Tier-2/3 families.
 
@@ -30,19 +33,19 @@ wood variants (no tiles), all Tier-2/3 families.
 [ ] chunked infinite worldgen w/ biomes + ores + caves   <- #002 asserts+shot; streaming-unlimited pending
 [x] block place/break/AABB collision                     <- #005/#006 interact asserts + walking.png
 [ ] 1.9-style player physics + combat cooldown           <- #005 physics asserted; cooldown needs combat
-[ ] hotbar/inventory/drag-drop                           <- hotbar select only (#006)
-[ ] crafting grid + recipe book + smelting
+[x] hotbar/inventory/drag-drop                           <- #025 (ui.open/drag/result/craft-collect asserts, ui-inventory.png)
+[ ] crafting grid + recipe book + smelting                        <- grid/recipes/smelting #024 (items.planks/torch/table/iron-pickaxe/smelt asserts); recipe BOOK UI missing
 [x] day/night + sky/block light engine                   <- #020 light + #021 cycle (time.* asserts, night shots)
 [ ] gravity blocks (sand/gravel/concrete_powder)  <- sand+gravel done #013 asserts; concrete_powder pending
 [x] water/lava flow + obsidian/cobblestone            <- #022 asserts (spread/caps/3 Java interactions) + fluid shots; buckets->#031
-[ ] torches + spawn-by-light rules
-[ ] hostile mobs (zombie/skeleton/creeper/spider/enderman) + passive w/ breeding
+[x] torches + spawn-by-light rules                         <- #024/#028 torch asserts + #035 mob.spawn-* asserts
+[ ] hostile mobs (zombie/skeleton/creeper/spider/enderman) + passive w/ breeding   <- zombie core+light-spawn+burn+drop #035 (mob.* asserts, night-mobs.png); AI #036, more mobs #037-#039
 [x] health/hunger/fall damage                          <- #026 (surv.* asserts + hud-low.png)
 [ ] chests/furnaces
-[ ] wood→tools→mining tiers                              <- tier GATES done (#006); items/tools pending
+[x] wood→tools→mining tiers                              <- #006 tier gates + #024 (items.iron-pickaxe/speed-stone-wood asserts)
 [ ] TNT
 [ ] beds/sleep
-[ ] survival + creative
+[x] survival + creative                                  <- #026 stats+HUD, F4 toggle (surv.* asserts)
 [x] localStorage save/load                               <- #023 save.* asserts + tower-save.png roundtrip
 [x] F3 debug                                             <- #009 asserts
 

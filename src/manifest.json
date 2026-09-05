@@ -10,6 +10,7 @@
     "src/survival.js",
     "src/persist.js",
     "src/f3.js",
+    "src/mobs.js",
     "src/game.js",
     "src/harness.js"
   ],
