@@ -1,13 +1,13 @@
 # AGENTS.md — project STATE memory (1-minute grounding)
 Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each session) · Spec: docs/REFERENCE.md
 
-## Current state (2026-09-06, sprint 03 it14)
+## Current state (2026-09-06, sprint 03 it15)
 - Tags: v0.0.0 scaffold → v0.1.0 sprint01+fixes → v0.2.0 SPRINT 02 CLOSED (audit #4 READY).
-- Sprint 03 ACTIVE (docs/sprints/03.md): #033 #035 #032 #036 #037 #038 #042 #039 DONE. NEXT:
-  #040 chests, #041 beds/weather, #043 fluids polish+buckets(#031), #044 mob art, #045 crafting-table 3x3 GUI.
+- Sprint 03 ACTIVE (docs/sprints/03.md): #033 #035 #032 #036 #037 #038 #042 #039 #040 DONE. NEXT:
+  #041 beds/weather, #043 fluids polish+buckets(#031), #044 mob art, #045 crafting-table 3x3 GUI.
   Then audit#6 + close 03. SPK-7 (nether scale) before any nether work.
-- Gate: TEST GREEN 175 asserts full / 164 quick, 0 errors. Parity: 18/399 (TNT functional:false - procedural
-  tile, not Blender; mechanic shipped + tested, not counted: honest)
+- Gate: TEST GREEN 182 asserts full / 171 quick, 0 errors. Parity: 18/399 (TNT+chest functional:false -
+  procedural tiles, not Blender; mechanics shipped+tested, not counted: honest)
   proof-bound (t1 18/125): 15 core blocks + torch + furnace; water/lava NOT counted until buckets (#031).
 - Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy+AO-less shaded+light+fog),
   break/place/drops/tiers+crafting+smelting, items/inventory/UI, physics, day/night, block+sky light,
@@ -22,6 +22,9 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #040 chest: 27-slot container UI ('cs' slots on #032 plumbing), chest<->inv quickmove, break-ejects contents,
+  procedural chest tiles in free atlas cells, **BE save/load added (fixes latent furnace-contents-lost bug)**;
+  +7 asserts; ui-chest.png vision PASS; chest functional:false honest (not Blender-sourced)
 - #039 spawn rules: per-chunk scheduler (attempt-budget), MC caps 70/10/15 via CF.spawnRules, 24..128 band,
   aged-random despawn (1/(d-31) after 600t), passives persistent; +3 asserts; mob-crowd.png vision PASS;
   break-on-visit-budget bug caught+fixed (always-scanned same near chunks -> zero spawns)

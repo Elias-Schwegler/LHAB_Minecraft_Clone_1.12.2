@@ -76,6 +76,7 @@ window.CF = window.CF || {};
       }
       const drops = tierOk && dropName ? [{ name: dropName, n: 1, x: m.x + 0.5, y: m.y + 0.5, z: m.z + 0.5 }] : [];
       if (v.name === 'furnace' && CF.furnaceBreak) CF.furnaceBreak(m.x, m.y, m.z); // #032: contents to player
+      if (v.name === 'chest' && CF.chestBreak) CF.chestBreak(m.x, m.y, m.z); // #040: contents to player
       CF.world.set(m.x, m.y, m.z, 0);
       for (const d of drops) CF.give ? CF.give(d.name, d.n) : 0;
       CF.drops.push(...drops);
@@ -111,6 +112,7 @@ window.CF = window.CF || {};
     }
     if (ok && !CF.creative && CF.consume) CF.consume(CF.held(), 1);
     if (ok && CF.BY_ID[id].name === 'furnace' && CF.furnacePlace) CF.furnacePlace(tx, ty, tz);
+    if (ok && CF.BY_ID[id].name === 'chest' && CF.chestPlace) CF.chestPlace(tx, ty, tz);
     return ok;
   };
 

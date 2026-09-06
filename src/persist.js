@@ -46,7 +46,7 @@ window.CF = window.CF || {};
     initEditTracking(w);
     const save = { v: 1, seed: w.seed, time: CF.ticks, player: CF.player ? {
       pos: CF.player.pos.map((v) => +v.toFixed(2)), yaw: CF.player.yaw, pitch: CF.player.pitch, sel: CF.sel } : null,
-      chunks: {} };
+      chunks: {}, bes: CF.blockEntities || {} }; // #040: chests+furnaces persist (was furnace-losing-on-reload before)
     let bytes = 0;
     const keys = [...w.edited];
     keys.sort((a, b) => { // far chunks saved last so eviction drops them first
@@ -99,6 +99,13 @@ window.CF = window.CF || {};
       CF.sel = save.player.sel || 0;
     }
     CF.ticks = save.time || 0;
+    // #040: restore container BEs (drop orphans whose block is gone, e.g. blown up before saving)
+    CF.blockEntities = {};
+    for (const [k, b] of Object.entries(save.bes || {})) {
+      const [bx, by, bz] = k.split(',').map(Number);
+      const nm = CF.BY_ID[CF.world.get(bx, by, bz)];
+      if (nm && ((nm.name === 'chest' && b.type === 'chest') || (nm.name === 'furnace' && b.type === 'furnace'))) CF.blockEntities[k] = b;
+    }
     CF.loaded = true;
     return true;
   }

@@ -164,6 +164,21 @@ window.CF = window.CF || {};
   const SMELT = { iron_ore: 'iron_ingot', gold_ore: 'gold_ingot', sand: 'glass' };
   CF.FUEL = { coal: 1600, planks: 300, log: 300, stick: 100 };
   CF.furnacePlace = (x, y, z) => { CF.blockEntities[x + ',' + y + ',' + z] = { type: 'furnace', input: null, fuel: null, out: null, burn: 0, cook: 0 }; };
+  // #040 chest: 27-slot container block entity (+ tiles drawn procedurally by render at load)
+  const meta = (window.__TEXMETA = window.__TEXMETA || {});
+  if (!meta.chest_side) meta.chest_side = { x: 64, y: 48, w: 16, h: 16, src: 'generated:items.js' };
+  if (!meta.chest_top) meta.chest_top = { x: 80, y: 48, w: 16, h: 16, src: 'generated:items.js' };
+  CF.chestPlace = (x, y, z) => { CF.blockEntities[x + ',' + y + ',' + z] = { type: 'chest', slots: new Array(27).fill(null) }; };
+  CF.chestBreak = (x, y, z) => {
+    const k = x + ',' + y + ',' + z, c = CF.blockEntities[k];
+    if (!c || c.type !== 'chest') return 0;
+    let n = 0;
+    for (const s of c.slots) if (s && CF.give) { CF.give(s.name, s.count); n += s.count; }
+    delete CF.blockEntities[k];
+    CF.uiCloseContainer && CF.uiCloseContainer(k);
+    return n;
+  };
+  CF.containerBreak = (name, x, y, z) => { if (name === 'furnace' && CF.furnaceBreak) CF.furnaceBreak(x, y, z); if (name === 'chest' && CF.chestBreak) CF.chestBreak(x, y, z); };
   // #032: breaking a furnace returns its contents to the player (no item entities in Tier-1)
   CF.furnaceBreak = (x, y, z) => {
     const k = x + ',' + y + ',' + z, f = CF.blockEntities[k];
