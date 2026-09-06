@@ -40,7 +40,7 @@ wood variants (no tiles), all Tier-2/3 families.
 [ ] gravity blocks (sand/gravel/concrete_powder)  <- sand+gravel done #013 asserts; concrete_powder pending
 [x] water/lava flow + obsidian/cobblestone            <- #022 asserts (spread/caps/3 Java interactions) + fluid shots; buckets->#031
 [x] torches + spawn-by-light rules                         <- #024/#028 torch asserts + #035 mob.spawn-* asserts
-[ ] hostile mobs (zombie/skeleton/creeper/spider/enderman) + passive w/ breeding   <- zombie core+light-spawn+burn+drop #035 (mob.* asserts, night-mobs.png); AI #036, more mobs #037-#039
+[ ] hostile mobs (zombie/skeleton/creeper/spider/enderman) + passive w/ breeding   <- zombie+skeleton(ranged)+creeper(fuse+crater) #035/#036/#037 (mob.* asserts, mob-*.png); spider/enderman/passives #038+
 [x] health/hunger/fall damage                          <- #026 (surv.* asserts + hud-low.png)
 [ ] chests/furnaces                                        <- furnace GUI+proof #032 (ui.furn-* asserts, ui-furnace.png); chest -> #040
 [x] wood→tools→mining tiers                              <- #006 tier gates + #024 (items.iron-pickaxe/speed-stone-wood asserts)

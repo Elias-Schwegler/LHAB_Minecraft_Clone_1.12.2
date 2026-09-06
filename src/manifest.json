@@ -11,6 +11,7 @@
     "src/persist.js",
     "src/f3.js",
     "src/mobs.js",
+    "src/explode.js",
     "src/game.js",
     "src/harness.js"
   ],

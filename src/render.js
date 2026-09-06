@@ -189,12 +189,15 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
       texReady = true;
     };
     if (window.__ATLAS_B64) img.src = 'data:image/png;base64,' + window.__ATLAS_B64;
-    // #035 solid-color palette for mob boxes (8x1, texture unit 1). Generated in-code: zero assets,
+    // #035 solid-color palette for mob boxes (16x1, texture unit 1). Generated in-code: zero assets,
     // atlas untouched (block parity safe), shader untouched (mobs just switch sampler T -> unit 1).
-    CF.MOBCOLOR = { white: 0, zskin: 1, zcloth: 2, zdark: 3, pig: 4, cow: 5, sheep: 6, dark: 7 };
+    CF.MOBCOLOR = { white: 0, zskin: 1, zcloth: 2, zdark: 3, pig: 4, cow: 5, sheep: 6, ink: 7,
+      skel: 8, skeleton: 8, skelDark: 9, cree: 10, creeDark: 11, creeFlash: 12, arrow: 13, bone: 14 };
     const PAL = new Uint8Array([
       255, 255, 255, 255, 68, 118, 86, 255, 84, 92, 120, 255, 40, 54, 44, 255,
-      232, 136, 136, 255, 96, 76, 60, 255, 226, 224, 214, 255, 24, 24, 28, 255]);
+      232, 136, 136, 255, 96, 76, 60, 255, 226, 224, 214, 255, 24, 24, 28, 255,
+      214, 214, 206, 255, 150, 150, 150, 255, 60, 160, 72, 255, 40, 120, 52, 255, 235, 235, 235, 255,
+      180, 180, 180, 255, 236, 236, 224, 255, 120, 100, 80, 255, 220, 220, 210, 255]);
     palTex = gl.createTexture();
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, palTex);
@@ -202,7 +205,7 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 8, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, PAL);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 16, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, PAL);
     gl.activeTexture(gl.TEXTURE0);
     mobVAO = gl.createVertexArray(); gl.bindVertexArray(mobVAO);
     mobVB = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, mobVB);

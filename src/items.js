@@ -17,6 +17,14 @@ window.CF = window.CF || {};
     sapling: { tile: 'item_sapling' },
     flint: { tile: 'item_flint' },
     shears: { tile: 'item_shears', tool: { type: 'shears', tier: 0, speed: 1 } },
+    // mob drops + passive products (#037/#038). No atlas tiles yet -> blank icons (tracked #044); counts/logic tested.
+    bone: {}, arrow: {}, gunpowder: {}, string: {}, feather: {}, leather: {}, ink_sac: {},
+    egg: {}, wheat: {}, carrot: { food: 3 }, potato: { food: 1 }, wheat_seeds: {},
+    raw_porkchop: { food: 3 }, cooked_porkchop: { food: 8 },
+    raw_beef: { food: 3 }, steak: { food: 8 },
+    mutton: { food: 2 }, cooked_mutton: { food: 6 },
+    raw_chicken: { food: 2, poison: 0.3 }, cooked_chicken: { food: 6 },
+    wool: {}, // sheep drop; colour variants -> #044 (only white registered)
   };
   for (const [mat, info] of Object.entries(TOOLS))
     for (const shape of ['pickaxe', 'axe', 'shovel', 'sword'])
