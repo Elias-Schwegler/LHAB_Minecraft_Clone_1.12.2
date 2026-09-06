@@ -1982,7 +1982,7 @@ window.CF = window.CF || {};
   window.addEventListener('mousedown', (e) => {
     if (!CF.player) return;
     if (e.button === 0) CF.mineStart(CF.aim());
-    if (e.button === 2) { if (!(CF.useBlock && CF.useBlock(CF.aim())) && !(CF.useHeld && CF.useHeld())) CF.place(CF.aim()); }
+    if (e.button === 2) { if (!(CF.useBlock && CF.useBlock(CF.aim())) && !(CF.mobFeed && CF.mobFeed()) && !(CF.useHeld && CF.useHeld())) CF.place(CF.aim()); }
   });
   window.addEventListener('mouseup', () => { CF.mining = null; });
   window.addEventListener('wheel', (e) => { CF.sel = (CF.sel + (e.deltaY > 0 ? 1 : -1) + CF.hotbar.length) % CF.hotbar.length; CF.uiRefresh && CF.uiRefresh(); });
@@ -3173,32 +3173,64 @@ window.CF = window.CF || {};
       ],
       drop: { name: 'gunpowder', min: 0, max: 2 }, // only when killed by player; detonation = no drop
     },
+    // ---- #038 passives (1.12.2: wander + flee when hurt + breed w/ food; babies grow in 6000t)
+    pig: { w: 0.9, h: 0.9, hp: 10, speed: 1.1, passive: true, breed: { food: 'carrot' },
+      boxes: [
+        { cy: 0.5, sx: 0.62, sy: 0.5, sz: 0.8, color: 'pig' },   // body
+        { cy: 0.5, cz: -0.5, sx: 0.5, sy: 0.5, sz: 0.4, color: 'pig' }, // head
+        { cy: 0.15, sx: 0.5, sy: 0.32, sz: 0.6, color: 'pig' },   // leg block
+      ],
+      drop: { name: 'raw_porkchop', min: 1, max: 3 }, // saddle/looting -> #044
+    },
+    cow: { w: 0.9, h: 1.4, hp: 10, speed: 0.9, passive: true, breed: { food: 'wheat' },
+      boxes: [
+        { cy: 0.95, sx: 0.64, sy: 0.66, sz: 1.0, color: 'cow' },   // body
+        { cy: 1.05, cz: -0.62, sx: 0.5, sy: 0.55, sz: 0.48, color: 'cow' }, // head
+        { cy: 0.3, sx: 0.56, sy: 0.6, sz: 0.44, color: 'cow' },    // legs block
+      ],
+      drop: { name: 'raw_beef', min: 1, max: 3, extra: { name: 'leather', min: 0, max: 2 } },
+    },
+    sheep: { w: 0.9, h: 1.3, hp: 8, speed: 1.0, passive: true, breed: { food: 'wheat' },
+      boxes: [
+        { cy: 0.85, sx: 0.72, sy: 0.78, sz: 1.0, color: 'sheep' }, // wool body
+        { cy: 1.0, cz: -0.62, sx: 0.42, sy: 0.48, sz: 0.44, color: 'zcloth' }, // face
+        { cy: 0.28, sx: 0.5, sy: 0.56, sz: 0.4, color: 'zdark' },  // legs block
+      ],
+      drop: { name: 'wool', min: 1, max: 1, extra: { name: 'mutton', min: 1, max: 2 } }, // shearing -> #044
+    },
   };
 
   const M = CF.mobs = {
     list: [], nextUid: 1, sched: true, // sched=false used by tests for deterministic arenas
     spawn(type, x, y, z, opts) { // y = FEET level. Raw create (no rules) - shots/tests use this.
       const T = CF.MOBS[type]; if (!T) return null;
-      const m = { uid: M.nextUid++, type, pos: [x, y + T.h / 2, z], vel: [0, 0, 0], hp: T.hp, onGround: false, burnT: 0, burning: false, atkCd: 0, path: null, repathT: 0, fuse: 0, shootCd: 0, swell: 0 };
+      const m = { uid: M.nextUid++, type, pos: [x, y + T.h / 2, z], vel: [0, 0, 0], hp: T.hp, onGround: false, burnT: 0, burning: false, atkCd: 0, path: null, repathT: 0, fuse: 0, shootCd: 0, swell: 0, baby: !!(opts && opts.baby), age: (opts && opts.baby) ? 0 : 6000, love: 0, growCd: 0, wanderT: 0, fleeT: 0 };
       if (opts && opts.vel) m.vel = opts.vel.slice();
       M.list.push(m);
       return m;
     },
-    trySpawnAt(type, x, fy, z) { // rule-gated hostile spawn (1.12 light/distance/cap). Returns mob|null.
+    trySpawnAt(type, x, fy, z, opts) { // rule-gated spawn (1.12 light/grass/distance/cap). Returns mob|null.
       const T = CF.MOBS[type]; if (!T) return null;
+      const freeSpot = !(opts && opts.ignoreDist);
       if (T.hostile && M.hostileCount() >= HOSTILE_CAP) return null;
+      if (T.passive && M.passiveCount() >= PASSIVE_CAP) return null;
       const bx = Math.floor(x), bz = Math.floor(z);
       if (!CF.solidAt(CF.world.get(bx, fy - 1, bz))) return null;              // stand on solid
       if (CF.world.get(bx, fy, bz) || CF.world.get(bx, fy + 1, bz)) return null; // 2 air clearance
+      const packed = CF.world.lightAt(bx, fy, bz);
+      const blk = packed & 15, sky = (packed >> 4) * (CF.dayFactor ? CF.dayFactor() : 1);
       if (T.hostile) {
-        const packed = CF.world.lightAt(bx, fy, bz);
-        const eff = Math.max(packed & 15, (packed >> 4) * (CF.dayFactor ? CF.dayFactor() : 1));
-        if (eff > 7) return null;
+        if (Math.max(blk, sky) > 7) return null; // 1.12: dark (light<=7)
+      } else if (T.passive) {
+        // 1.12 passive: on grass_block, daylight (sky light 9+), not deep dark
+        if (CF.BY_ID[CF.world.get(bx, fy - 1, bz)] && CF.BY_ID[CF.world.get(bx, fy - 1, bz)].name !== 'grass') return null;
+        if (sky < 9) return null;
       }
-      if (CF.player && Math.hypot(CF.player.pos[0] - x, CF.player.pos[2] - z) < 24) return null; // 1.12 min dist
-      return M.spawn(type, x, fy, z);
+      if (freeSpot && CF.player && Math.hypot(CF.player.pos[0] - x, CF.player.pos[2] - z) < 24) return null; // 1.12 min dist
+      return M.spawn(type, x, fy, z, opts);
     },
     hostileCount() { let n = 0; for (const m of M.list) if (CF.MOBS[m.type].hostile) n++; return n; },
+    passiveCount() { let n = 0; for (const m of M.list) if (CF.MOBS[m.type].passive) n++; return n; },
     rollDrop(type) {
       const T = CF.MOBS[type]; const d = T.drop; if (!d) return [];
       const out = [];
@@ -3210,9 +3242,10 @@ window.CF = window.CF || {};
     hurt(m, n, src) {
       if (m.dead) return;
       m.hp -= n;
+      if (CF.MOBS[m.type].passive && !m.dead) m.fleeT = 100; // passives flee when struck (1.12)
       if (m.hp <= 0) {
         m.dead = true;
-        if (src === 'player' && CF.give) for (const loot of M.rollDrop(m.type)) CF.give(loot.name, loot.n); // Tier-1: no item entities; player kills -> inventory
+        if (src === 'player' && !m.baby && CF.give) for (const loot of M.rollDrop(m.type)) CF.give(loot.name, loot.n); // Tier-1: no item entities; player kills -> inventory; babies drop nothing
         M.remove(m);
       }
     },
@@ -3261,6 +3294,7 @@ window.CF = window.CF || {};
 
   // ============================ #036: AI (SPK-4 heap A*) + 1.12 melee ============================
   const STEP_UP = 1, MAX_FALL = 4, NODE_CAP = 1500, REPATH_CD = 20, REPATH_BUDGET = 2;
+  const BREED_GROW = 6000, BREED_CD = 6000, PASSIVE_CAP = 10; // 1.12: baby grow + breeding cooldown 5min; passive cap 10
   const SWORD_DMG = { wood: 4, stone: 5, iron: 6, diamond: 7 }; // 1.12 attack damage
 
   function Heap() { this.f = []; this.k = []; }
@@ -3390,6 +3424,35 @@ window.CF = window.CF || {};
   // creeper detonation: explode + remove (no loot - it blew itself up)
   M.explode = (m) => { const T = CF.MOBS[m.type]; m.dead = true; if (CF.explode) CF.explode(m.pos[0], m.pos[1], m.pos[2], T.power || 3); M.remove(m); };
 
+  // --- #038 passive AI: idle wander + flee-when-hurt + grow up; breeding handled in M.breedScan
+  function aiPassive(m, T, P) {
+    if (m.baby && ++m.age >= BREED_GROW) m.baby = false;
+    if (m.love > 0) m.love--;
+    if (m.growCd > 0) m.growCd--;
+    if (CF.mobSense === false) return;
+    if (m.fleeT > 0 && P) { // run directly away from the player
+      m.fleeT--; const dx = m.pos[0] - P.pos[0], dz = m.pos[2] - P.pos[2], l = Math.hypot(dx, dz) || 1;
+      steer(m, m.pos[0] + dx / l * 6, m.pos[2] + dz / l * 6, T.speed * 1.6); m.path = null; return;
+    }
+    if (m.wanderT-- <= 0) { // pick a fresh stroll direction (1.12 RandomStroll)
+      const a = Math.random() * Math.PI * 2; m.wdx = Math.cos(a); m.wdz = Math.sin(a); m.wanderT = 40 + Math.floor(Math.random() * 80);
+    }
+    steer(m, m.pos[0] + m.wdx * 4, m.pos[2] + m.wdz * 4, T.speed);
+  }
+  M.breedScan = () => {
+    const ready = (m) => CF.MOBS[m.type].breed && !m.baby && m.love > 0 && m.growCd <= 0;
+    for (const a of M.list.slice()) {
+      if (!ready(a)) continue;
+      for (const b of M.list) {
+        if (b !== a && b.type === a.type && ready(b) && Math.hypot(a.pos[0] - b.pos[0], a.pos[2] - b.pos[2]) < 6 && Math.abs(a.pos[1] - b.pos[1]) < 3) {
+          a.love = b.love = 0; a.growCd = b.growCd = BREED_CD;
+          const fy = Math.max(0, Math.floor((a.pos[1] + b.pos[1]) / 2 - CF.MOBS[a.type].h / 2));
+          M.spawn(a.type, (a.pos[0] + b.pos[0]) / 2, fy, (a.pos[2] + b.pos[2]) / 2, { baby: true });
+          break;
+        }
+      }
+    }
+  };
   let aiBudget = REPATH_BUDGET;
 
   // --- player melee: 1.12 charge meter + attack-over-mining priority + knockback
@@ -3407,6 +3470,18 @@ window.CF = window.CF || {};
       }
     }
     return best;
+  };
+  CF.mobFeed = () => { // 1.12: RMB a passive adult with its breed food -> love (feeds from inventory)
+    const P = CF.player; if (!P || !M.list.length) return false;
+    const held = CF.held && CF.held(); if (!held) return false;
+    const cy = Math.cos(P.yaw), sy = Math.sin(P.yaw), cp = Math.cos(P.pitch), sp = Math.sin(P.pitch);
+    const hm = CF.mobHitAt([P.pos[0], P.pos[1] - 0.9 + 1.62, P.pos[2]], [sy * cp, sp, cy * cp], 4);
+    if (!hm) return false;
+    const m = hm.m, T = CF.MOBS[m.type];
+    if (!T.breed || m.baby || m.growCd > 0 || T.breed.food !== held) return false;
+    if (CF.consume && !CF.consume(held, 1)) return false;
+    m.love = 60; // 3s love window; M.breedScan pairs two ready adults
+    return true;
   };
   CF.atkCdInfo = () => { // 1.12 attack-speed cooldowns (ticks to full charge): sword 12, tool 20, hand 5
     const held = CF.held && CF.held(), def = CF.ITEMS[held];
@@ -3484,6 +3559,7 @@ window.CF = window.CF || {};
     for (const m of M.list.slice()) {
       const T = CF.MOBS[m.type];
       if (P && T.hostile) aiChase(m, T, P);
+      else if (T.passive) aiPassive(m, T, P);
       M.step(m, dt);
       if (m.dead) { M.remove(m); continue; }
       // sunlight burn (1.12: sky-exposed undead catch fire during the day)
@@ -3496,25 +3572,38 @@ window.CF = window.CF || {};
         } else { m.burnT = 0; m.burning = false; }
       } else m.burning = false;
       if (m.dead) { M.remove(m); continue; }
-      if (P) { // despawn far (instant beyond kill-line; survival keeps sim area tight)
+      if (P && T.hostile) { // passives are persistent (1.12 animals don't despawn); hostiles despawn far
         const d = Math.hypot(P.pos[0] - m.pos[0], P.pos[2] - m.pos[2]);
         if (d > KILL_DIST || (CF.survival && d > DESPAWN_DIST)) { M.remove(m); continue; }
       }
     }
     // scheduler: spawn attempts only in survival (creative stays a calm sandbox + suites stay mob-free).
     // 1.12 hostile mix (approx): zombie 50% / skeleton 30% / creeper 20%.
-    if (CF.survival && M.sched !== false && P && M.hostileCount() < HOSTILE_CAP) {
-      let budget = 2;
-      while (budget-- > 0) {
+    if (CF.survival && M.sched !== false && P) {
+      if (M.hostileCount() < HOSTILE_CAP) {
+        let budget = 2;
+        while (budget-- > 0) {
+          const ang = Math.random() * Math.PI * 2, rr = 24 + Math.random() * 16;
+          const x = Math.floor(P.pos[0] + Math.cos(ang) * rr), z = Math.floor(P.pos[2] + Math.sin(ang) * rr);
+          W.ensureAround(x, z, 0);
+          const fy = W.heightAt(x, z) + 1;
+          if (W.get(x, fy - 1, z)) W.ensureLight(x >> 4, z >> 4);
+          const r = Math.random(), type = r < 0.5 ? 'zombie' : r < 0.8 ? 'skeleton' : 'creeper';
+          M.trySpawnAt(type, x + 0.5, fy, z + 0.5);
+        }
+      }
+      // passive natural spawn: grass, daylight, sparse (1.12 animals are rare + persistent)
+      if (CF.dayFactor && CF.dayFactor() > 0.7 && M.passiveCount() < PASSIVE_CAP && Math.random() < 0.15) {
         const ang = Math.random() * Math.PI * 2, rr = 24 + Math.random() * 16;
         const x = Math.floor(P.pos[0] + Math.cos(ang) * rr), z = Math.floor(P.pos[2] + Math.sin(ang) * rr);
         W.ensureAround(x, z, 0);
         const fy = W.heightAt(x, z) + 1;
         if (W.get(x, fy - 1, z)) W.ensureLight(x >> 4, z >> 4);
-        const r = Math.random(), type = r < 0.5 ? 'zombie' : r < 0.8 ? 'skeleton' : 'creeper';
+        const r = Math.random(), type = r < 0.34 ? 'pig' : r < 0.67 ? 'cow' : 'sheep';
         M.trySpawnAt(type, x + 0.5, fy, z + 0.5);
       }
     }
+    M.breedScan();
     projectileTick(dt);
     CF.mobAiMs = performance.now() - ai0;
   };
@@ -3541,12 +3630,12 @@ window.CF = window.CF || {};
       const packed = W.lightAt(Math.floor(m.pos[0]), Math.floor(m.pos[1]), Math.floor(m.pos[2]));
       let light = packed / 255;
       const swell = m.swell || 0;
-      const feet = m.pos[1] - hh(m);
+      const feet = m.pos[1] - hh(m) * (m.baby ? 0.5 : 1);
       const burn = m.burning && ((CF.ticks + m.uid) & 1); // hurt/burn flash: flicker bright each frame-parity
+      const g = (1 + swell * 0.35) * (m.baby ? 0.5 : 1); // babies render at half scale (1.12)
       for (const b of CF.MOBS[m.type].boxes) {
         let col = C[b.color] || 0;
-        if (swell > 0 && (swell > 0.6 ? ((CF.ticks & 1) ? 1 : 0) : 0)) col = C.creeFlash; // creeper pre-blast white flash
-        const g = 1 + swell * 0.35; // swelling creeper puffs up
+        if (swell > 0.6 && (CF.ticks & 1)) col = C.creeFlash; // creeper pre-blast white flash
         if (burn) light = Math.max(light, 0.9); // on-fire mobs glow
         addBox(out, m.pos[0] + (b.cx || 0) * g, feet + b.cy * g, m.pos[2] + (b.cz || 0) * g, b.sx * g, b.sy * g, b.sz * g, col, light);
       }
@@ -3701,6 +3790,29 @@ window.CF = window.CF || {};
     CF.camera = { pos: [camx, camy, camz], yaw: Math.atan2(cr.pos[0] - camx, cr.pos[2] - camz), pitch: -Math.atan2(camy - cr.pos[1], Math.hypot(cr.pos[0] - camx, cr.pos[2] - camz)) };
     CF.renderDraw(CF.camera); await new Promise((r) => setTimeout(r, 150));
     CF.shotExtra = { fuse: cr.fuse, swell: +cr.swell.toFixed(2) };
+    CF.renderDraw(CF.camera);
+  };
+
+  // #038 scenario: a peaceful farm pen - pig, cow, sheep + a baby - grazing on grass in daylight
+  CF.shotScenarios['mob-farm'] = async () => {
+    CF.freeCam = true; CF.timeOffset = 600; // bright day
+    const W = CF.world, P = CF.player;
+    const fx = 260, fz = 100;
+    W.ensureAround(fx, fz, 2); for (let i = 0; i < 40 && W.stats().queue; i++) W.tick();
+    M.clear(); M.sched = false; CF.projectiles.length = 0; CF.survival = false; CF.mobSense = false;
+    for (let bx = fx - 6; bx <= fx + 6; bx++) for (let bz = fz - 6; bz <= fz + 6; bz++) { W.set(bx, 100, bz, CF.IDOF['grass']); for (let by = 101; by <= 109; by++) W.set(bx, by, bz, 0); }
+    for (let i = 0; i < 10; i++) W.tick(); W.ensureLight(fx >> 4, fz >> 4); for (let i = 0; i < 10; i++) W.tick();
+    M.spawn('pig', fx - 2.5, 101, fz);
+    M.spawn('cow', fx + 0.5, 101, fz);
+    M.spawn('sheep', fx + 3.5, 101, fz);
+    M.spawn('pig', fx - 0.5, 101, fz + 2.5, { baby: true });
+    for (let s = 0; s < 6; s++) M.list.forEach((mm) => M.step(mm)); // settle all onto the floor
+    CF.mobTick = () => {};
+    for (let i = 0; i < 40; i++) CF.renderTick();
+    const cx = fx, cz = fz - 7;
+    CF.camera = { pos: [cx, 103.2, cz], yaw: 0, pitch: -0.14 };
+    CF.renderDraw(CF.camera); await new Promise((res) => setTimeout(res, 150));
+    CF.shotExtra = { animals: M.list.length };
     CF.renderDraw(CF.camera);
   };
 
@@ -3972,6 +4084,69 @@ window.CF = window.CF || {};
     for (let t = 0; t < 400; t++) CF.mobTick();
     CF.assert(r, 'mob.creeper-no-burn(hp=' + cr3.hp + ')', cr3.hp === 20 && cr3.burning === false);
     M.clear(); CF.projectiles.length = 0;
+
+    // ================= #038: passives - drops, breed (feed+love+baby+grow), wander/flee, spawn rule =================
+    CF.survival = false; CF.mobSense = true; M.clear();
+    const pgx = 260, pgz = 100;
+    W.ensureAround(pgx, pgz, 2); settle(30); W.ensureLight(pgx >> 4, pgz >> 4);
+    const plat = () => { for (let bx = pgx - 5; bx <= pgx + 5; bx++) for (let bz = pgz - 5; bz <= pgz + 5; bz++) { W.set(bx, 100, bz, ID['grass']); for (let by = 101; by <= 108; by++) W.set(bx, by, bz, 0); } W.ensureLight(pgx >> 4, pgz >> 4); for (let i = 0; i < 8; i++) W.tick(); P.vel = [0, 0, 0]; P.onGround = true; P.tp(pgx + 0.5, 101.9, pgz + 0.5); };
+    plat();
+    // drops per species (player-killed)
+    CF.inv.fill(null);
+    const pk = M.spawn('pig', pgx + 2.5, 101, pgz); M.hurt(pk, 999, 'player');
+    CF.assert(r, 'mob.passive-pig-drop(' + CF.countItem('raw_porkchop') + ')', CF.countItem('raw_porkchop') >= 1 && CF.countItem('raw_porkchop') <= 3);
+    CF.inv.fill(null); const sh = M.spawn('sheep', pgx + 2.5, 101, pgz); M.hurt(sh, 999, 'player');
+    CF.assert(r, 'mob.passive-sheep-drop(wool=' + CF.countItem('wool') + ',mutton=' + CF.countItem('mutton') + ')', CF.countItem('wool') === 1 && CF.countItem('mutton') >= 1);
+    CF.inv.fill(null); const cw = M.spawn('cow', pgx + 2.5, 101, pgz); M.hurt(cw, 999, 'player');
+    CF.assert(r, 'mob.passive-cow-drop(beef=' + CF.countItem('raw_beef') + ',leather=' + CF.countItem('leather') + ')', CF.countItem('raw_beef') >= 1);
+    // baby drops nothing (1.12)
+    CF.inv.fill(null); const bab = M.spawn('pig', pgx + 2.5, 101, pgz, { baby: true }); M.hurt(bab, 999, 'player');
+    CF.assert(r, 'mob.passive-baby-nodrop(' + CF.countItem('raw_porkchop') + ')', CF.countItem('raw_porkchop') === 0);
+
+    // breeding: mobFeed (aim+carrot->love) then two love adults pair -> baby + parent cooldown
+    plat(); CF.survival = true; M.clear();
+    CF.inv.fill(null); CF.give('wheat', 1); CF.sel = 0;
+    const fc = M.spawn('cow', pgx + 3.0, 101, pgz + 0.5);
+    P.yaw = Math.atan2(fc.pos[0] - P.pos[0], fc.pos[2] - P.pos[2]); P.pitch = -0.05;
+    const fed = CF.mobFeed();
+    CF.assert(r, 'mob.breed-feed(fed=' + fed + ',love=' + fc.love + ',wheat=' + CF.countItem('wheat') + ')', fed === true && fc.love > 0 && CF.countItem('wheat') === 0);
+    // second ready adult nearby -> breedScan spawns a baby and sets both growCd
+    const fc2 = M.spawn('cow', pgx + 4.0, 101, pgz + 0.5); fc2.love = 60;
+    const beforeN = M.list.length; CF.mobTick(); // runs breedScan
+    const baby = M.list.find((mm) => mm.baby);
+    CF.assert(r, 'mob.breed-baby(n=' + M.list.length + '/' + beforeN + ',cd=' + fc2.growCd + ')', M.list.length === beforeN + 1 && !!baby && baby.type === 'cow' && fc2.growCd === 6000);
+    // cooldown blocks immediate re-breed; baby grows after 6000t
+    const fc3 = M.spawn('cow', pgx + 4.5, 101, pgz + 0.5); fc3.love = 60; // fc2 is on growCd
+    const beforeB = M.list.length; CF.mobTick();
+    CF.assert(r, 'mob.breed-cooldown', M.list.length === beforeB);
+    baby.age = 5999; CF.mobTick();
+    CF.assert(r, 'mob.baby-grow', baby.baby === false);
+
+    // wander (mobSense on, no flee) moves the animal; flee drives it away from the player
+    plat(); CF.survival = false; M.clear();
+    const pw = M.spawn('pig', pgx + 0.5, 101, pgz + 0.5);
+    let moved = 0; for (let t = 0; t < 200; t++) { CF.mobTick(); }
+    moved = Math.hypot(pw.pos[0] - (pgx + 0.5), pw.pos[2] - (pgz + 0.5));
+    CF.assert(r, 'mob.passive-wander(d=' + moved.toFixed(1) + ')', moved > 0.5);
+    const pf = M.spawn('pig', P.pos[0] + 2, 101, P.pos[2]); pf.fleeT = 200;
+    const f0 = Math.hypot(pf.pos[0] - P.pos[0], pf.pos[2] - P.pos[2]);
+    for (let t = 0; t < 40; t++) CF.mobTick();
+    const f1 = Math.hypot(pf.pos[0] - P.pos[0], pf.pos[2] - P.pos[2]);
+    CF.assert(r, 'mob.passive-flee(' + f0.toFixed(1) + '->' + f1.toFixed(1) + ')', f1 > f0);
+
+    // passive spawn rule: grass + daylight OK; night no; non-grass no; persistent (no despawn)
+    CF.survival = true; CF.timeOffset = 0; M.clear(); plat();
+    CF.assert(r, 'mob.passive-spawn-day(sky=' + (W.lightAt(pgx + 4, 101, pgz) >> 4) + ')', !!M.trySpawnAt('pig', pgx + 4.5, 101, pgz, { ignoreDist: true }));
+    CF.timeOffset = 18000; M.clear();
+    CF.assert(r, 'mob.passive-no-spawn-night', !M.trySpawnAt('pig', pgx + 4.5, 101, pgz, { ignoreDist: true }));
+    CF.timeOffset = 0; W.set(pgx + 4, 100, pgz, ID['stone']); for (let i = 0; i < 4; i++) W.tick(); M.clear();
+    CF.assert(r, 'mob.passive-no-spawn-nongrass', !M.trySpawnAt('pig', pgx + 4.5, 101, pgz, { ignoreDist: true })); W.set(pgx + 4, 100, pgz, ID['grass']);
+    // passive persists while far from the player (1.12 animals don't despawn)
+    M.clear(); const keep = M.spawn('pig', pgx + 0.5, 101, pgz + 0.5); for (let t = 0; t < 30; t++) CF.mobTick();
+    CF.assert(r, 'mob.passive-persist', M.list.indexOf(keep) >= 0);
+
+    M.clear(); CF.projectiles.length = 0;
+    CF.survival = surv0; CF.timeOffset = t0; CF.mobSense = true;
 
     // render: pixel in front of camera changes with a mob there; GL clean
     for (let i = 0; i < 60 && !CF.rendererStats.ready; i++) { CF.renderTick(); await new Promise((s) => setTimeout(s, 25)); }
