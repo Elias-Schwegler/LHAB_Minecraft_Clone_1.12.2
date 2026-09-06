@@ -1,13 +1,12 @@
 # AGENTS.md — project STATE memory (1-minute grounding)
 Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each session) · Spec: docs/REFERENCE.md
 
-## Current state (2026-09-06, sprint 03 it11)
+## Current state (2026-09-06, sprint 03 it12)
 - Tags: v0.0.0 scaffold → v0.1.0 sprint01+fixes → v0.2.0 SPRINT 02 CLOSED (audit #4 READY).
-- Sprint 03 ACTIVE (docs/sprints/03.md): #033 #035 #032 #036 #037 DONE. NEXT: #038 passives(pig/cow/sheep
-  wander+breed+drops), #039 spawn caps, #040 chests, #041 beds/weather, #042 TNT (reuses CF.explode from
-  #037!), #043 fluids polish+buckets(#031), #044 mob art/polish. Then audit#6 + close 03.
-  SPK-7 (nether scale) before any nether work.
-- Gate: TEST GREEN 152 asserts full / 141 quick, 0 errors. Parity: 18/399
+- Sprint 03 ACTIVE (docs/sprints/03.md): #033 #035 #032 #036 #037 #038 DONE. NEXT: #042 TNT (reuses CF.explode
+  from #037), #039 spawn caps, #040 chests, #041 beds/weather, #043 fluids polish+buckets(#031), #044 mob art.
+  Then audit#6 + close 03. SPK-7 (nether scale) before any nether work.
+- Gate: TEST GREEN 166 asserts full / 155 quick, 0 errors. Parity: 18/399
   proof-bound (t1 18/125): 15 core blocks + torch + furnace; water/lava NOT counted until buckets (#031).
 - Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy+AO-less shaded+light+fog),
   break/place/drops/tiers+crafting+smelting, items/inventory/UI, physics, day/night, block+sky light,
@@ -22,6 +21,9 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #038 passives: pig/cow/sheep (wander RandomStroll + flee + breed feed->love->baby 6000t grow + per-species
+  drop + passive spawn grass/day + never-despawn); mob-farm.png vision PASS; +14 asserts; `node --check` added
+  to gate (duplicate const in shared fn scope silently kills bundle/boot-hangs)
 - #037 skeleton+creeper: src/explode.js (1.12 ray-marched crater, blastRes/5, shared w/ #042) + skeleton ranged
   (arrow projectiles, ballistic aim, keep 4-15) + creeper fuse/swell/abort; palette 8->16; +8 asserts; mob-* shots
 - #036 mob AI: heap-A* (SPK-4 ALT: cap1500, budget2/tick, sense35, step-up) chase + 1.12 melee (3dmg NORMAL,

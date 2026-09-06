@@ -21,7 +21,10 @@ Operational manual for the Cubeforge loop. Update this file when a process learn
 ## 2. Tools (all zero-npm-dep; run from repo root, PowerShell)
 ```powershell
 node tools/build.mjs                      # src/* (+atlas b64) -> game/index.html; fails on external refs
-node tools/test.mjs                       # full gate: 15 suites, ~96s, expect "TEST GREEN", 125 asserts
+node --check src/mobs.js                  # after big edits: build is CONCAT-ONLY, a duplicate const in a
+                                          # shared function scope parses per-file but kills the whole bundle
+                                          # at runtime (boot hangs, no TESTRESULT). --check each edited src/*.js.
+node tools/test.mjs                       # full gate: 15 suites, ~96s, expect "TEST GREEN" (166 asserts as of #038)
 node tools/test.mjs --quick               # dev loop ~32s (skips slow: grass/time/fluids)
 node tools/test.mjs --suites=world,light  # surgical
 node tools/shot.mjs <scenario> [seed=N]   # qa/YYYY-MM-DD/<scenario>.png — then VIEW it (Read tool)
