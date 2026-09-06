@@ -87,6 +87,19 @@ Engine/logic:
   identity — hash if unsure; usually the real bug was a silent throw before the change.
 - Blender: bmesh import at top; headless prints MCP addon noise; look for TEXGEN_OK line only.
 - Tests: pre-set stale state (onGround true before fall test; run playerTick+onTick loops, reset flags).
+  **player.tp() does NOT clear onGround** - any fall-settle loop `while(!onGround)` skips instantly after a
+  tp; set P.onGround=false manually (bit the #036 chase test - symptom looked like an AI bug!).
+- `hurtCd` (survival damage window) only decays inside CF.onTick: harness loops that call mobTick/worldTick
+  WITHOUT onTick freeze it and silently swallow later damage -> flaky cross-suite asserts. Pre-settle duels.
+- Screenshot scenarios: NEVER call CF.stopGameLoop() inside a shot - rAF feeds the compositor, canvas goes
+  black. Freeze sim instead: `CF.mobTick = () => {};` (loop keeps rendering, AI/charge pin in place).
+- Camera aim in scenarios: compute pitch from geometry (atan2 of dy/dist), never hardcode; verify framing
+  with the readPixels grid probe (title JSON) BEFORE re-shooting - 4th time the probe pattern paid off.
+- `x || default` falsy trap for counters where 0 is meaningful (atkTick=0 rendered as 20). Use === undefined.
+- Mixed dirty tree from an interrupted session: `git stash push -m tag -- path1 path2` to split into clean
+  per-issue merges, `git stash pop` after the first merge. Verify each partial state builds+tests GREEN alone.
+- PS unicode: -replace on content containing -> / em-dash often MISSES (encoding); use the Edit tool for
+  files with non-ASCII, or verify with the grep tool after (never trust console rendering).
 - Registry edits: go through the JSON between /*REGISTRY-START|END*/ markers (strict JSON, 1-space indent);
   new blocks need id/tier/variants.default{functional:false until proof, tiles×6, hardness, drop,
   tool/minTier, solid, light, flags} + a proof:{issue,tests:[...]} naming asserts that EXIST in the build.

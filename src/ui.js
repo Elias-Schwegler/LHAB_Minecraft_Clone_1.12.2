@@ -44,7 +44,9 @@ window.CF = window.CF || {};
     '#furn{display:none;margin:6px 0;padding:6px;border:1px solid #666}' +
     '#furn .row{display:flex;gap:8px;align-items:center;justify-content:center}' +
     '#furn .bar{width:22px;height:36px;background:#333;border:1px solid #555;position:relative;overflow:hidden}' +
-    '#furn .bar>i{position:absolute;left:0;right:0;bottom:0;background:#e8a33d;display:block}';
+    '#furn .bar>i{position:absolute;left:0;right:0;bottom:0;background:#e8a33d;display:block}' +
+    '#atk{position:fixed;bottom:72px;left:50%;transform:translateX(-50%);width:120px;height:4px;background:#222;border:1px solid #555;z-index:21;display:none}' +
+    '#atk>i{display:block;height:100%;background:#c03028;width:0}';
   document.head ? document.head.appendChild(style) : document.addEventListener('DOMContentLoaded', () => document.head.appendChild(style));
 
   const ICON_URL = window.__ATLAS_B64 ? 'url(data:image/png;base64,' + window.__ATLAS_B64 + ')' : 'none';
@@ -75,6 +77,7 @@ window.CF = window.CF || {};
 
   let hud, inv, ghostEl, hudSlots = [], invSlots = [], craftSlots = [], resultSlot = null;
   let furnEl, finSlot, ffuelSlot, foutSlot, burnBar, cookArrow;
+  let atkEl;
 
   function build() {
     hud = document.createElement('div'); hud.id = 'hud';
@@ -114,6 +117,8 @@ window.CF = window.CF || {};
     ghostEl = document.createElement('div'); ghostEl.id = 'ghost';
     const gi = document.createElement('div'); gi.className = 'icon'; ghostEl.appendChild(gi);
     document.body.appendChild(hud); document.body.appendChild(inv); document.body.appendChild(ghostEl);
+    atkEl = document.createElement('div'); atkEl.id = 'atk'; atkEl.innerHTML = '<i></i>';
+    document.body.appendChild(atkEl);
     refresh();
   }
   if (document.body) build(); else document.addEventListener('DOMContentLoaded', build);
@@ -151,6 +156,11 @@ window.CF = window.CF || {};
       Object.assign(ghostEl.querySelector('.icon').style, { position: 'absolute', inset: '0', backgroundRepeat: 'no-repeat' }, iconCss(itemTile(CF.ui.ghost.name)));
       ghostEl.querySelector('.cnt') || 0;
     } else ghostEl.style.display = 'none';
+    if (atkEl) { // #036: 1.9-style charge meter, visible only mid-cooldown (sword 12t / tool 20t / hand 5t via CF.atkCdInfo)
+      const ch = Math.min(1, (CF.atkTick === undefined ? 20 : CF.atkTick) / (CF.atkCdInfo ? CF.atkCdInfo() : 20));
+      atkEl.style.display = ch < 0.999 ? 'block' : 'none';
+      atkEl.firstChild.style.width = (ch * 100).toFixed(0) + '%';
+    }
     // recompute result from current craft grid
   }
 

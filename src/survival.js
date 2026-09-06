@@ -39,13 +39,15 @@ window.CF = window.CF || {};
   CF.damage = (n, why) => {
     if (!CF.survival || hurtCd > 0 && why !== 'fall') return;
     S.hp -= n;
-    hurtCd = why === 'fall' ? 0 : 4;
+    hurtCd = why === 'fall' ? 0 : 10; // 1.12: post-hurt no-damage window (0.5s) - #036
+    if (why === 'drown') hurtCd = 20; // drown keeps its 1s rhythm (2 dmg/s)
     if (why) CF.lastHurt = why;
     if (S.hp <= 0) respawn();
   };
   function respawn() {
     S.deaths++;
     S.hp = 20; S.food = 20; S.sat = 5; S.air = 300;
+    peakY = null; // stale fall-peaks must never damage across teleports (phantom-fall bug, #036)
     const P = CF.player;
     P.tp(P.spawn[0], P.spawn[1], P.spawn[2]);
     CF.lastDeathAt = CF.ticks;
