@@ -39,7 +39,7 @@ wood variants (no tiles), all Tier-2/3 families.
 [x] day/night + sky/block light engine                   <- #020 light + #021 cycle (time.* asserts, night shots)
 [ ] gravity blocks (sand/gravel/concrete_powder)  <- sand+gravel done #013 asserts; concrete_powder pending
 [x] water/lava flow + obsidian/cobblestone            <- #022 asserts (spread/caps/3 Java interactions) + fluid shots; buckets->#031
-[x] torches + spawn-by-light rules                         <- #024/#028 torch asserts + #035 mob.spawn-* asserts
+[x] torches + spawn-by-light rules                         <- #024/#028 torch asserts + #035 light<=7 spawn + #039 caps(70/10)/per-chunk scheduler/despawn bands (mob.* asserts, mob-crowd.png)
 [ ] hostile mobs (zombie/skeleton/creeper/spider/enderman) + passive w/ breeding   <- zombie+skeleton+creeper #035-#037 AND pig/cow/sheep (wander/breed/drop) #038 (mob.* asserts, mob-*.png); spider/enderman/other species -> #039+/#044
 [x] health/hunger/fall damage                          <- #026 (surv.* asserts + hud-low.png)
 [ ] chests/furnaces                                        <- furnace GUI+proof #032 (ui.furn-* asserts, ui-furnace.png); chest -> #040

@@ -3176,8 +3176,9 @@ window.CF = window.CF || {};
 (function () {
   const CF = window.CF;
   const GRAV = 32; // same as player (player.js)
-  const HOSTILE_CAP = 12; // active-sim cap (MC 70 is per-player global over 128 box; #039 refines)
-  const DESPAWN_DIST = 48, KILL_DIST = 64;
+  // #039 1.12.2 spawn caps (global, MONSTER/CREATURE categories) + distance bands. Attempt budget throttles
+  // the monster cap to a perf-safe trickle given our small load radius.
+  const CFG = CF.spawnRules = { monsterCap: 70, creatureCap: 10, ambientCap: 15, min: 24, max: 128, despawnMin: 32, despawnAge: 600, chunkBudget: 6 };
 
   // boxes are relative to FEET (y=0 at feet), sizes in blocks. Colors = CF.MOBCOLOR keys (render.js palette).
   CF.MOBS = {
@@ -3246,8 +3247,8 @@ window.CF = window.CF || {};
     trySpawnAt(type, x, fy, z, opts) { // rule-gated spawn (1.12 light/grass/distance/cap). Returns mob|null.
       const T = CF.MOBS[type]; if (!T) return null;
       const freeSpot = !(opts && opts.ignoreDist);
-      if (T.hostile && M.hostileCount() >= HOSTILE_CAP) return null;
-      if (T.passive && M.passiveCount() >= PASSIVE_CAP) return null;
+      if (T.hostile && M.hostileCount() >= CFG.monsterCap) return null;
+      if (T.passive && M.passiveCount() >= CFG.creatureCap) return null;
       const bx = Math.floor(x), bz = Math.floor(z);
       if (!CF.solidAt(CF.world.get(bx, fy - 1, bz))) return null;              // stand on solid
       if (CF.world.get(bx, fy, bz) || CF.world.get(bx, fy + 1, bz)) return null; // 2 air clearance
@@ -3606,35 +3607,37 @@ window.CF = window.CF || {};
         } else { m.burnT = 0; m.burning = false; }
       } else m.burning = false;
       if (m.dead) { M.remove(m); continue; }
-      if (P && T.hostile) { // passives are persistent (1.12 animals don't despawn); hostiles despawn far
+      // #039 1.12 despawn bands (hostiles only; animals persist): >128 instant, 32..128 random once aged past 30s
+      if (P && T.hostile) {
         const d = Math.hypot(P.pos[0] - m.pos[0], P.pos[2] - m.pos[2]);
-        if (d > KILL_DIST || (CF.survival && d > DESPAWN_DIST)) { M.remove(m); continue; }
+        if (d > CFG.max) { M.remove(m); continue; }
+        if (d > CFG.despawnMin) m.age2 = (m.age2 || 0) + 1; else m.age2 = 0;
+        if (m.age2 > CFG.despawnAge && Math.random() < 1 / 20 / (d - CFG.despawnMin + 1)) { M.remove(m); continue; } // MC: 1/(dist-31) chance/t after 600t
       }
     }
-    // scheduler: spawn attempts only in survival (creative stays a calm sandbox + suites stay mob-free).
-    // 1.12 hostile mix (approx): zombie 50% / skeleton 30% / creeper 20%.
+    // ================= #039 per-chunk scheduler (1.12 spawnStructure-style) =================
+    // Scan every loaded chunk in the [min..max] player shell; a small ATTEMPT budget per tick keeps it cheap
+    // (chunk distance test is free). Light/type/distance rules live in trySpawnAt; caps are MC category ceilings.
     if (CF.survival && M.sched !== false && P) {
-      if (M.hostileCount() < HOSTILE_CAP) {
-        let budget = 2;
-        while (budget-- > 0) {
-          const ang = Math.random() * Math.PI * 2, rr = 24 + Math.random() * 16;
-          const x = Math.floor(P.pos[0] + Math.cos(ang) * rr), z = Math.floor(P.pos[2] + Math.sin(ang) * rr);
-          W.ensureAround(x, z, 0);
-          const fy = W.heightAt(x, z) + 1;
-          if (W.get(x, fy - 1, z)) W.ensureLight(x >> 4, z >> 4);
-          const r = Math.random(), type = r < 0.5 ? 'zombie' : r < 0.8 ? 'skeleton' : 'creeper';
-          M.trySpawnAt(type, x + 0.5, fy, z + 0.5);
-        }
-      }
-      // passive natural spawn: grass, daylight, sparse (1.12 animals are rare + persistent)
-      if (CF.dayFactor && CF.dayFactor() > 0.7 && M.passiveCount() < PASSIVE_CAP && Math.random() < 0.15) {
-        const ang = Math.random() * Math.PI * 2, rr = 24 + Math.random() * 16;
-        const x = Math.floor(P.pos[0] + Math.cos(ang) * rr), z = Math.floor(P.pos[2] + Math.sin(ang) * rr);
-        W.ensureAround(x, z, 0);
+      let attempts = CFG.chunkBudget; // attempts (not chunk visits) per tick
+      for (const [k] of W.chunks) {
+        if (attempts <= 0) break;
+        const [ccx, ccz] = k.split(',').map(Number);
+        const cx = ccx * 16 + 8, cz = ccz * 16 + 8;
+        const d = Math.hypot(cx - P.pos[0], cz - P.pos[2]);
+        if (d < CFG.min - 8 || d > CFG.max) continue; // chunk roughly in the spawn shell
+        const ch = W.chunks.get(k);
+        if (ch && !ch.light) W.ensureLight(ccx, ccz); // relight once, never per-tick
+        const x = (ccx * 16 + Math.floor(Math.random() * 16)), z = (ccz * 16 + Math.floor(Math.random() * 16));
         const fy = W.heightAt(x, z) + 1;
-        if (W.get(x, fy - 1, z)) W.ensureLight(x >> 4, z >> 4);
-        const r = Math.random(), type = r < 0.34 ? 'pig' : r < 0.67 ? 'cow' : 'sheep';
-        M.trySpawnAt(type, x + 0.5, fy, z + 0.5);
+        const dayOk = CF.dayFactor && CF.dayFactor() > 0.7;
+        let type = null;
+        if (M.hostileCount() < CFG.monsterCap) { const r = Math.random(); type = r < 0.5 ? 'zombie' : r < 0.8 ? 'skeleton' : 'creeper'; }
+        if (type && M.trySpawnAt(type, x + 0.5, fy, z + 0.5)) { attempts--; continue; }
+        if (dayOk && M.passiveCount() < CFG.creatureCap && Math.random() < 0.1) {
+          const r = Math.random(), pt = r < 0.34 ? 'pig' : r < 0.67 ? 'cow' : 'sheep';
+          if (M.trySpawnAt(pt, x + 0.5, fy, z + 0.5)) attempts--;
+        }
       }
     }
     M.breedScan();
@@ -3857,6 +3860,25 @@ window.CF = window.CF || {};
     CF.renderDraw(CF.camera);
   };
 
+  // #039 scenario: the night is dangerous - run the real per-chunk scheduler and show a crowd of hostiles
+  CF.shotScenarios['mob-crowd'] = async () => {
+    CF.freeCam = true; CF.timeOffset = 18000;
+    const W = CF.world, P = CF.player;
+    W.ensureAround(8, 8, 5); for (let i = 0; i < 120 && W.stats().queue; i++) W.tick();
+    const h = W.heightAt(8, 8);
+    M.clear(); M.sched = true; CF.mobSense = false; CF.survival = true; P.spawn = [8.5, h + 1, 8.5];
+    P.tp(8.5, h + 1, 8.5); P.onGround = false; for (let t = 0; t < 60 && !P.onGround; t++) CF.playerTick();
+    CF.stats.hp = 9999;
+    for (let t = 0; t < 400; t++) CF.mobTick();
+    M.sched = false; CF.mobTick = () => {}; // freeze the crowd
+    for (let i = 0; i < 60; i++) CF.renderTick();
+    const mobs = M.list.slice(0, 4);
+    CF.camera = { pos: [8.5, h + 3, 8.5 - 6], yaw: 0.15, pitch: -0.12 };
+    CF.renderDraw(CF.camera); await new Promise((res) => setTimeout(res, 150));
+    CF.shotExtra = { hostiles: M.list.length, near: mobs.length };
+    CF.renderDraw(CF.camera);
+  };
+
   // --- test suite
   const settle = (n) => { for (let i = 0; i < n && CF.world.stats().queue; i++) CF.world.tick(); };
   CF.mobTests = async (r) => {
@@ -3916,16 +3938,25 @@ window.CF = window.CF || {};
     const near = P.pos[0] + 6, nearZ = P.pos[2]; const nearY = W.heightAt(Math.floor(near), Math.floor(nearZ)) + 1;
     CF.assert(r, 'mob.min-dist(24-block rule)', M.trySpawnAt('zombie', near + 0.5, nearY, nearZ + 0.5) === null);
 
-    // scheduler over 400 night ticks: spawns happen, all >=20 away, cap respected
+    // #039 per-chunk scheduler over 400 night ticks: spawns happen, all in 24..128 band, cap = MC 70
     // (sense OFF during this window: AI chase would otherwise pull spawns to the player, MC 1.12 sense=35)
     M.clear(); CF.survival = true; CF.timeOffset = 18000; M.sched = true; CF.mobSense = false;
-    W.ensureAround(P.pos[0], P.pos[2], 4); settle(40);
+    W.ensureAround(P.pos[0], P.pos[2], 5); settle(60);
     for (let t = 0; t < 400; t++) CF.mobTick();
     M.sched = false; CF.mobSense = true;
-    let minD = 1e9; for (const z2 of M.list) minD = Math.min(minD, Math.hypot(P.pos[0] - z2.pos[0], P.pos[2] - z2.pos[2]));
+    let minD = 1e9, maxD = 0; for (const z2 of M.list) { const dd = Math.hypot(P.pos[0] - z2.pos[0], P.pos[2] - z2.pos[2]); minD = Math.min(minD, dd); maxD = Math.max(maxD, dd); }
     CF.assert(r, 'mob.spawn-night(' + M.list.length + ' spawned)', M.list.length >= 1);
-    CF.assert(r, 'mob.min-dist(min=' + minD.toFixed(1) + ')', M.list.length === 0 || minD >= 20);
-    CF.assert(r, 'mob.cap(' + M.list.length + '<=12)', M.list.length <= 12);
+    CF.assert(r, 'mob.min-dist(min=' + minD.toFixed(1) + '>=20)', M.list.length === 0 || minD >= 20);
+    CF.assert(r, 'mob.max-dist(max=' + maxD.toFixed(1) + '<=128)', maxD <= 132); // band 24..128 (slack for post-spawn settling)
+    CF.assert(r, 'mob.cap(' + M.list.length + '<=' + CFG.monsterCap + ')', M.list.length <= CFG.monsterCap);
+    // #039 despawn: teleport a lone hostile far (over max) -> next tick removes it; within band it survives
+    M.clear(); const far = M.spawn('zombie', P.pos[0] + 200, Math.max(40, W.heightAt(Math.floor(P.pos[0]) + 200, Math.floor(P.pos[2])) + 1), P.pos[2]);
+    CF.mobTick();
+    CF.assert(r, 'mob.despawn-instant(>128)', M.list.indexOf(far) < 0);
+    const nearKeep = M.spawn('zombie', P.pos[0] + 10, Math.max(40, W.heightAt(Math.floor(P.pos[0]) + 10, Math.floor(P.pos[2])) + 1), P.pos[2]);
+    for (let t = 0; t < 50; t++) CF.mobTick();
+    CF.assert(r, 'mob.despawn-stays-in-band', M.list.indexOf(nearKeep) >= 0);
+    M.clear();
 
     // burn: noon sky-exposed dies; midnight survives
     M.clear(); CF.survival = false;
