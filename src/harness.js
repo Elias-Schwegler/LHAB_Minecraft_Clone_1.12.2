@@ -38,6 +38,7 @@
     { name: 'survival', run: (r) => CF.survivalTests && CF.survivalTests(r) },
     { name: 'mobs', run: (r) => CF.mobTests && CF.mobTests(r) },
     { name: 'tnt', run: (r) => CF.tntTests && CF.tntTests(r) },
+    { name: 'bed', run: (r) => CF.bedTests && CF.bedTests(r) },
     { name: 'save', run: (r) => CF.persistTests && CF.persistTests(r) },
   ];
 

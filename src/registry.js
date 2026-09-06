@@ -196,6 +196,29 @@ window.CF.REGISTRY = /*REGISTRY-START*/
    }
   }
  },
+ "bed": {
+  "id": 26,
+  "tier": 1,
+  "variants": {
+   "white": {
+    "functional": false,
+    "tiles": [
+     "bed_side",
+     "bed_side",
+     "bed_top",
+     "bed_top",
+     "bed_side",
+     "bed_side"
+    ],
+    "hardness": 0.2,
+    "drop": "bed",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0
+   }
+  }
+ },
  "chest": {
   "id": 54,
   "tier": 1,

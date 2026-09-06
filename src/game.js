@@ -35,6 +35,7 @@ window.CF = window.CF || {};
         CF.playerTick && CF.playerTick();
         CF.mobTick && CF.mobTick(); // #035 entities (spawn scheduler is survival-gated)
         CF.tntTick && CF.tntTick(); // #042 primed TNT fuses + chain + explode
+        CF.bedTick && CF.bedTick(); // #041 sleep sequence + weather/lightning/shake decay
       }
       CF.renderTick && CF.renderTick();
       CF.onTick && CF.onTick();

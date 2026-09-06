@@ -192,6 +192,9 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
       // #040 chest tiles (free cells): lid seam + latch
       cell(64, 48, (x, y) => (y === 4 || y === 5) ? '#6a4a22' : (x > 6 && x < 9 && y > 5 && y < 9) ? '#d8d2c0' : (y > 12 ? '#5a3c1a' : ((x + y) % 7 === 0 ? '#7a5528' : '#8a6230')));
       cell(80, 48, (x, y) => (y > 6 && y < 9) ? '#6a4a22' : ((x + y) % 6 === 0 ? '#7a5528' : '#96703a'));
+      // #041 bed tiles: red blanket + white pillow (head side of top), wooden frame edge
+      cell(96, 48, (x, y) => (y < 3 || y > 12) ? '#6a4a22' : (x < 3 ? '#6a4a22' : '#c03830'));
+      cell(112, 48, (x, y) => (y < 2 || y > 13) ? '#6a4a22' : (y < 5 ? '#e8e4da' : '#c03830'));
       CF.__tntCellsDrawn = true;
       gl.bindTexture(gl.TEXTURE_2D, tex);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cv);
@@ -307,6 +310,7 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
   function draw(cam) {
     if (!gl || !texReady) return;
     const c = CF.canvas;
+    if (CF.shake > 0) cam = { pos: [cam.pos[0] + (Math.random() - 0.5) * 0.12 * CF.shake / 18, cam.pos[1] + (Math.random() - 0.5) * 0.1 * CF.shake / 18, cam.pos[2] + (Math.random() - 0.5) * 0.12 * CF.shake / 18], yaw: cam.yaw, pitch: cam.pitch }; // #037/#042 blast shake
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.useProgram(prog);
@@ -315,12 +319,18 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
     const dayF = CF.dayFactor ? CF.dayFactor() : 1;
     const skyDay = [0.6, 0.75, 1.0], skyNight = [0.02, 0.03, 0.07];
     const mixv = (i) => skyNight[i] + (skyDay[i] - skyNight[i]) * dayF;
-    gl.clearColor(mixv(0), mixv(1), mixv(2), 1);
+    let sky = [mixv(0), mixv(1), mixv(2)];
+    if (CF.raining && CF.raining()) { // #041 overcast (thunder = gloomier)
+      const k = CF.weather.thunder ? 0.28 : 0.45, g = CF.weather.thunder ? 0.24 : 0.3;
+      sky = sky.map((v, i) => v * k + [0.28, 0.3, 0.34][i] * g);
+    }
+    if (CF.lightFlash > 0) sky = [0.9, 0.92, 1]; // lightning frames the world white
+    gl.clearColor(sky[0], sky[1], sky[2], 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(prog);
     const VP = tr(mm(persp(70 * Math.PI / 180, c.width / c.height, 0.1, 300), view(cam.pos, cam.yaw, cam.pitch)));
     gl.uniformMatrix4fv(uVP, false, new Float32Array(VP));
-    gl.uniform3f(uFog, mixv(0), mixv(1), mixv(2));
+    gl.uniform3f(uFog, sky[0], sky[1], sky[2]);
     gl.uniform1f(gl.getUniformLocation(prog, 'uDay'), Math.max(dayF, 0.25));
     gl.uniform3fv(gl.getUniformLocation(prog, 'E'), new Float32Array(cam.pos));
     let tris = 0, drawn = 0;

@@ -13,6 +13,7 @@
     "src/mobs.js",
     "src/explode.js",
     "src/tnt.js",
+    "src/bed.js",
     "src/game.js",
     "src/harness.js"
   ],
