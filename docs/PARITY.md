@@ -42,7 +42,7 @@ wood variants (no tiles), all Tier-2/3 families.
 [x] torches + spawn-by-light rules                         <- #024/#028 torch asserts + #035 light<=7 spawn + #039 caps(70/10)/per-chunk scheduler/despawn bands (mob.* asserts, mob-crowd.png)
 [ ] hostile mobs (zombie/skeleton/creeper/spider/enderman) + passive w/ breeding   <- zombie+skeleton+creeper #035-#037 AND pig/cow/sheep (wander/breed/drop) #038 (mob.* asserts, mob-*.png); spider/enderman/other species -> #039+/#044
 [x] health/hunger/fall damage                          <- #026 (surv.* asserts + hud-low.png)
-[ ] chests/furnaces                                        <- furnace GUI+proof #032 (ui.furn-* asserts, ui-furnace.png); chest -> #040
+[x] chests/furnaces                                        <- #032 furnace GUI (ui.furn-*), #040 chest 27-slot UI+quickmove+break-ejects (ui.chest-*), BE save/load fixed; block tiles procedural (not counted)
 [x] wood→tools→mining tiers                              <- #006 tier gates + #024 (items.iron-pickaxe/speed-stone-wood asserts)
 [x] TNT                                                  <- #042 craft/place/prime(flint&steel)/80t-fuse/power-4 explode/chain/blast-resist (tnt.* asserts, tnt-fuse.png); block functional:false (procedural tile, not Blender) + 3x3 craft GUI -> #045
 [ ] beds/sleep

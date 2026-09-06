@@ -18,12 +18,14 @@ window.CF = window.CF || {};
     if (kind === 'inv') return CF.inv[i];
     if (kind === 'craft') return CF.ui.craft[i];
     const f = be(); if (!f) return null;
+    if (kind === 'cs') return f.slots[i]; // #040 chest 0..26
     return kind === 'fin' ? f.input : kind === 'ffuel' ? f.fuel : kind === 'fout' ? f.out : null;
   }
   function slotSet(kind, i, s) {
     if (kind === 'inv') { CF.inv[i] = s; return; }
     if (kind === 'craft') { CF.ui.craft[i] = s; updateResult(); return; }
     const f = be(); if (!f) return;
+    if (kind === 'cs') { f.slots[i] = s; return; }
     if (kind === 'fin') f.input = s; else if (kind === 'ffuel') f.fuel = s; else f.out = s;
   }
 
@@ -42,6 +44,7 @@ window.CF = window.CF || {};
     '#ghost{position:fixed;width:32px;height:32px;pointer-events:none;z-index:40;display:none;image-rendering:pixelated}' +
     '.icon{position:absolute;inset:0;background-repeat:no-repeat}' +
     '#furn{display:none;margin:6px 0;padding:6px;border:1px solid #666}' +
+    '#chest{display:none;margin:6px 0;padding:6px;border:1px solid #666}' +
     '#furn .row{display:flex;gap:8px;align-items:center;justify-content:center}' +
     '#furn .bar{width:22px;height:36px;background:#333;border:1px solid #555;position:relative;overflow:hidden}' +
     '#furn .bar>i{position:absolute;left:0;right:0;bottom:0;background:#e8a33d;display:block}' +
@@ -77,6 +80,7 @@ window.CF = window.CF || {};
 
   let hud, inv, ghostEl, hudSlots = [], invSlots = [], craftSlots = [], resultSlot = null;
   let furnEl, finSlot, ffuelSlot, foutSlot, burnBar, cookArrow;
+  let chestEl, chestSlots = [];
   let atkEl;
 
   function build() {
@@ -113,6 +117,13 @@ window.CF = window.CF || {};
     row.appendChild(finSlot); row.appendChild(midCol); row.appendChild(foutSlot);
     furnEl.appendChild(row); furnEl.appendChild(row2);
     inv.appendChild(furnEl);
+    // #040 chest 27-slot grid
+    chestEl = document.createElement('div'); chestEl.id = 'chest';
+    const cht = document.createElement('h4'); cht.textContent = 'Chest'; chestEl.appendChild(cht);
+    const cgrid = document.createElement('div'); cgrid.className = 'grid';
+    for (let i = 0; i < 27; i++) { const s = mkSlot('cs', i); chestSlots.push(s); cgrid.appendChild(s); }
+    chestEl.appendChild(cgrid);
+    inv.appendChild(chestEl);
     inv.appendChild(g4);
     ghostEl = document.createElement('div'); ghostEl.id = 'ghost';
     const gi = document.createElement('div'); gi.className = 'icon'; ghostEl.appendChild(gi);
@@ -141,15 +152,22 @@ window.CF = window.CF || {};
     updateResult();
     paint(resultSlot, CF.ui.result);
     if (furnEl) {
-      const on = !!CF.ui.container && !!be();
+      const f0 = be();
+      const on = !!CF.ui.container && f0 && f0.type === 'furnace';
       furnEl.style.display = on ? 'block' : 'none';
       CF.ui.container && !be() && (CF.ui.container = null); // BE gone (broken/loaded away): just close panel
       if (on) {
-        const f = be();
+        const f = f0;
         paint(finSlot, f.input); paint(ffuelSlot, f.fuel); paint(foutSlot, f.out);
         burnBar.firstChild.style.height = (f.burnMax ? 100 * f.burn / f.burnMax : 0) + '%';
         cookArrow.firstChild.style.height = Math.min(100, f.cook / 2) + '%'; // 200t cook -> 2%/tick
       }
+    }
+    if (chestEl) { // #040
+      const c = be();
+      const on = !!CF.ui.container && c && c.type === 'chest';
+      chestEl.style.display = on ? 'block' : 'none';
+      if (on) for (let i = 0; i < 27; i++) paint(chestSlots[i], c.slots[i]);
     }
     if (CF.ui.ghost) {
       ghostEl.style.display = 'block';
@@ -199,6 +217,16 @@ window.CF = window.CF || {};
       }
       slotSet(kind, i, stack); return cur;
     }
+    if (kind === 'cs') { // #040 chest slots: full bidirectional merge/swap like inventory
+      const cur = slotGet(kind, i);
+      if (!cur) { slotSet(kind, i, stack); return null; }
+      if (cur.name === stack.name) {
+        const move = Math.min(64 - cur.count, stack.count);
+        cur.count += move; stack.count -= move;
+        return stack.count > 0 ? stack : null;
+      }
+      slotSet(kind, i, stack); return cur;
+    }
     return stack;
   }
 
@@ -214,11 +242,20 @@ window.CF = window.CF || {};
       return;
     }
     if (quick) {
+      // #040 chest quickmove first (1.12: shift-click routes between container and inventory)
+      const f = be();
+      if (f && f.type === 'chest' && !CF.ui.ghost) {
+        if (kind === 'cs' && f.slots[i]) { const s = f.slots[i]; const left = CF.give(s.name, s.count); f.slots[i] = left ? { name: s.name, count: left } : null; refresh(); return; }
+        if (kind === 'inv' && CF.inv[i]) { const s = CF.inv[i]; const slot = f.slots.findIndex((x) => x && x.name === s.name && x.count < 64);
+          if (slot >= 0) { const move = Math.min(64 - f.slots[slot].count, s.count); f.slots[slot].count += move; s.count -= move; if (!s.count) CF.inv[i] = null; refresh(); return; }
+          const empty = f.slots.findIndex((x) => !x); if (empty >= 0) { f.slots[empty] = s; CF.inv[i] = null; refresh(); return; } }
+      }
       // shift-click: move inv <-> craft? v1: inv<->hotbar quickmove within inv array
       if (kind === 'inv' && CF.inv[i] && !CF.ui.ghost) {
         const s = CF.inv[i];
         const target = i < 9 ? 9 + CF.inv.slice(9).findIndex((x) => !x) : i % 9;
         if (target >= 0 && target < 36 && !CF.inv[target]) { CF.inv[target] = s; CF.inv[i] = null; refresh(); }
+        return;
       }
       return;
     }
@@ -259,7 +296,7 @@ window.CF = window.CF || {};
     if (!hit || !CF.blockEntities) return false;
     const k = hit.x + ',' + hit.y + ',' + hit.z;
     const f = CF.blockEntities[k];
-    if (f && f.type === 'furnace') { CF.uiOpenContainer(k); return true; }
+    if (f && (f.type === 'furnace' || f.type === 'chest')) { CF.uiOpenContainer(k); return true; } // #032/#040
     return false;
   };
   CF.uiOpenContainer = (k) => {
@@ -328,6 +365,40 @@ window.CF = window.CF || {};
     CF.inv.fill(null);
     CF.furnaceBreak(fx, fy, fz);
     CF.assert(r, 'ui.furn-break-contents', CF.countItem('iron_ore') === 1 && CF.countItem('coal') === 2 && !CF.blockEntities[fx + ',' + fy + ',' + fz]); // 3 coal minus 1 burned
+
+    // ================= #040 chest: 27-slot container + persistence =================
+    const cx0 = 74, cz0 = 70, cy0 = Math.floor(CF.world.heightAt(cx0, cz0)) + 1;
+    CF.world.set(cx0, cy0, cz0, CF.IDOF['chest']);
+    CF.chestPlace(cx0, cy0, cz0);
+    CF.assert(r, 'ui.chest-open', CF.useBlock({ x: cx0, y: cy0, z: cz0 }) === true
+      && CF.ui.container === cx0 + ',' + cy0 + ',' + cz0
+      && document.getElementById('chest').style.display === 'block'
+      && document.getElementById('furn').style.display === 'none');
+    CF.inv.fill(null); CF.ui.ghost = null;
+    CF.inv[0] = { name: 'cobblestone', count: 10 }; CF.inv[1] = { name: 'cobblestone', count: 5 }; CF.inv[2] = { name: 'dirt', count: 5 };
+    CF.uiClick('inv', 0); CF.uiClick('cs', 5); // ghost pickup -> store
+    CF.uiClick('inv', 1); CF.uiClick('cs', 5); // second same-kind stack -> merge
+    const c = CF.blockEntities[cx0 + ',' + cy0 + ',' + cz0];
+    CF.assert(r, 'ui.chest-store(' + (c.slots[5] && c.slots[5].count) + ')', c.slots[5].name === 'cobblestone' && c.slots[5].count === 15);
+    CF.uiClick('inv', 2, true); // shift-click dirt -> chest quickmove
+    CF.assert(r, 'ui.chest-quickmove', CF.countItem('dirt') === 0 && c.slots.some((s) => s && s.name === 'dirt' && s.count === 5));
+    CF.uiClick('cs', 5); CF.uiClick('inv', 0); // take back
+    CF.assert(r, 'ui.chest-take', CF.countItem('cobblestone') === 15 && !c.slots[5]);
+    // persistence roundtrip
+    CF.give('coal', 7);
+    const ck = cx0 + ',' + cy0 + ',' + cz0;
+    CF.saveNow();
+    CF.world.set(cx0, cy0, cz0, 0); delete CF.blockEntities[ck]; // "grief it away"
+    CF.loadNow();
+    const c2 = CF.blockEntities[ck];
+    CF.assert(r, 'ui.chest-persist(' + (c2 && c2.slots.filter(Boolean).length) + ',bes=' + Object.keys(CF.blockEntities).join('|') + ',blk=' + CF.world.get(cx0, cy0, cz0) + '/' + CF.IDOF['chest'] + ')', !!c2 && c2.type === 'chest' && c2.slots.some((s) => s && s.name === 'dirt' && s.count === 5));
+    CF.assert(r, 'ui.chest-persist-orphan', CF.world.get(cx0, cy0, cz0) === CF.IDOF['chest']); // block restored too
+    // break returns contents
+    CF.inv.fill(null);
+    const got = CF.chestBreak(cx0, cy0, cz0);
+    CF.assert(r, 'ui.chest-break', got >= 5 && CF.countItem('dirt') === 5 && !CF.blockEntities[ck]);
+    CF.world.set(cx0, cy0, cz0, 0);
+    CF.ui.open = false; CF.ui.container = null; if (inv) inv.style.display = 'none';
   };
 
   // ---- shot scenarios
@@ -365,5 +436,20 @@ window.CF = window.CF || {};
     CF.useBlock({ x: fx, y: fy, z: fz });
     CF.renderDraw(CF.camera);
     await new Promise((res) => setTimeout(res, 200)); // shot is taken AFTER this fn returns - keep GUI open
+  };
+  CF.shotScenarios['ui-chest'] = async () => {
+    await CF.shotScenarios['ui-hotbar']();
+    const P = CF.player, W = CF.world;
+    const fx = Math.floor(P.pos[0]) + 2, fz = Math.floor(P.pos[2]), fy = W.heightAt(fx, fz) + 1;
+    W.set(fx, fy, fz, CF.IDOF['chest']);
+    CF.chestPlace(fx, fy, fz);
+    const c = CF.blockEntities[fx + ',' + fy + ',' + fz];
+    c.slots[0] = { name: 'cobblestone', count: 42 }; c.slots[1] = { name: 'dirt', count: 17 };
+    c.slots[9] = { name: 'coal', count: 5 }; c.slots[10] = { name: 'iron_ingot', count: 3 };
+    c.slots[20] = { name: 'log', count: 8 };
+    CF.give('apple', 4);
+    CF.useBlock({ x: fx, y: fy, z: fz });
+    CF.renderDraw(CF.camera);
+    await new Promise((res) => setTimeout(res, 200));
   };
 })();
