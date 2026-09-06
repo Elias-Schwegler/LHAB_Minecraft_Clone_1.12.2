@@ -578,7 +578,7 @@ window.CF.REGISTRY = /*REGISTRY-START*/
   "tier": 1,
   "variants": {
    "default": {
-    "functional": false,
+    "functional": true,
     "tiles": [
      "furnace",
      "furnace",
@@ -592,7 +592,16 @@ window.CF.REGISTRY = /*REGISTRY-START*/
     "tool": "pickaxe",
     "minTier": 1,
     "solid": true,
-    "light": 0
+    "light": 0,
+    "proof": {
+     "issue": "#032",
+     "tests": [
+      "items.smelt",
+      "ui.furn-open",
+      "ui.furn-smelt",
+      "ui.furn-takeout"
+     ]
+    }
    }
   }
  },

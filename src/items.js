@@ -152,6 +152,14 @@ window.CF = window.CF || {};
   const SMELT = { iron_ore: 'iron_ingot', gold_ore: 'gold_ingot', sand: 'glass' };
   CF.FUEL = { coal: 1600, planks: 300, log: 300, stick: 100 };
   CF.furnacePlace = (x, y, z) => { CF.blockEntities[x + ',' + y + ',' + z] = { type: 'furnace', input: null, fuel: null, out: null, burn: 0, cook: 0 }; };
+  // #032: breaking a furnace returns its contents to the player (no item entities in Tier-1)
+  CF.furnaceBreak = (x, y, z) => {
+    const k = x + ',' + y + ',' + z, f = CF.blockEntities[k];
+    if (!f) return;
+    for (const s of [f.input, f.fuel, f.out]) if (s && CF.give) CF.give(s.name, s.count);
+    delete CF.blockEntities[k];
+    CF.uiCloseContainer && CF.uiCloseContainer(k);
+  };
   CF.furnaceTick = () => {
     for (const k in CF.blockEntities) {
       const f = CF.blockEntities[k];

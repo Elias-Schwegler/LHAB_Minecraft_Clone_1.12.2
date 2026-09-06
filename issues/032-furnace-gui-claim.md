@@ -1,37 +1,50 @@
-# Issue: 032 — #025 AC4 furnace GUI: false [x] + missing feature
-- Type: FIX (audit #4 F1, P1) | Status: READY | Epic: E7 | Sprint: 03 | Depends: #025 (DONE), #024 (DONE)
+﻿# Issue: 032 â€” Furnace GUI (audit #4 P1 escape closure)
+- Type: FIX-P1
+- Status: DONE
+- Epic: docs/backlog/epics.md (Containers)
+- Sprint: 03 (carried from 02)
+- Depends on: #024 (BE + smelting DONE), #025 (UI stack mechanics DONE)
 
-## SMART
-- [x] Specific: issues/025 AC4 "furnace UI: smelt progress advances (shot)" is checked [x] but
-      no furnace GUI exists anywhere in src/ (zero furnace references in src/ui.js; no right-click
-      handler, no 3-slot panel, no progress bar, no shot PNG). Furnace smelt LOGIC exists
-      (CF.furnaceTick in items.js, items.smelt assert) but the UI is absent. AGENTS.md #024 line
-      deferred "furnace/GUI -> #025"; #025 closed without it while claiming AC4 done.
-- [x] Measurable: AC4 of #025 unchecked immediately (integrity fix); furnace GUI shipped later
-      flips it [x] with harness assert + shot.
-- [x] Achievable: uncheck = 1 char now; GUI = DOM panel reusing ui.js slot infra, reads
-      CF.blockEntities + f.burn/f.cook.
-- [x] Relevant: false [x] on a closed sprint issue violates DoR ("[x] without evidence cannot be
-      READY"); it was the sprint-close gate for the v0.2.0 tag.
-- [x] Time-boxed: integrity fix <= 10 min; GUI 1 iteration-day in sprint 03.
+## Why
+Audit #4 F1 (P1): #025 closed with a false [x] â€” "furnace/GUI" was deferred from #024 but its deferral
+target shipped without it. Furnace is craftable and smelts via backend, but cannot be OPENED by the
+player; registry honestly kept functional:false, so parity didn't lie â€” but the mechanic was unusable.
 
 ## 1.12.2 Reference spec
-GUI: 3 slots (input top, fuel bottom-left, output right) + arrow progress (burn) + flame +
-cook arrow; opens on right-click of furnace block; smelt 200t/item, coal 1600t fuel (already
-implemented in logic per #024).
+docs/REFERENCE.md furnace row: right-click opens furnace GUI â€” input (top), fuel (bottom), flame burn
+progress, arrow cook progress, output slot (TAKE-ONLY: cannot insert into output). Contents persist in
+the block while closed; breaking returns furnace + spits contents (we give to player: no item entities
+Tier-1 â€” documented deviation, #044).
 
 ## Acceptance criteria
-- [ ] AC1 integrity: issues/025 AC4 unchecked with pointer to this issue (immediate, part of audit #4 fix batch)
-- [ ] AC2 harness: place furnace, open GUI via right-click (CF harness event), insert iron_ore+coal,
-      cook advances, iron_ingot collectable from output slot -> named assert green
-- [ ] AC3 shot: furnace-open.png with visible progress arrow at ~50% cook (vision)
-- [ ] AC4 registry furnace functional flag stays false until THIS issue ships (GUI interaction is
-      the §7 'behavior/interactions' requirement); re-evaluate then.
+- [x] AC1: right-click on furnace opens GUI with input/fuel/output slots (useBlock routing).
+      evidence: ui.furn-open assert + ui-furnace.png vision
+- [x] AC2: ghost-drag inserts ore into input and fuel into fuel slot; flame + cook bars reflect
+      burn/cook progress. evidence: ui.furn-insert + ui.furn-smelt asserts, shot bars
+- [x] AC3: output is take-only; smelted item moves to inventory via one click.
+      evidence: ui.furn-takeout + ui.furn-noout-insert asserts
+- [x] AC4: E closes the panel; contents remain in the block entity; breaking returns contents.
+      evidence: ui.furn-close + ui.furn-break-contents asserts
+- [x] AC5: furnace flips functional:true proof-bound -> parity 18/399; full suite GREEN no regressions.
+      evidence: tools/parity.mjs + tools/test.mjs
 
 ## Test plan
-Harness assert (AC2) + shot scenario (AC3); reuse ui.js slot/ghost machinery + items.js furnaceTick.
+- ui suite additions: ui.furn-open / furn-insert / furn-smelt / furn-takeout / furn-noout-insert /
+  furn-close / furn-break-contents
+- Scenario: ui-furnace (player POV, furnace placed next to them, mid-smelt 150t: flame ~9%, cook 75%)
+- Vision: panel shows furnace title, ore in input, coal in fuel, orange+blue bars mid-fill, no magenta
 
-## Risk / feasibility
-Low; state already lives in CF.blockEntities (furnacePlace/furnaceTick), only view layer missing.
 
-## Evidence (fill at close)
+## Evidence (closed 2026-09-06)
+- Gate: full **132/132 GREEN** (125 + 7 new: ui.furn-open/insert/smelt/takeout/noout-insert/close/break-contents),
+  quick 121; 0 errors. All 7 literals verified present in BUILT game/index.html (proof rule).
+- Registry: furnace functional:true with proof{#032, tests:[items.smelt, ui.furn-*]} ->
+  parity.mjs now **18/399, t1 18/125** (furnace joins counted set; qa/blocks/furnace.png sheet present since #024).
+- Screenshot qa/2026-09-06/ui-furnace.png (seed 5, mid-smelt): VISION VERDICT PASS - "Furnace" section shows
+  input=raw iron ore(2), fuel=coal, output=iron ingot; orange burn bar + light-blue cook bar both visibly
+  partial-filled; Crafting + Main 36-grid + hotbar intact; world visible behind; no magenta, no GL errors.
+- Implementation: ui.js generic slot accessors (inv/craft/container) + furnace DOM panel; interact RMB
+  CF.useBlock routing (container BEFORE place/eat, 1.12 order); items.js furnaceBreak returns contents
+  (no item entities - documented Tier-1 simplification, same as #035 loot); output take-only enforced.
+- Deviations: no shift-click quickmove, no burn-bar flame flicker anim; chest UI reuses this container
+  plumbing in #040 as planned.

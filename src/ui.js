@@ -9,7 +9,23 @@ window.CF = window.CF || {};
     ghost: null,          // {name,count} carried by cursor
     craft: [null, null, null, null],
     craftSize: 2,
+    container: null,      // #032: blockEntity key while a container GUI (furnace) is open
   };
+
+  // #032: generic slot accessors across inv / craft grid / container blockEntities
+  const be = () => (CF.ui.container && CF.blockEntities) ? CF.blockEntities[CF.ui.container] : null;
+  function slotGet(kind, i) {
+    if (kind === 'inv') return CF.inv[i];
+    if (kind === 'craft') return CF.ui.craft[i];
+    const f = be(); if (!f) return null;
+    return kind === 'fin' ? f.input : kind === 'ffuel' ? f.fuel : kind === 'fout' ? f.out : null;
+  }
+  function slotSet(kind, i, s) {
+    if (kind === 'inv') { CF.inv[i] = s; return; }
+    if (kind === 'craft') { CF.ui.craft[i] = s; updateResult(); return; }
+    const f = be(); if (!f) return;
+    if (kind === 'fin') f.input = s; else if (kind === 'ffuel') f.fuel = s; else f.out = s;
+  }
 
   const style = document.createElement('style');
   style.textContent =
@@ -24,7 +40,11 @@ window.CF = window.CF || {};
     '#inv .slot{width:36px;height:36px;border-width:2px}' +
     '#inv h4{margin:6px 0 3px;font-weight:normal;color:#bbb}' +
     '#ghost{position:fixed;width:32px;height:32px;pointer-events:none;z-index:40;display:none;image-rendering:pixelated}' +
-    '.icon{position:absolute;inset:0;background-repeat:no-repeat}';
+    '.icon{position:absolute;inset:0;background-repeat:no-repeat}' +
+    '#furn{display:none;margin:6px 0;padding:6px;border:1px solid #666}' +
+    '#furn .row{display:flex;gap:8px;align-items:center;justify-content:center}' +
+    '#furn .bar{width:22px;height:36px;background:#333;border:1px solid #555;position:relative;overflow:hidden}' +
+    '#furn .bar>i{position:absolute;left:0;right:0;bottom:0;background:#e8a33d;display:block}';
   document.head ? document.head.appendChild(style) : document.addEventListener('DOMContentLoaded', () => document.head.appendChild(style));
 
   const ICON_URL = window.__ATLAS_B64 ? 'url(data:image/png;base64,' + window.__ATLAS_B64 + ')' : 'none';
@@ -54,6 +74,7 @@ window.CF = window.CF || {};
   }
 
   let hud, inv, ghostEl, hudSlots = [], invSlots = [], craftSlots = [], resultSlot = null;
+  let furnEl, finSlot, ffuelSlot, foutSlot, burnBar, cookArrow;
 
   function build() {
     hud = document.createElement('div'); hud.id = 'hud';
@@ -73,7 +94,23 @@ window.CF = window.CF || {};
     const g4 = document.createElement('div'); g4.innerHTML = '<h4>Main</h4>';
     const grid = document.createElement('div'); grid.className = 'grid';
     for (let i = 9; i < 36; i++) { const s = mkSlot('inv', i); invSlots.push(s); grid.appendChild(s); }
-    g4.appendChild(grid); inv.appendChild(g4);
+    g4.appendChild(grid);
+    // #032 furnace section (input / fuel / flame+cook bars / output), shown when a furnace is open
+    furnEl = document.createElement('div'); furnEl.id = 'furn';
+    const ft = document.createElement('h4'); ft.textContent = 'Furnace'; furnEl.appendChild(ft);
+    const row = document.createElement('div'); row.className = 'row';
+    finSlot = mkSlot('fin', 0);
+    const midCol = document.createElement('div'); midCol.style.cssText = 'display:flex;flex-direction:column;gap:3px;align-items:center';
+    burnBar = document.createElement('div'); burnBar.className = 'bar'; burnBar.innerHTML = '<i></i>';
+    cookArrow = document.createElement('div'); cookArrow.className = 'bar'; cookArrow.innerHTML = '<i style="background:#9fd0ff"></i>';
+    midCol.appendChild(burnBar); midCol.appendChild(cookArrow);
+    foutSlot = mkSlot('fout', 0);
+    ffuelSlot = mkSlot('ffuel', 0);
+    const row2 = document.createElement('div'); row2.className = 'row'; row2.style.marginTop = '4px'; row2.appendChild(ffuelSlot);
+    row.appendChild(finSlot); row.appendChild(midCol); row.appendChild(foutSlot);
+    furnEl.appendChild(row); furnEl.appendChild(row2);
+    inv.appendChild(furnEl);
+    inv.appendChild(g4);
     ghostEl = document.createElement('div'); ghostEl.id = 'ghost';
     const gi = document.createElement('div'); gi.className = 'icon'; ghostEl.appendChild(gi);
     document.body.appendChild(hud); document.body.appendChild(inv); document.body.appendChild(ghostEl);
@@ -98,6 +135,17 @@ window.CF = window.CF || {};
     for (let i = 0; i < 4; i++) paint(craftSlots[i], CF.ui.craft[i]);
     updateResult();
     paint(resultSlot, CF.ui.result);
+    if (furnEl) {
+      const on = !!CF.ui.container && !!be();
+      furnEl.style.display = on ? 'block' : 'none';
+      CF.ui.container && !be() && (CF.ui.container = null); // BE gone (broken/loaded away): just close panel
+      if (on) {
+        const f = be();
+        paint(finSlot, f.input); paint(ffuelSlot, f.fuel); paint(foutSlot, f.out);
+        burnBar.firstChild.style.height = (f.burnMax ? 100 * f.burn / f.burnMax : 0) + '%';
+        cookArrow.firstChild.style.height = Math.min(100, f.cook / 2) + '%'; // 200t cook -> 2%/tick
+      }
+    }
     if (CF.ui.ghost) {
       ghostEl.style.display = 'block';
       Object.assign(ghostEl.querySelector('.icon').style, { position: 'absolute', inset: '0', backgroundRepeat: 'no-repeat' }, iconCss(itemTile(CF.ui.ghost.name)));
@@ -130,6 +178,17 @@ window.CF = window.CF || {};
       updateResult();
       return cur || null;
     }
+    if (kind === 'fout') return stack; // #032: furnace output is take-only (1.12)
+    if (kind === 'fin' || kind === 'ffuel') {
+      const cur = slotGet(kind, i);
+      if (!cur) { slotSet(kind, i, stack); return null; }
+      if (cur.name === stack.name) {
+        const move = Math.min(64 - cur.count, stack.count);
+        cur.count += move; stack.count -= move;
+        return stack.count > 0 ? stack : null;
+      }
+      slotSet(kind, i, stack); return cur;
+    }
     return stack;
   }
 
@@ -153,12 +212,12 @@ window.CF = window.CF || {};
       }
       return;
     }
-    const cur = kind === 'inv' ? CF.inv[i] : CF.ui.craft[i];
+    const cur = slotGet(kind, i);
     if (!CF.ui.ghost) {
       if (!cur) return;
       if (kind === 'result') return;
       CF.ui.ghost = cur;
-      if (kind === 'inv') CF.inv[i] = null; else CF.ui.craft[i] = null;
+      slotSet(kind, i, null);
     } else {
       CF.ui.ghost = place(CF.ui.ghost, kind, i);
     }
@@ -178,11 +237,27 @@ window.CF = window.CF || {};
       if (inv) inv.style.display = CF.ui.open ? 'block' : 'none';
       if (!CF.ui.open && CF.ui.ghost) { CF.give(CF.ui.ghost.name, CF.ui.ghost.count); CF.ui.ghost = null; }
       if (!CF.ui.open) for (let i = 0; i < 4; i++) if (CF.ui.craft[i]) { CF.give(CF.ui.craft[i].name, CF.ui.craft[i].count); CF.ui.craft[i] = null; }
+      if (!CF.ui.open) CF.ui.container = null; // #032: closing kills container view (contents stay in BE)
       refresh();
     }
     if (e.code === 'Escape' && CF.ui.open) window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE' }));
   });
   window.addEventListener('mouseup', (e) => { if (CF.blockPlaceAt && e.button === 1) { /* middle: reserved */ } });
+
+  // #032: right-click block use (furnace opens its GUI instead of placing)
+  CF.useBlock = (hit) => {
+    if (!hit || !CF.blockEntities) return false;
+    const k = hit.x + ',' + hit.y + ',' + hit.z;
+    const f = CF.blockEntities[k];
+    if (f && f.type === 'furnace') { CF.uiOpenContainer(k); return true; }
+    return false;
+  };
+  CF.uiOpenContainer = (k) => {
+    CF.ui.container = k;
+    if (!CF.ui.open) { CF.ui.open = true; if (inv) inv.style.display = 'block'; }
+    refresh();
+  };
+  CF.uiCloseContainer = (k) => { if (CF.ui.container === k) { CF.ui.container = null; refresh(); } };
 
   CF.uiRefresh = refresh;
   setInterval(() => { if (document.getElementById('hud')) refresh(); }, 200);
@@ -212,6 +287,37 @@ window.CF = window.CF || {};
     CF.assert(r, 'ui.craft-collect', CF.countItem('planks') === 4 && CF.countItem('log') === 0 && CF.ui.craft[0] && CF.ui.craft[0].name === 'log');
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE' }));
     CF.assert(r, 'ui.close', document.getElementById('inv').style.display === 'none');
+
+    // ---- #032 furnace GUI
+    const fx = 7, fy = Math.floor(CF.world.heightAt(70, 70)) + 2, fz = 70;
+    CF.world.ensureAround(70, 70, 1);
+    for (let i = 0; i < 10 && CF.world.stats().queue; i++) CF.world.tick();
+    CF.world.set(fx, fy, fz, CF.IDOF['furnace']);
+    CF.furnacePlace(fx, fy, fz);
+    CF.assert(r, 'ui.furn-open', CF.useBlock({ x: fx, y: fy, z: fz }) === true
+      && CF.ui.container === fx + ',' + fy + ',' + fz
+      && document.getElementById('furn').style.display === 'block');
+    CF.inv.fill(null); CF.ui.ghost = null;
+    CF.inv[0] = { name: 'iron_ore', count: 2 }; CF.inv[1] = { name: 'coal', count: 3 };
+    CF.uiClick('inv', 0); CF.uiClick('fin', 0);
+    CF.uiClick('inv', 1); CF.uiClick('ffuel', 0);
+    const f = CF.blockEntities[fx + ',' + fy + ',' + fz];
+    CF.assert(r, 'ui.furn-insert(in=' + (f.input && f.input.name) + ',f=' + (f.fuel && f.fuel.name) + ')',
+      f.input.name === 'iron_ore' && f.fuel.name === 'coal' && f.burn === 0);
+    for (let i = 0; i < 202; i++) CF.furnaceTick();
+    CF.assert(r, 'ui.furn-smelt(out=' + (f.out && f.out.name + f.out.count) + ',burn=' + f.burn + ')',
+      f.out.name === 'iron_ingot' && f.out.count === 1 && f.input.name === 'iron_ore' && f.input.count === 1 && f.burn > 0);
+    CF.uiClick('fout', 0);
+    CF.assert(r, 'ui.furn-takeout', CF.ui.ghost && CF.ui.ghost.name === 'iron_ingot' && f.out === null);
+    CF.ui.ghost = { name: 'cobblestone', count: 1 };
+    CF.uiClick('fout', 0);
+    CF.assert(r, 'ui.furn-noout-insert', CF.ui.ghost && CF.ui.ghost.name === 'cobblestone' && f.out === null);
+    CF.ui.ghost = null;
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE' }));
+    CF.assert(r, 'ui.furn-close', CF.ui.container === null && CF.blockEntities[fx + ',' + fy + ',' + fz].input.name === 'iron_ore');
+    CF.inv.fill(null);
+    CF.furnaceBreak(fx, fy, fz);
+    CF.assert(r, 'ui.furn-break-contents', CF.countItem('iron_ore') === 1 && CF.countItem('coal') === 2 && !CF.blockEntities[fx + ',' + fy + ',' + fz]); // 3 coal minus 1 burned
   };
 
   // ---- shot scenarios
@@ -236,5 +342,18 @@ window.CF = window.CF || {};
     refresh();
     CF.renderDraw(CF.camera);
     await new Promise((x) => setTimeout(x, 200));
+  };
+  CF.shotScenarios['ui-furnace'] = async () => {
+    await CF.shotScenarios['ui-hotbar']();
+    const P = CF.player, W = CF.world;
+    const fx = Math.floor(P.pos[0]) + 2, fz = Math.floor(P.pos[2]), fy = W.heightAt(fx, fz) + 1;
+    W.set(fx, fy, fz, CF.IDOF['furnace']);
+    CF.furnacePlace(fx, fy, fz);
+    const f = CF.blockEntities[fx + ',' + fy + ',' + fz];
+    f.input = { name: 'iron_ore', count: 3 }; f.fuel = { name: 'coal', count: 2 };
+    for (let i = 0; i < 150; i++) CF.furnaceTick(); // part-smelted: flame + cook bars mid-progress, 0 output yet
+    CF.useBlock({ x: fx, y: fy, z: fz });
+    CF.renderDraw(CF.camera);
+    await new Promise((res) => setTimeout(res, 200)); // shot is taken AFTER this fn returns - keep GUI open
   };
 })();
