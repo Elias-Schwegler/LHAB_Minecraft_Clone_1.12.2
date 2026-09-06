@@ -1512,12 +1512,15 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
       texReady = true;
     };
     if (window.__ATLAS_B64) img.src = 'data:image/png;base64,' + window.__ATLAS_B64;
-    // #035 solid-color palette for mob boxes (8x1, texture unit 1). Generated in-code: zero assets,
+    // #035 solid-color palette for mob boxes (16x1, texture unit 1). Generated in-code: zero assets,
     // atlas untouched (block parity safe), shader untouched (mobs just switch sampler T -> unit 1).
-    CF.MOBCOLOR = { white: 0, zskin: 1, zcloth: 2, zdark: 3, pig: 4, cow: 5, sheep: 6, dark: 7 };
+    CF.MOBCOLOR = { white: 0, zskin: 1, zcloth: 2, zdark: 3, pig: 4, cow: 5, sheep: 6, ink: 7,
+      skel: 8, skeleton: 8, skelDark: 9, cree: 10, creeDark: 11, creeFlash: 12, arrow: 13, bone: 14 };
     const PAL = new Uint8Array([
       255, 255, 255, 255, 68, 118, 86, 255, 84, 92, 120, 255, 40, 54, 44, 255,
-      232, 136, 136, 255, 96, 76, 60, 255, 226, 224, 214, 255, 24, 24, 28, 255]);
+      232, 136, 136, 255, 96, 76, 60, 255, 226, 224, 214, 255, 24, 24, 28, 255,
+      214, 214, 206, 255, 150, 150, 150, 255, 60, 160, 72, 255, 40, 120, 52, 255, 235, 235, 235, 255,
+      180, 180, 180, 255, 236, 236, 224, 255, 120, 100, 80, 255, 220, 220, 210, 255]);
     palTex = gl.createTexture();
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, palTex);
@@ -1525,7 +1528,7 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 8, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, PAL);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 16, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, PAL);
     gl.activeTexture(gl.TEXTURE0);
     mobVAO = gl.createVertexArray(); gl.bindVertexArray(mobVAO);
     mobVB = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, mobVB);
@@ -2095,6 +2098,14 @@ window.CF = window.CF || {};
     sapling: { tile: 'item_sapling' },
     flint: { tile: 'item_flint' },
     shears: { tile: 'item_shears', tool: { type: 'shears', tier: 0, speed: 1 } },
+    // mob drops + passive products (#037/#038). No atlas tiles yet -> blank icons (tracked #044); counts/logic tested.
+    bone: {}, arrow: {}, gunpowder: {}, string: {}, feather: {}, leather: {}, ink_sac: {},
+    egg: {}, wheat: {}, carrot: { food: 3 }, potato: { food: 1 }, wheat_seeds: {},
+    raw_porkchop: { food: 3 }, cooked_porkchop: { food: 8 },
+    raw_beef: { food: 3 }, steak: { food: 8 },
+    mutton: { food: 2 }, cooked_mutton: { food: 6 },
+    raw_chicken: { food: 2, poison: 0.3 }, cooked_chicken: { food: 6 },
+    wool: {}, // sheep drop; colour variants -> #044 (only white registered)
   };
   for (const [mat, info] of Object.entries(TOOLS))
     for (const shape of ['pickaxe', 'axe', 'shovel', 'sword'])
@@ -3144,13 +3155,31 @@ window.CF = window.CF || {};
       ],
       drop: { name: 'rotten_flesh', min: 0, max: 2 }, // 1.12: 0-2 rotten flesh (rare iron/gold -> backlog)
     },
+    skeleton: { // 1.12.2: bow mob, keeps 4-15 blocks, followRange 20, burns
+      w: 0.6, h: 1.95, hp: 20, speed: 2.4, hostile: true, burns: true, ranged: true,
+      shootCd: 40, keepMin: 4, keepMax: 15, follow: 20,
+      boxes: [
+        { cy: 1.7, sx: 0.5, sy: 0.5, sz: 0.5, color: 'skel' },   // skull
+        { cy: 0.76, sx: 0.5, sy: 1.1, sz: 0.3, color: 'skelDark' }, // ribs/legs
+      ],
+      drop: { name: 'bone', min: 0, max: 2, extra: { name: 'arrow', min: 0, max: 2 } }, // bow rare -> #044
+    },
+    creeper: { // 1.12.2: silent, 30t fuse when <=3 blocks, power-3 explosion, no drop on detonate
+      w: 0.6, h: 1.7, hp: 20, speed: 2.4, hostile: true, burns: false, creeper: true, fuse: 30,
+      boxes: [
+        { cy: 1.45, sx: 0.5, sy: 0.5, sz: 0.5, color: 'cree' },  // head
+        { cy: 0.68, sx: 0.55, sy: 0.95, sz: 0.35, color: 'creeDark' }, // body
+        { cy: 0.2, sx: 0.5, sy: 0.4, sz: 0.5, color: 'cree' },   // legs
+      ],
+      drop: { name: 'gunpowder', min: 0, max: 2 }, // only when killed by player; detonation = no drop
+    },
   };
 
   const M = CF.mobs = {
     list: [], nextUid: 1, sched: true, // sched=false used by tests for deterministic arenas
     spawn(type, x, y, z, opts) { // y = FEET level. Raw create (no rules) - shots/tests use this.
       const T = CF.MOBS[type]; if (!T) return null;
-      const m = { uid: M.nextUid++, type, pos: [x, y + T.h / 2, z], vel: [0, 0, 0], hp: T.hp, onGround: false, burnT: 0, burning: false, atkCd: 0, path: null, repathT: 0 };
+      const m = { uid: M.nextUid++, type, pos: [x, y + T.h / 2, z], vel: [0, 0, 0], hp: T.hp, onGround: false, burnT: 0, burning: false, atkCd: 0, path: null, repathT: 0, fuse: 0, shootCd: 0, swell: 0 };
       if (opts && opts.vel) m.vel = opts.vel.slice();
       M.list.push(m);
       return m;
@@ -3171,17 +3200,19 @@ window.CF = window.CF || {};
     },
     hostileCount() { let n = 0; for (const m of M.list) if (CF.MOBS[m.type].hostile) n++; return n; },
     rollDrop(type) {
-      const d = CF.MOBS[type].drop; if (!d) return null;
+      const T = CF.MOBS[type]; const d = T.drop; if (!d) return [];
+      const out = [];
       const n = d.min + Math.floor(Math.random() * (d.max - d.min + 1));
-      return n > 0 ? { name: d.name, n } : null;
+      if (n > 0) out.push({ name: d.name, n });
+      if (d.extra) { const en = d.extra.min + Math.floor(Math.random() * (d.extra.max - d.extra.min + 1)); if (en > 0) out.push({ name: d.extra.name, n: en }); }
+      return out;
     },
     hurt(m, n, src) {
       if (m.dead) return;
       m.hp -= n;
       if (m.hp <= 0) {
         m.dead = true;
-        const loot = M.rollDrop(m.type);
-        if (loot && src === 'player' && CF.give) CF.give(loot.name, loot.n); // Tier-1: no item entities; player kills -> inventory
+        if (src === 'player' && CF.give) for (const loot of M.rollDrop(m.type)) CF.give(loot.name, loot.n); // Tier-1: no item entities; player kills -> inventory
         M.remove(m);
       }
     },
@@ -3301,17 +3332,13 @@ window.CF = window.CF || {};
     m.vel[0] = dx / l * spd; m.vel[2] = dz / l * spd; m.yaw = Math.atan2(dx, dz);
   }
 
-  function aiChase(m, T, P) {
-    if (CF.mobSense === false) return; // test isolation: scheduler windows must not be invalidated by chasing
-    const dx = P.pos[0] - m.pos[0], dz = P.pos[2] - m.pos[2], d = Math.hypot(dx, dz);
-    const dy = Math.abs(P.pos[1] - m.pos[1]);
-    if (d > 35 || dy > 12) { m.path = null; m.vel[0] = m.vel[2] = 0; return; } // MC zombie sense radius 35
-    if (d < 1.35 && dy < 2.2) { // in melee reach
-      m.vel[0] = m.vel[2] = 0; m.path = null;
-      if (--m.atkCd <= 0) { m.atkCd = 20; if (CF.survival) CF.damage(T.dmg || 3, 'mob'); } // NORMAL difficulty
-      return;
-    }
-    m.atkCd = 0;
+  function losClear(m, T, P) { // sample the eye-line; false if a solid blocks it (creeper/skeleton trigger)
+    const a = [m.pos[0], m.pos[1] + T.h * 0.2, m.pos[2]], b = [P.pos[0], P.pos[1], P.pos[2]];
+    const n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]));
+    for (let i = 1; i < n; i++) { const t = i / n; if (CF.solidAt(CF.world.get(Math.floor(a[0] + (b[0] - a[0]) * t), Math.floor(a[1] + (b[1] - a[1]) * t), Math.floor(a[2] + (b[2] - a[2]) * t)))) return false; }
+    return true;
+  }
+  function pathToward(m, T, P) {
     m.repathT = (m.repathT || 0) - 1;
     if ((!m.path || !m.path.length) && m.repathT <= 0 && aiBudget > 0) {
       aiBudget--; m.repathT = REPATH_CD;
@@ -3323,6 +3350,46 @@ window.CF = window.CF || {};
       else steer(m, wp.x + 0.5, wp.z + 0.5, T.speed);
     } else steer(m, P.pos[0], P.pos[2], T.speed); // no path: walk straight (wall-block covers us)
   }
+  function aiChase(m, T, P) {
+    if (CF.mobSense === false) return; // test isolation: scheduler windows must not be invalidated by chasing
+    const dx = P.pos[0] - m.pos[0], dz = P.pos[2] - m.pos[2], d = Math.hypot(dx, dz);
+    const dy = Math.abs(P.pos[1] - m.pos[1]);
+    const sense = T.follow || 35; // zombie MC sense 35; skeleton followRange 20
+    if (d > sense || dy > 12) { m.path = null; m.vel[0] = m.vel[2] = 0; m.swell = 0; m.fuse = 0; return; } // lost target -> fuse aborts
+
+    if (T.creeper) {
+      if (d <= 3 && dy <= 2.5 && losClear(m, T, P)) { // begin/advance fuse; swell drives the flash+grow render
+        m.vel[0] = m.vel[2] = 0; m.path = null;
+        if (m.fuse++ >= T.fuse) { M.explode(m); return; }
+        m.swell = m.fuse / T.fuse;
+        return;
+      }
+      if (m.fuse) { m.fuse = 0; m.swell = 0; } // lost target -> abort (1.12: LOS break resets)
+      pathToward(m, T, P); // silent approach
+      return;
+    }
+
+    if (T.ranged) {
+      const clear = losClear(m, T, P);
+      if (d < T.keepMin) { steer(m, P.pos[0] - dx / (d || 1) * 6, P.pos[2] - dz / (d || 1) * 6, T.speed); m.path = null; } // back off
+      else if (d <= T.keepMax && clear) {
+        m.vel[0] = m.vel[2] = 0; m.path = null;
+        if (--m.shootCd <= 0) { m.shootCd = T.shootCd; fireArrow(m, T, P); }
+      } else pathToward(m, T, P);
+      return;
+    }
+
+    if (d < 1.35 && dy < 2.2) { // melee reach
+      m.vel[0] = m.vel[2] = 0; m.path = null;
+      if (--m.atkCd <= 0) { m.atkCd = 20; if (CF.survival) CF.damage(T.dmg || 3, 'mob'); } // NORMAL difficulty
+      return;
+    }
+    m.atkCd = 0;
+    pathToward(m, T, P);
+  }
+  // creeper detonation: explode + remove (no loot - it blew itself up)
+  M.explode = (m) => { const T = CF.MOBS[m.type]; m.dead = true; if (CF.explode) CF.explode(m.pos[0], m.pos[1], m.pos[2], T.power || 3); M.remove(m); };
+
   let aiBudget = REPATH_BUDGET;
 
   // --- player melee: 1.12 charge meter + attack-over-mining priority + knockback
@@ -3373,6 +3440,40 @@ window.CF = window.CF || {};
   const origMineStart = CF.mineStart;
   CF.mineStart = (hit) => { if (CF.trySwing(hit)) { CF.mining = null; return; } origMineStart(hit); };
 
+  // --- arrow projectiles (skeleton). Ballistic w/ predictive aim so they actually threaten.
+  const ARROW_G = 20, ARROW_SPD = 24;
+  CF.projectiles = [];
+  function fireArrow(m, T, P) {
+    const ox = m.pos[0], oy = m.pos[1] + T.h * 0.25, oz = m.pos[2];
+    const dx = P.pos[0] - ox, dz = P.pos[2] - oz, dh = Math.hypot(dx, dz) || 1;
+    const t = Math.max(0.15, dh / ARROW_SPD);
+    const spread = 0.6; // 1.12 skeleton inaccuracy (normal) -> slight random offset
+    const tx = P.pos[0] + (Math.random() - 0.5) * spread, tz = P.pos[2] + (Math.random() - 0.5) * spread;
+    const tdx = tx - ox, tdz = tz - oz, tdh = Math.hypot(tdx, tdz) || 1;
+    const dist = Math.hypot(dx, dz, P.pos[1] - oy);
+    CF.arrowFired = (CF.arrowFired || 0) + 1;
+    CF.projectiles.push({
+      pos: [ox, oy, oz],
+      vel: [tdx / tdh * ARROW_SPD, (P.pos[1] - oy) / t + 0.5 * ARROW_G * t, tdz / tdh * ARROW_SPD], // 1.12: closer = harder (1..5)
+      dmg: Math.max(1, Math.min(5, Math.round(5 - dist / 5))), life: 0,
+    });
+  }
+  function projectileTick(dt) {
+    const W = CF.world, P = CF.player;
+    for (let i = CF.projectiles.length - 1; i >= 0; i--) {
+      const a = CF.projectiles[i];
+      a.vel[1] -= ARROW_G * dt;
+      a.pos[0] += a.vel[0] * dt; a.pos[1] += a.vel[1] * dt; a.pos[2] += a.vel[2] * dt;
+      a.life++;
+      let gone = a.life > 300 || a.pos[1] < -10;
+      if (!gone && CF.solidAt(W.get(Math.floor(a.pos[0]), Math.floor(a.pos[1]), Math.floor(a.pos[2])))) gone = true; // hit block
+      if (!gone && P && CF.survival && Math.abs(a.pos[0] - P.pos[0]) < 0.5 && Math.abs(a.pos[2] - P.pos[2]) < 0.5 && a.pos[1] > P.pos[1] - 1 && a.pos[1] < P.pos[1] + 1) {
+        CF.damage(a.dmg, 'arrow'); gone = true;
+      }
+      if (gone) CF.projectiles.splice(i, 1);
+    }
+  }
+
   // ============================ per-tick: physics, AI, burn, spawn ============================
   CF.mobTick = (dt = 0.05) => {
     const W = CF.world, P = CF.player;
@@ -3400,7 +3501,8 @@ window.CF = window.CF || {};
         if (d > KILL_DIST || (CF.survival && d > DESPAWN_DIST)) { M.remove(m); continue; }
       }
     }
-    // scheduler: spawn attempts only in survival (creative stays a calm sandbox + suites stay mob-free)
+    // scheduler: spawn attempts only in survival (creative stays a calm sandbox + suites stay mob-free).
+    // 1.12 hostile mix (approx): zombie 50% / skeleton 30% / creeper 20%.
     if (CF.survival && M.sched !== false && P && M.hostileCount() < HOSTILE_CAP) {
       let budget = 2;
       while (budget-- > 0) {
@@ -3409,9 +3511,11 @@ window.CF = window.CF || {};
         W.ensureAround(x, z, 0);
         const fy = W.heightAt(x, z) + 1;
         if (W.get(x, fy - 1, z)) W.ensureLight(x >> 4, z >> 4);
-        M.trySpawnAt('zombie', x + 0.5, fy, z + 0.5);
+        const r = Math.random(), type = r < 0.5 ? 'zombie' : r < 0.8 ? 'skeleton' : 'creeper';
+        M.trySpawnAt(type, x + 0.5, fy, z + 0.5);
       }
     }
+    projectileTick(dt);
     CF.mobAiMs = performance.now() - ai0;
   };
   const hh = (m) => CF.MOBS[m.type].h / 2;
@@ -3420,7 +3524,7 @@ window.CF = window.CF || {};
   function addBox(out, x, y, z, sx, sy, sz, col, light) {
     const hx = sx / 2, hy = sy / 2, hz = sz / 2;
     const X0 = x - hx, X1 = x + hx, Y0 = y - hy, Y1 = y + hy, Z0 = z - hz, Z1 = z + hz;
-    const u = (col + 0.5) / 8;
+    const u = (col + 0.5) / 16;
     const face = (v, shade) => { for (const oi of [0, 1, 2, 0, 2, 3]) out.push(v[oi][0], v[oi][1], v[oi][2], u, 0.5, shade, light); };
     face([[X1, Y0, Z0], [X1, Y0, Z1], [X1, Y1, Z1], [X1, Y1, Z0]], 0.8);
     face([[X0, Y0, Z0], [X0, Y0, Z1], [X0, Y1, Z1], [X0, Y1, Z0]], 0.6);
@@ -3430,18 +3534,37 @@ window.CF = window.CF || {};
     face([[X0, Y0, Z0], [X1, Y0, Z0], [X1, Y1, Z0], [X0, Y1, Z0]], 0.6);
   }
   CF.buildMobVerts = (cam) => {
-    if (!M.list.length || !cam || !CF.MOBCOLOR) return null;
+    if ((!M.list.length && !CF.projectiles.length) || !cam || !CF.MOBCOLOR) return null;
     const out = [], C = CF.MOBCOLOR, W = CF.world;
     for (const m of M.list) {
       if (Math.hypot(m.pos[0] - cam.pos[0], m.pos[2] - cam.pos[2]) > 64) continue;
       const packed = W.lightAt(Math.floor(m.pos[0]), Math.floor(m.pos[1]), Math.floor(m.pos[2]));
-      const light = packed / 255;
+      let light = packed / 255;
+      const swell = m.swell || 0;
       const feet = m.pos[1] - hh(m);
-      for (const b of CF.MOBS[m.type].boxes)
-        addBox(out, m.pos[0] + (b.cx || 0), feet + b.cy, m.pos[2] + (b.cz || 0), b.sx, b.sy, b.sz, C[b.color] || 0, light);
+      const burn = m.burning && ((CF.ticks + m.uid) & 1); // hurt/burn flash: flicker bright each frame-parity
+      for (const b of CF.MOBS[m.type].boxes) {
+        let col = C[b.color] || 0;
+        if (swell > 0 && (swell > 0.6 ? ((CF.ticks & 1) ? 1 : 0) : 0)) col = C.creeFlash; // creeper pre-blast white flash
+        const g = 1 + swell * 0.35; // swelling creeper puffs up
+        if (burn) light = Math.max(light, 0.9); // on-fire mobs glow
+        addBox(out, m.pos[0] + (b.cx || 0) * g, feet + b.cy * g, m.pos[2] + (b.cz || 0) * g, b.sx * g, b.sy * g, b.sz * g, col, light);
+      }
+    }
+    // arrows: thin box aligned to velocity
+    for (const a of CF.projectiles) {
+      if (Math.hypot(a.pos[0] - cam.pos[0], a.pos[2] - cam.pos[2]) > 64) continue;
+      const packed = W.lightAt(Math.floor(a.pos[0]), Math.floor(a.pos[1]), Math.floor(a.pos[2]));
+      const vl = Math.hypot(a.vel[0], a.vel[1], a.vel[2]) || 1, ux = a.vel[0] / vl, uy = a.vel[1] / vl, uz = a.vel[2] / vl;
+      addBoxOriented(out, a.pos[0], a.pos[1], a.pos[2], ux, uy, uz, 0.5, 0.06, C.arrow || 13, packed / 255);
     }
     return out.length ? Float32Array.from(out) : null;
   };
+  // axis-aligned-ish thin box stretched along a unit dir (good enough for a flying arrow)
+  function addBoxOriented(out, x, y, z, ux, uy, uz, len, r, col, light) {
+    const hx = Math.max(r, Math.abs(ux) * len / 2), hy = Math.max(r, Math.abs(uy) * len / 2), hz = Math.max(r, Math.abs(uz) * len / 2);
+    addBox(out, x, y, z, hx * 2, hy * 2, hz * 2, col, light);
+  }
 
   // --- shot scenario: two zombies facing the camera at midnight
   CF.shotScenarios = CF.shotScenarios || {};
@@ -3530,6 +3653,54 @@ window.CF = window.CF || {};
     CF.renderDraw(CF.camera);
     await new Promise((res) => setTimeout(res, 150));
     CF.shotExtra = { hp: CF.stats.hp, atkTick: CF.atkTick, mobHp: z.hp, mobDist: +Math.hypot(P.pos[0] - z.pos[0], P.pos[2] - z.pos[2]).toFixed(2) };
+    CF.renderDraw(CF.camera);
+  };
+
+  // #037 scenario: skeleton with an arrow in flight at night (torch-lit clearing)
+  CF.shotScenarios['mob-skel'] = async () => {
+    CF.freeCam = true; CF.timeOffset = 18000;
+    const W = CF.world, P = CF.player;
+    W.ensureAround(8, 8, 4); for (let i = 0; i < 60 && W.stats().queue; i++) W.tick();
+    const h = W.heightAt(8, 8);
+    M.clear(); M.sched = false; CF.projectiles.length = 0;
+    for (let bx = 4; bx <= 20; bx++) for (let bz = 4; bz <= 12; bz++) for (let by = h + 1; by <= h + 8; by++) W.set(bx, by, bz, 0); // clearing
+    for (const [tx, tz] of [[8, 6], [8, 10]]) W.set(tx, W.heightAt(tx, tz) + 1, tz, CF.IDOF['torch']);
+    P.spawn = [8.5, h + 1, 8.5]; P.tp(8.5, h + 1, 8.5); P.onGround = false;
+    for (let t = 0; t < 60 && !P.onGround; t++) CF.playerTick();
+    const sk = M.spawn('skeleton', 13.5, W.heightAt(13, 8) + 1, 8.5);
+    CF.survival = true; CF.stats.hp = 9999;
+    for (let i = 0; i < 30; i++) { W.tick(); CF.renderTick(); }
+    for (let t = 0; t < 45; t++) { CF.mobTick(); CF.onTick(); } // skeleton fires at least once
+    CF.mobTick = () => {}; CF.mobSense = false;
+    CF.projectiles.push({ pos: [11.5, P.pos[1] + 0.2, 8.4], vel: [-22, -0.5, 0], dmg: 3, life: 2 }); // guarantee a visible arrow mid-flight
+    CF.camera = { pos: [P.pos[0] - 1.5, P.pos[1] + 0.6, P.pos[2]], yaw: Math.atan2(sk.pos[0] - (P.pos[0] - 1.5), sk.pos[2] - P.pos[2]), pitch: -0.03 };
+    CF.renderDraw(CF.camera); await new Promise((r) => setTimeout(r, 150));
+    CF.shotExtra = { fired: CF.arrowFired, proj: CF.projectiles.length, skelHp: sk.hp };
+    CF.renderDraw(CF.camera);
+  };
+
+  // #037 scenario: creeper mid-fuse (white flashing, swelling) about to blow next to the player
+  CF.shotScenarios['mob-creeper'] = async () => {
+    CF.freeCam = true; CF.timeOffset = 18000;
+    const W = CF.world, P = CF.player;
+    W.ensureAround(8, 8, 4); for (let i = 0; i < 60 && W.stats().queue; i++) W.tick();
+    const h = W.heightAt(8, 8);
+    M.clear(); M.sched = false;
+    for (let bx = 4; bx <= 16; bx++) for (let bz = 4; bz <= 12; bz++) for (let by = h + 1; by <= h + 8; by++) W.set(bx, by, bz, 0);
+    for (const [tx, tz] of [[6, 8], [13, 8]]) W.set(tx, W.heightAt(tx, tz) + 1, tz, CF.IDOF['torch']);
+    P.spawn = [8.5, h + 1, 8.5]; P.tp(8.5, h + 1, 8.5); P.onGround = false;
+    for (let t = 0; t < 60 && !P.onGround; t++) CF.playerTick();
+    const cr = M.spawn('creeper', P.pos[0] + 2.4, P.pos[1] - 0.9 + 1, P.pos[2]);
+    CF.survival = true; CF.stats.hp = 9999;
+    for (let i = 0; i < 30; i++) { W.tick(); CF.renderTick(); }
+    for (let t = 0; t < 22; t++) { CF.mobTick(); } // fuse at ~22/30, swelling + flashing
+    CF.mobTick = () => {}; CF.mobSense = false; CF.stats.hp = 9999;
+    CF.survRefresh && CF.survRefresh(); CF.uiRefresh && CF.uiRefresh();
+    const dx = cr.pos[0] - P.pos[0], dz = cr.pos[2] - P.pos[2], dl = Math.hypot(dx, dz) || 1;
+    const camx = P.pos[0] - dx / dl * 3, camz = P.pos[2] - dz / dl * 3, camy = cr.pos[1] + 0.3;
+    CF.camera = { pos: [camx, camy, camz], yaw: Math.atan2(cr.pos[0] - camx, cr.pos[2] - camz), pitch: -Math.atan2(camy - cr.pos[1], Math.hypot(cr.pos[0] - camx, cr.pos[2] - camz)) };
+    CF.renderDraw(CF.camera); await new Promise((r) => setTimeout(r, 150));
+    CF.shotExtra = { fuse: cr.fuse, swell: +cr.swell.toFixed(2) };
     CF.renderDraw(CF.camera);
   };
 
@@ -3731,6 +3902,77 @@ window.CF = window.CF || {};
     CF.assert(r, 'mob.cbt-bar(half=' + half + ',full=' + (bar && bar.style.display) + ')',
       half === true && bar.style.display === 'none');
 
+    // ================= #037: skeleton ranged + creeper fuse + explosion =================
+    CF.survival = false; M.clear(); CF.projectiles.length = 0;
+    // --- explosion crater (synthetic stone blob in the sky, deterministic, mob-independent)
+    const ex = 304, ey = 100, ez = 304;
+    W.ensureAround(ex, ez, 2); settle(30);
+    for (let bx = ex - 6; bx <= ex + 6; bx++) for (let by = ey - 6; by <= ey + 6; by++) for (let bz = ez - 6; bz <= ez + 6; bz++) W.set(bx, by, bz, ID['stone']);
+    W.set(ex + 1, ey, ez, ID['obsidian']); // must survive (blastRes 1200)
+    let before = 0; for (let bx = ex - 6; bx <= ex + 6; bx++) for (let by = ey - 6; by <= ey + 6; by++) for (let bz = ez - 6; bz <= ez + 6; bz++) if (W.get(bx, by, bz)) before++;
+    const rex = CF.explode(ex, ey, ez, 3);
+    CF.assert(r, 'mob.explode-crater(' + rex.destroyed + '/' + before + ')', rex.destroyed > 30 && W.get(ex, ey, ez) === 0);
+    CF.assert(r, 'mob.explode-obsidian', W.get(ex + 1, ey, ez) === ID['obsidian']);
+    for (let bx = ex - 6; bx <= ex + 6; bx++) for (let by = ey - 6; by <= ey + 6; by++) for (let bz = ez - 6; bz <= ez + 6; bz++) W.set(bx, by, bz, 0);
+
+    // --- skeleton: shoots arrows when in 4..15 range with LOS; burns at noon
+    // clear vegetation along the LOS corridors so terrain can't block sight (deterministic)
+    const clearLOS = (x0, z0, x1, z1, y) => {
+      for (let s = 0; s <= 10; s++) { const bx = Math.round(x0 + (x1 - x0) * s / 10), bz = Math.round(z0 + (z1 - z0) * s / 10); for (let by = y; by <= y + 3; by++) if (W.get(bx, by, bz) !== ID['stone']) W.set(bx, by, bz, 0); }
+    };
+    CF.survival = true; CF.timeOffset = 6000;
+    const skx = 200, skz = 200;
+    W.ensureAround(skx, skz, 2); settle(30); W.ensureLight(skx >> 4, skz >> 4);
+    M.clear(); const skh = W.heightAt(skx, skz);
+    P.tp(skx + 0.5, skh + 20, skz + 0.5); P.onGround = false;
+    for (let t = 0; t < 200 && !P.onGround; t++) CF.playerTick();
+    S.hp = 20;
+    clearLOS(skx + 0.5, skz + 0.5, skx + 8.5, skz + 0.5, skh + 1); // open the shot corridor
+    M.spawn('skeleton', skx + 8.5, skh + 1, skz + 0.5);
+    CF.arrowFired = 0;
+    for (let t = 0; t < 80 && CF.arrowFired < 1; t++) { CF.mobTick(); CF.onTick(); }
+    CF.assert(r, 'mob.skel-shoot(fired=' + CF.arrowFired + ')', CF.arrowFired >= 1);
+    // arrow block hit: aim one into a wall, tick, must be consumed by geometry
+    for (let yy = Math.floor(P.pos[1]) - 1; yy <= Math.floor(P.pos[1]) + 2; yy++) W.set(Math.floor(P.pos[0]) + 2, yy, Math.floor(P.pos[2]), ID['stone']);
+    CF.projectiles.push({ pos: [P.pos[0] + 0.6, P.pos[1], P.pos[2]], vel: [30, 0, 0], dmg: 2, life: 0 });
+    const beforeProj = CF.projectiles.length;
+    for (let t = 0; t < 20 && CF.projectiles.length >= beforeProj; t++) CF.mobTick();
+    CF.assert(r, 'mob.arrow-block-hit', CF.projectiles.length < beforeProj);
+    for (let yy = Math.floor(P.pos[1]) - 1; yy <= Math.floor(P.pos[1]) + 2; yy++) W.set(Math.floor(P.pos[0]) + 2, yy, Math.floor(P.pos[2]), 0);
+    // skeleton burns at noon (open sky) like the zombie
+    M.clear(); CF.mobSense = false; // isolate burn from its shooting/chasing
+    const sk2 = M.spawn('skeleton', skx + 0.5, skh + 1, skz + 0.5);
+    for (let t = 0; t < 600 && M.list.indexOf(sk2) >= 0; t++) CF.mobTick();
+    CF.assert(r, 'mob.skel-burn(hp=' + sk2.hp + ')', sk2.hp <= 0);
+    CF.mobSense = true;
+
+    // --- creeper: fuses then detonates when close; aborts if you escape; never burns.
+    // Synthetic sky platform so terrain/holes can't desync the duel (player not ticked, just mobs).
+    CF.survival = true; CF.timeOffset = 18000; M.clear();
+    const cxp = 140, czp = 100;
+    W.ensureAround(cxp, czp, 1); settle(20);
+    for (let bx = cxp - 4; bx <= cxp + 4; bx++) for (let bz = czp - 4; bz <= czp + 4; bz++) { W.set(bx, 100, bz, ID['stone']); for (let by = 101; by <= 107; by++) W.set(bx, by, bz, 0); }
+    const duel = () => { for (let bx = cxp - 4; bx <= cxp + 4; bx++) for (let bz = czp - 4; bz <= czp + 4; bz++) { W.set(bx, 100, bz, ID['stone']); for (let by = 101; by <= 107; by++) W.set(bx, by, bz, 0); } P.vel[0] = P.vel[1] = P.vel[2] = 0; P.onGround = true; P.tp(cxp + 0.5, 100 + 1 + 0.9, czp + 0.5); S.hp = 100; };
+    duel();
+    const cr = M.spawn('creeper', P.pos[0] + 2.4, 101, P.pos[2]);
+    let sawSwell = false;
+    for (let t = 0; t < 60 && M.list.indexOf(cr) >= 0; t++) { CF.mobTick(); if (cr.swell > 0) sawSwell = true; }
+    CF.assert(r, 'mob.creeper-boom(swel=' + sawSwell + ',gone=' + (M.list.indexOf(cr) < 0) + ',f=' + cr.fuse + ',d=' + Math.hypot(P.pos[0] - cr.pos[0], P.pos[2] - cr.pos[2]).toFixed(1) + ')', sawSwell === true && M.list.indexOf(cr) < 0);
+    // abort: start fuse, teleport player far -> fuse resets, creeper survives
+    M.clear(); duel();
+    const cr2 = M.spawn('creeper', P.pos[0] + 2.2, 101, P.pos[2]);
+    for (let t = 0; t < 10; t++) CF.mobTick();
+    P.tp(cxp + 40.5, 101.9, czp + 0.5);
+    const fused = cr2.fuse;
+    for (let t = 0; t < 60; t++) CF.mobTick();
+    CF.assert(r, 'mob.creeper-abort(f=' + fused + '->' + cr2.fuse + ',alive=' + (M.list.indexOf(cr2) >= 0) + ')', fused > 0 && cr2.fuse === 0 && M.list.indexOf(cr2) >= 0);
+    // creeper never burns in daylight (burns:false)
+    M.clear(); CF.timeOffset = 6000; CF.survival = false;
+    const cr3 = M.spawn('creeper', cxp + 0.5, 101, czp + 0.5);
+    for (let t = 0; t < 400; t++) CF.mobTick();
+    CF.assert(r, 'mob.creeper-no-burn(hp=' + cr3.hp + ')', cr3.hp === 20 && cr3.burning === false);
+    M.clear(); CF.projectiles.length = 0;
+
     // render: pixel in front of camera changes with a mob there; GL clean
     for (let i = 0; i < 60 && !CF.rendererStats.ready; i++) { CF.renderTick(); await new Promise((s) => setTimeout(s, 25)); }
     CF.timeOffset = 6000; CF.freeCam = true;
@@ -3750,6 +3992,77 @@ window.CF = window.CF || {};
     M.clear();
     CF.survival = surv0; CF.timeOffset = t0; CF.freeCam = false; M.sched = true;
     CF.renderDraw(CF.camera || cam);
+  };
+})();
+
+/* ==== src/explode.js ==== */
+// Explosion (#037 creeper / #042 TNT): 1.12.2 ray-marched block destruction + entity damage.
+// Algorithm per docs/REFERENCE + wiki: 16^3 rays from centre, intensity = power*rand(0.7..1.3),
+// march 0.3/step, subtract (blastRes+0.3)*0.3 per solid crossed and 0.22500001 after; destroy if >0.
+// Entity: impact=(1-dist/(2*power))*exposure; damage=((impact^2+impact)/2)*(7*2*power)+1 (NORMAL, no scaling).
+// Block-drop-as-item (prob 1/power) deferred to item-entities (#044); we do destruction (mobGriefing on).
+window.CF = window.CF || {};
+(function () {
+  const CF = window.CF;
+  // 1.12.2 blast resistance by name (default 2.0). obsidian/bedrock effectively indestructible.
+  const BLAST = {
+    bedrock: 3600, obsidian: 1200, enchanting_table: 1200, anvil: 1200, mob_spawner: 1200,
+    stone: 6, cobblestone: 6, mossy_cobblestone: 6, brick_block: 6, stonebrick: 6, planks: 3,
+    log: 4, crafting_table: 2.5, furnace: 3.5, coal_ore: 3, iron_ore: 3, gold_ore: 3, diamond_ore: 3,
+    emerald_ore: 3, lapis_ore: 3, redstone_ore: 3, quartz_ore: 3,
+    dirt: 0.5, grass: 0.6, sand: 0.5, gravel: 0.6, clay: 0.6, sandstone: 0.8, snow: 0.2, snow_layer: 0.2,
+    glass: 0.3, glowstone: 0.3, leaves: 0.2, torch: 0, bookshelf: 1.5, tnt: 0,
+  };
+  CF.blastRes = (id) => { const b = CF.BY_ID[id]; const raw = b ? (BLAST[b.name] != null ? BLAST[b.name] : 2.0) : 0; return raw / 5; }; // MC divides explosionResistance by 5 (stone 6->1.2, obsidian 1200->240)
+
+  function exposure(x, y, z, ex, ey, ez) { // fraction of sampled path points that are non-solid
+    let clear = 0, n = 6;
+    for (let i = 1; i <= n; i++) {
+      const t = i / (n + 1);
+      const id = CF.world.get(Math.floor(x + (ex - x) * t), Math.floor(y + (ey - y) * t), Math.floor(z + (ez - z) * t));
+      if (!CF.solidAt(id)) clear++;
+    }
+    return clear / n;
+  }
+
+  CF.explode = (x, y, z, power) => {
+    const W = CF.world, destroyed = new Set();
+    for (let rx = 0; rx < 16; rx++) for (let ry = 0; ry < 16; ry++) for (let rz = 0; rz < 16; rz++) {
+      let dx = rx / 15 * 2 - 1, dy = ry / 15 * 2 - 1, dz = rz / 15 * 2 - 1;
+      const len = Math.hypot(dx, dy, dz) || 1; dx /= len; dy /= len; dz /= len;
+      let intensity = power * (0.7 + Math.random() * 0.6);
+      for (let d = 0; d < power * 2 && intensity > 0; d += 0.3) {
+        const bx = Math.floor(x + dx * d), by = Math.floor(y + dy * d), bz = Math.floor(z + dz * d);
+        const id = W.get(bx, by, bz);
+        if (id) {
+          const res = CF.blastRes(id);
+          intensity -= (res + 0.3) * 0.3;
+          if (intensity > 0) destroyed.add(bx + ',' + by + ',' + bz);
+          intensity -= 0.22500001;
+        }
+      }
+    }
+    for (const k of destroyed) { const [bx, by, bz] = k.split(',').map(Number); if (W.get(bx, by, bz)) W.set(bx, by, bz, 0); }
+    // entity damage: players + mobs
+    const hurt = (pos, isPlayer) => {
+      const dist = Math.hypot(pos[0] - x, pos[1] - y, pos[2] - z);
+      if (dist > power * 2) return 0;
+      const impact = (1 - dist / (2 * power)) * exposure(x, y, z, pos[0], pos[1], pos[2]);
+      if (impact <= 0) return 0;
+      const dmg = ((impact * impact + impact) / 2) * (7 * 2 * power) + 1;
+      return Math.round(dmg * 10) / 10;
+    };
+    const result = { destroyed: destroyed.size, playerDmg: 0 };
+    if (CF.player && CF.survival !== undefined) {
+      const pd = hurt(CF.player.pos, true);
+      if (pd > 0) { result.playerDmg = pd; CF.damage(pd, 'explosion'); }
+    }
+    if (CF.mobs) for (const m of CF.mobs.list.slice()) {
+      const md = hurt(m.pos, false);
+      if (md > 0 && CF.mobs.hurt) CF.mobs.hurt(m, md, 'explosion');
+    }
+    CF.shake = 18; // render/camera shake counter (#037+ polish)
+    return result;
   };
 })();
 

@@ -95,6 +95,12 @@ Engine/logic:
   black. Freeze sim instead: `CF.mobTick = () => {};` (loop keeps rendering, AI/charge pin in place).
 - Camera aim in scenarios: compute pitch from geometry (atan2 of dy/dist), never hardcode; verify framing
   with the readPixels grid probe (title JSON) BEFORE re-shooting - 4th time the probe pattern paid off.
+- Explosion (#037 src/explode.js): MC blast resistance is stored DIVIDED BY 5 (stone 6->1.2, obsidian 1200->240).
+  Forgetting the /5 makes a power-3 creeper destroy 1 block, not a crater — the mob.explode-crater assert guards it.
+  Ray-march: intensity=power*rand(.7..1.3), each solid crossed subtracts (res+0.3)*0.3 then 0.22500001, step 0.3.
+- Mob fight/duel TESTS must run on a SYNTHETIC sky platform built (and rebuilt after each explosion) in the test,
+  not natural terrain — trees break LOS (creeper won't fuse) and holes desync the player (stale-onGround fall ->
+  respawn mid-test). The mob.explode crater destroys the floor -> duel() re-fills it every call.
 - `x || default` falsy trap for counters where 0 is meaningful (atkTick=0 rendered as 20). Use === undefined.
 - Mixed dirty tree from an interrupted session: `git stash push -m tag -- path1 path2` to split into clean
   per-issue merges, `git stash pop` after the first merge. Verify each partial state builds+tests GREEN alone.
@@ -121,7 +127,8 @@ Engine/logic:
 registry.js (data+ids) → world.js (chunks/gen/light/fluids/decay) → render.js (3 passes) →
 player.js (physics) → items.js (inv/craft/smelting) → interact.js (ray/mine/place/torch faces) →
 ui.js (DOM hotbar/inv/craft) → survival.js (stats+HUD) → persist.js (localStorage RLE) →
-f3.js (debug) → game.js (wires loop, CF.stopGameLoop) → harness.js (suites+scenarios).
+f3.js (debug) → mobs.js (entities/A*/projectiles; CF.mobTick, mobSense test hook) →
+explode.js (CF.explode ray-marched crater, shared creeper/TNT) → game.js (loop, CF.stopGameLoop) → harness.js.
 Blocks register through the registry markers; water/lava/torch/furnace flags show the pattern for
 new block kinds (liquid/cross/functional:false-until-GUI).
 
