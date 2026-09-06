@@ -196,6 +196,29 @@ window.CF.REGISTRY = /*REGISTRY-START*/
    }
   }
  },
+ "tnt": {
+  "id": 46,
+  "tier": 1,
+  "variants": {
+   "default": {
+    "functional": false,
+    "tiles": [
+     "tnt_side",
+     "tnt_side",
+     "tnt_top",
+     "tnt_top",
+     "tnt_side",
+     "tnt_side"
+    ],
+    "hardness": 0,
+    "drop": "tnt",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0
+   }
+  }
+ },
  "leaves": {
   "id": 18,
   "tier": 1,

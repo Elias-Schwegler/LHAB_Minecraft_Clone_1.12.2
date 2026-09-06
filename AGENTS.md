@@ -1,12 +1,13 @@
 # AGENTS.md — project STATE memory (1-minute grounding)
 Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each session) · Spec: docs/REFERENCE.md
 
-## Current state (2026-09-06, sprint 03 it12)
+## Current state (2026-09-06, sprint 03 it13)
 - Tags: v0.0.0 scaffold → v0.1.0 sprint01+fixes → v0.2.0 SPRINT 02 CLOSED (audit #4 READY).
-- Sprint 03 ACTIVE (docs/sprints/03.md): #033 #035 #032 #036 #037 #038 DONE. NEXT: #042 TNT (reuses CF.explode
-  from #037), #039 spawn caps, #040 chests, #041 beds/weather, #043 fluids polish+buckets(#031), #044 mob art.
+- Sprint 03 ACTIVE (docs/sprints/03.md): #033 #035 #032 #036 #037 #038 #042 DONE. NEXT: #039 spawn caps,
+  #040 chests, #041 beds/weather, #043 fluids polish+buckets(#031), #044 mob art, #045 crafting-table 3x3 GUI.
   Then audit#6 + close 03. SPK-7 (nether scale) before any nether work.
-- Gate: TEST GREEN 166 asserts full / 155 quick, 0 errors. Parity: 18/399
+- Gate: TEST GREEN 172 asserts full / 161 quick, 0 errors. Parity: 18/399 (TNT functional:false - procedural
+  tile, not Blender; mechanic shipped + tested, not counted: honest)
   proof-bound (t1 18/125): 15 core blocks + torch + furnace; water/lava NOT counted until buckets (#031).
 - Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy+AO-less shaded+light+fog),
   break/place/drops/tiers+crafting+smelting, items/inventory/UI, physics, day/night, block+sky light,
