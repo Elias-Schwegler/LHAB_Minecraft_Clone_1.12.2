@@ -85,6 +85,7 @@ window.CF = window.CF || {};
     CF.world = CF.makeWorld(save.seed);
     CF.renderReset && CF.renderReset();
     CF.mobs && CF.mobs.clear(); // mobs are transient (persistence = backlog #044)
+    if (CF.tnts) CF.tnts.length = 0; // primed TNT not persisted either
     initEditTracking(CF.world);
     for (const [k, b] of Object.entries(save.chunks || {})) {
       const [cx, cz] = k.split(',').map(Number);

@@ -12,6 +12,7 @@
     "src/f3.js",
     "src/mobs.js",
     "src/explode.js",
+    "src/tnt.js",
     "src/game.js",
     "src/harness.js"
   ],

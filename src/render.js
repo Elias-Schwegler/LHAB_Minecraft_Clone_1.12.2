@@ -184,6 +184,12 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
       px.data[(127 * 128 + 127) * 4 + 0] = 255; px.data[(127 * 128 + 127) * 4 + 1] = 0;
       px.data[(127 * 128 + 127) * 4 + 2] = 255; px.data[(127 * 128 + 127) * 4 + 3] = 255;
       ctx.putImageData(px, 0, 0);
+      // #042 TNT tiles drawn procedurally into free atlas cells (no Blender, zero-download; block
+      // stays functional:false so parity is untouched). tnt_side at (32,48), tnt_top at (48,48).
+      const cell = (ox, oy, fn) => { for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { const c = fn(x, y); ctx.fillStyle = c; ctx.fillRect(ox + x, oy + y, 1, 1); } };
+      cell(32, 48, (x, y) => (y >= 6 && y <= 9) ? (x % 4 < 2 ? '#3a2018' : '#d8d2c0') : (y < 3 || y > 12 ? '#a83028' : '#c84030')); // red body, dark band, "TNT" hint
+      cell(48, 48, (x, y) => (x > 6 && x < 9 && y > 6 && y < 9) ? '#e8d040' : (x > 5 && x < 10 && y > 7 && y < 9 ? '#3a3a3a' : ((x % 2) ^ (y % 2) ? '#6a6a6a' : '#4a4a4a'))); // grey gunpowder top + fuse
+      CF.__tntCellsDrawn = true;
       gl.bindTexture(gl.TEXTURE_2D, tex);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cv);
       texReady = true;
@@ -192,12 +198,12 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
     // #035 solid-color palette for mob boxes (16x1, texture unit 1). Generated in-code: zero assets,
     // atlas untouched (block parity safe), shader untouched (mobs just switch sampler T -> unit 1).
     CF.MOBCOLOR = { white: 0, zskin: 1, zcloth: 2, zdark: 3, pig: 4, cow: 5, sheep: 6, ink: 7,
-      skel: 8, skeleton: 8, skelDark: 9, cree: 10, creeDark: 11, creeFlash: 12, arrow: 13, bone: 14 };
+      skel: 8, skeleton: 8, skelDark: 9, cree: 10, creeDark: 11, creeFlash: 12, arrow: 13, bone: 14, tnt: 15 };
     const PAL = new Uint8Array([
       255, 255, 255, 255, 68, 118, 86, 255, 84, 92, 120, 255, 40, 54, 44, 255,
       232, 136, 136, 255, 96, 76, 60, 255, 226, 224, 214, 255, 24, 24, 28, 255,
       214, 214, 206, 255, 150, 150, 150, 255, 60, 160, 72, 255, 40, 120, 52, 255, 235, 235, 235, 255,
-      180, 180, 180, 255, 236, 236, 224, 255, 120, 100, 80, 255, 220, 220, 210, 255]);
+      180, 180, 180, 255, 236, 236, 224, 255, 120, 100, 80, 255, 180, 40, 36, 255]);
     palTex = gl.createTexture();
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, palTex);

@@ -510,6 +510,13 @@ window.CF = window.CF || {};
       const vl = Math.hypot(a.vel[0], a.vel[1], a.vel[2]) || 1, ux = a.vel[0] / vl, uy = a.vel[1] / vl, uz = a.vel[2] / vl;
       addBoxOriented(out, a.pos[0], a.pos[1], a.pos[2], ux, uy, uz, 0.5, 0.06, C.arrow || 13, packed / 255);
     }
+    // #042 primed TNT: red block, flashes white near detonation
+    if (CF.tnts) for (const t of CF.tnts) {
+      if (Math.hypot(t.pos[0] - cam.pos[0], t.pos[2] - cam.pos[2]) > 64) continue;
+      const flash = t.fuse < 20 && (CF.ticks & 1);
+      const s = 1 + Math.max(0, 0.25 - t.fuse / CF.FUSE * 0.25); // swell just before boom
+      addBox(out, t.pos[0], t.pos[1], t.pos[2], 0.9 * s, 0.9 * s, 0.9 * s, flash ? C.white : (C.tnt != null ? C.tnt : 15), (CF.world.lightAt(Math.floor(t.pos[0]), Math.floor(t.pos[1]), Math.floor(t.pos[2])) / 255) || 0.6);
+    }
     return out.length ? Float32Array.from(out) : null;
   };
   // axis-aligned-ish thin box stretched along a unit dir (good enough for a flying arrow)

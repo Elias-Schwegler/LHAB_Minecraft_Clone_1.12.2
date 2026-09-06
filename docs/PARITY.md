@@ -1,4 +1,4 @@
-# PARITY — scoring (auto-checked by tools/parity.mjs; this doc is the human view)
+﻿# PARITY — scoring (auto-checked by tools/parity.mjs; this doc is the human view)
 
 Source of truth for enumeration: `docs/catalog.json` (184 entries, **399 distinct
 variants**). Note: the master prompt estimated "~250 blocks"; our honest enumeration of
@@ -44,7 +44,7 @@ wood variants (no tiles), all Tier-2/3 families.
 [x] health/hunger/fall damage                          <- #026 (surv.* asserts + hud-low.png)
 [ ] chests/furnaces                                        <- furnace GUI+proof #032 (ui.furn-* asserts, ui-furnace.png); chest -> #040
 [x] wood→tools→mining tiers                              <- #006 tier gates + #024 (items.iron-pickaxe/speed-stone-wood asserts)
-[ ] TNT
+[x] TNT                                                  <- #042 craft/place/prime(flint&steel)/80t-fuse/power-4 explode/chain/blast-resist (tnt.* asserts, tnt-fuse.png); block functional:false (procedural tile, not Blender) + 3x3 craft GUI -> #045
 [ ] beds/sleep
 [x] survival + creative                                  <- #026 stats+HUD, F4 toggle (surv.* asserts)
 [x] localStorage save/load                               <- #023 save.* asserts + tower-save.png roundtrip

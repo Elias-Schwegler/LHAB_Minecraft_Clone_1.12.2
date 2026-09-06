@@ -17,6 +17,7 @@ window.CF = window.CF || {};
     sapling: { tile: 'item_sapling' },
     flint: { tile: 'item_flint' },
     shears: { tile: 'item_shears', tool: { type: 'shears', tier: 0, speed: 1 } },
+    flint_and_steel: {}, // #042 igniter (durability ignored in Tier-1)
     // mob drops + passive products (#037/#038). No atlas tiles yet -> blank icons (tracked #044); counts/logic tested.
     bone: {}, arrow: {}, gunpowder: {}, string: {}, feather: {}, leather: {}, ink_sac: {},
     egg: {}, wheat: {}, carrot: { food: 3 }, potato: { food: 1 }, wheat_seeds: {},
@@ -92,6 +93,9 @@ window.CF = window.CF || {};
     P(['m', 's', 's'], null, 'shovel', 4),
     P(['m', 'm', 's'], null, 'sword', 4),
     P([' i', 'i '], { i: 'iron_ingot' }, 'shears', 1),
+    // #042 TNT (1.12: 5 gunpowder + 4 sand) + flint & steel (1.12: iron ingot + flint)
+    P(['gsg', 'sgs', 'gsg'], { g: 'gunpowder', s: 'sand' }, 'tnt', 1),
+    P(['i', 'f'], { i: 'iron_ingot', f: 'flint' }, 'flint_and_steel', 1),
   ];
   const baseTools = CF.RECIPES.filter((x) => x.rows && !x.key);
   for (const mat of ['wood', 'stone', 'iron', 'diamond'])

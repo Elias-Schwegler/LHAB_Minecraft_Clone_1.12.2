@@ -211,6 +211,29 @@ window.CF.REGISTRY = /*REGISTRY-START*/
    }
   }
  },
+ "tnt": {
+  "id": 46,
+  "tier": 1,
+  "variants": {
+   "default": {
+    "functional": false,
+    "tiles": [
+     "tnt_side",
+     "tnt_side",
+     "tnt_top",
+     "tnt_top",
+     "tnt_side",
+     "tnt_side"
+    ],
+    "hardness": 0,
+    "drop": "tnt",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0
+   }
+  }
+ },
  "leaves": {
   "id": 18,
   "tier": 1,
@@ -1507,6 +1530,12 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
       px.data[(127 * 128 + 127) * 4 + 0] = 255; px.data[(127 * 128 + 127) * 4 + 1] = 0;
       px.data[(127 * 128 + 127) * 4 + 2] = 255; px.data[(127 * 128 + 127) * 4 + 3] = 255;
       ctx.putImageData(px, 0, 0);
+      // #042 TNT tiles drawn procedurally into free atlas cells (no Blender, zero-download; block
+      // stays functional:false so parity is untouched). tnt_side at (32,48), tnt_top at (48,48).
+      const cell = (ox, oy, fn) => { for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { const c = fn(x, y); ctx.fillStyle = c; ctx.fillRect(ox + x, oy + y, 1, 1); } };
+      cell(32, 48, (x, y) => (y >= 6 && y <= 9) ? (x % 4 < 2 ? '#3a2018' : '#d8d2c0') : (y < 3 || y > 12 ? '#a83028' : '#c84030')); // red body, dark band, "TNT" hint
+      cell(48, 48, (x, y) => (x > 6 && x < 9 && y > 6 && y < 9) ? '#e8d040' : (x > 5 && x < 10 && y > 7 && y < 9 ? '#3a3a3a' : ((x % 2) ^ (y % 2) ? '#6a6a6a' : '#4a4a4a'))); // grey gunpowder top + fuse
+      CF.__tntCellsDrawn = true;
       gl.bindTexture(gl.TEXTURE_2D, tex);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cv);
       texReady = true;
@@ -1515,12 +1544,12 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
     // #035 solid-color palette for mob boxes (16x1, texture unit 1). Generated in-code: zero assets,
     // atlas untouched (block parity safe), shader untouched (mobs just switch sampler T -> unit 1).
     CF.MOBCOLOR = { white: 0, zskin: 1, zcloth: 2, zdark: 3, pig: 4, cow: 5, sheep: 6, ink: 7,
-      skel: 8, skeleton: 8, skelDark: 9, cree: 10, creeDark: 11, creeFlash: 12, arrow: 13, bone: 14 };
+      skel: 8, skeleton: 8, skelDark: 9, cree: 10, creeDark: 11, creeFlash: 12, arrow: 13, bone: 14, tnt: 15 };
     const PAL = new Uint8Array([
       255, 255, 255, 255, 68, 118, 86, 255, 84, 92, 120, 255, 40, 54, 44, 255,
       232, 136, 136, 255, 96, 76, 60, 255, 226, 224, 214, 255, 24, 24, 28, 255,
       214, 214, 206, 255, 150, 150, 150, 255, 60, 160, 72, 255, 40, 120, 52, 255, 235, 235, 235, 255,
-      180, 180, 180, 255, 236, 236, 224, 255, 120, 100, 80, 255, 220, 220, 210, 255]);
+      180, 180, 180, 255, 236, 236, 224, 255, 120, 100, 80, 255, 180, 40, 36, 255]);
     palTex = gl.createTexture();
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, palTex);
@@ -1982,7 +2011,7 @@ window.CF = window.CF || {};
   window.addEventListener('mousedown', (e) => {
     if (!CF.player) return;
     if (e.button === 0) CF.mineStart(CF.aim());
-    if (e.button === 2) { if (!(CF.useBlock && CF.useBlock(CF.aim())) && !(CF.mobFeed && CF.mobFeed()) && !(CF.useHeld && CF.useHeld())) CF.place(CF.aim()); }
+    if (e.button === 2) { if (!(CF.useFlintSteel && CF.useFlintSteel(CF.aim())) && !(CF.useBlock && CF.useBlock(CF.aim())) && !(CF.mobFeed && CF.mobFeed()) && !(CF.useHeld && CF.useHeld())) CF.place(CF.aim()); }
   });
   window.addEventListener('mouseup', () => { CF.mining = null; });
   window.addEventListener('wheel', (e) => { CF.sel = (CF.sel + (e.deltaY > 0 ? 1 : -1) + CF.hotbar.length) % CF.hotbar.length; CF.uiRefresh && CF.uiRefresh(); });
@@ -2098,6 +2127,7 @@ window.CF = window.CF || {};
     sapling: { tile: 'item_sapling' },
     flint: { tile: 'item_flint' },
     shears: { tile: 'item_shears', tool: { type: 'shears', tier: 0, speed: 1 } },
+    flint_and_steel: {}, // #042 igniter (durability ignored in Tier-1)
     // mob drops + passive products (#037/#038). No atlas tiles yet -> blank icons (tracked #044); counts/logic tested.
     bone: {}, arrow: {}, gunpowder: {}, string: {}, feather: {}, leather: {}, ink_sac: {},
     egg: {}, wheat: {}, carrot: { food: 3 }, potato: { food: 1 }, wheat_seeds: {},
@@ -2173,6 +2203,9 @@ window.CF = window.CF || {};
     P(['m', 's', 's'], null, 'shovel', 4),
     P(['m', 'm', 's'], null, 'sword', 4),
     P([' i', 'i '], { i: 'iron_ingot' }, 'shears', 1),
+    // #042 TNT (1.12: 5 gunpowder + 4 sand) + flint & steel (1.12: iron ingot + flint)
+    P(['gsg', 'sgs', 'gsg'], { g: 'gunpowder', s: 'sand' }, 'tnt', 1),
+    P(['i', 'f'], { i: 'iron_ingot', f: 'flint' }, 'flint_and_steel', 1),
   ];
   const baseTools = CF.RECIPES.filter((x) => x.rows && !x.key);
   for (const mat of ['wood', 'stone', 'iron', 'diamond'])
@@ -3018,6 +3051,7 @@ window.CF = window.CF || {};
     CF.world = CF.makeWorld(save.seed);
     CF.renderReset && CF.renderReset();
     CF.mobs && CF.mobs.clear(); // mobs are transient (persistence = backlog #044)
+    if (CF.tnts) CF.tnts.length = 0; // primed TNT not persisted either
     initEditTracking(CF.world);
     for (const [k, b] of Object.entries(save.chunks || {})) {
       const [cx, cz] = k.split(',').map(Number);
@@ -3647,6 +3681,13 @@ window.CF = window.CF || {};
       const vl = Math.hypot(a.vel[0], a.vel[1], a.vel[2]) || 1, ux = a.vel[0] / vl, uy = a.vel[1] / vl, uz = a.vel[2] / vl;
       addBoxOriented(out, a.pos[0], a.pos[1], a.pos[2], ux, uy, uz, 0.5, 0.06, C.arrow || 13, packed / 255);
     }
+    // #042 primed TNT: red block, flashes white near detonation
+    if (CF.tnts) for (const t of CF.tnts) {
+      if (Math.hypot(t.pos[0] - cam.pos[0], t.pos[2] - cam.pos[2]) > 64) continue;
+      const flash = t.fuse < 20 && (CF.ticks & 1);
+      const s = 1 + Math.max(0, 0.25 - t.fuse / CF.FUSE * 0.25); // swell just before boom
+      addBox(out, t.pos[0], t.pos[1], t.pos[2], 0.9 * s, 0.9 * s, 0.9 * s, flash ? C.white : (C.tnt != null ? C.tnt : 15), (CF.world.lightAt(Math.floor(t.pos[0]), Math.floor(t.pos[1]), Math.floor(t.pos[2])) / 255) || 0.6);
+    }
     return out.length ? Float32Array.from(out) : null;
   };
   // axis-aligned-ish thin box stretched along a unit dir (good enough for a flying arrow)
@@ -4241,6 +4282,108 @@ window.CF = window.CF || {};
   };
 })();
 
+/* ==== src/tnt.js ==== */
+// TNT (#042): craft, place, prime with flint & steel, 80-tick fuse, chain reaction, power-4 explosion.
+// Reuses CF.explode (src/explode.js, #037). Block tile is runtime-drawn (functional:false -> not parity-counted).
+window.CF = window.CF || {};
+(function () {
+  const CF = window.CF;
+  const meta = (window.__TEXMETA = window.__TEXMETA || {});
+  if (!meta.tnt_side) meta.tnt_side = { x: 32, y: 48, w: 16, h: 16, src: 'generated:tnt.js' }; // free atlas cell
+  if (!meta.tnt_top) meta.tnt_top = { x: 48, y: 48, w: 16, h: 16, src: 'generated:tnt.js' };
+
+  CF.FUSE = 80; // 1.12.2: tnt fuse = 4s = 80 game ticks
+  CF.tnts = CF.tnts || [];
+  CF.primeTNT = (x, y, z, fuse) => { // turn a placed TNT block into a primed entity (returns bool)
+    if (CF.world.get(x, y, z) !== CF.IDOF['tnt']) return false;
+    CF.world.set(x, y, z, 0);
+    CF.tnts.push({ pos: [x + 0.5, y + 0.5, z + 0.5], fuse: fuse == null ? CF.FUSE : fuse });
+    return true;
+  };
+  CF.tntTick = () => {
+    for (let i = CF.tnts.length - 1; i >= 0; i--) {
+      const t = CF.tnts[i];
+      if (--t.fuse > 0) continue;
+      CF.tnts.splice(i, 1);
+      const power = 4; // 1.12.2 tnt explosion power
+      if (CF.explode) CF.explode(t.pos[0], t.pos[1], t.pos[2], power);
+      // chain reaction (1.12): nearby un-primed TNT blocks caught by the blast get primed
+      const bx = Math.floor(t.pos[0]), by = Math.floor(t.pos[1]), bz = Math.floor(t.pos[2]), R = Math.ceil(power * 1.5);
+      for (let dx = -R; dx <= R; dx++) for (let dy = -R; dy <= R; dy++) for (let dz = -R; dz <= R; dz++) {
+        if (dx * dx + dy * dy + dz * dz > R * R) continue;
+        if (CF.world.get(bx + dx, by + dy, bz + dz) === CF.IDOF['tnt']) CF.primeTNT(bx + dx, by + dy, bz + dz, 10 + Math.floor(Math.random() * 15));
+      }
+    }
+  };
+  CF.useFlintSteel = (hit) => { // RMB a placed TNT block while holding flint & steel -> prime
+    if (!hit) return false;
+    const held = CF.held && CF.held();
+    if (held !== 'flint_and_steel') return false;
+    return CF.primeTNT(hit.x, hit.y, hit.z);
+  };
+
+  // --- shot: primed, flashing TNT among a cluster (frozen mid-fuse)
+  CF.shotScenarios = CF.shotScenarios || {};
+  CF.shotScenarios['tnt-fuse'] = async () => {
+    CF.freeCam = true; CF.timeOffset = 600;
+    const W = CF.world;
+    const bx = 280, by = 100, bz = 100;
+    W.ensureAround(bx, bz, 1); for (let i = 0; i < 40 && W.stats().queue; i++) W.tick();
+    for (let x = bx - 5; x <= bx + 5; x++) for (let z = bz - 5; z <= bz + 5; z++) for (let y = by - 3; y <= by; y++) W.set(x, y, z, W.get(x, y, z) === CF.IDOF['bedrock'] ? CF.IDOF['bedrock'] : (y === by ? CF.IDOF['stone'] : (CF.IDOF['dirt'])));
+    for (let i = 0; i < 10; i++) W.tick();
+    CF.tnts.length = 0;
+    W.set(bx + 1, by + 1, bz, CF.IDOF['tnt']); W.set(bx + 2, by + 1, bz, CF.IDOF['tnt']);
+    CF.primeTNT(bx, by + 1, bz, 14); // mid-fuse -> flashing
+    CF.tntTick = () => {};
+    for (let i = 0; i < 40; i++) CF.renderTick();
+    CF.camera = { pos: [bx - 4, by + 3.2, bz], yaw: Math.PI / 2, pitch: -0.12 };
+    CF.ticks |= 1; // force the white-flash parity frame (render flashes primed TNT on odd ticks)
+    CF.renderDraw(CF.camera); await new Promise((res) => setTimeout(res, 150));
+    CF.ticks |= 1;
+    CF.shotExtra = { tnts: CF.tnts.length, fuse: CF.tnts[0] && CF.tnts[0].fuse };
+    CF.renderDraw(CF.camera);
+  };
+
+  // --- test suite
+  CF.tntTests = async (r) => {
+    const W = CF.world, ID = CF.IDOF;
+    CF.survival = false;
+    // craft recipes (3x3 tnt needs the tryCraft path; the 2x2 hand grid can't reach it -> crafting-table GUI is a gap)
+    const gun = { name: 'gunpowder' }, sand = { name: 'sand' };
+    const tc = CF.tryCraft([gun, sand, gun, sand, gun, sand, gun, sand, gun], 3);
+    CF.assert(r, 'tnt.craft(' + (tc && tc.out.name) + ')', tc && tc.out.name === 'tnt');
+    const fs = CF.tryCraft([{ name: 'iron_ingot' }, null, { name: 'flint' }, null], 2);
+    CF.assert(r, 'tnt.flintsteel(' + (fs && fs.out.name) + ')', fs && fs.out.name === 'flint_and_steel');
+
+    // place + prime via flint&steel + fuse + crater
+    const bx = 280, by = 100, bz = 100;
+    W.ensureAround(bx, bz, 1); for (let i = 0; i < 20 && W.stats().queue; i++) W.tick();
+    for (let x = bx - 4; x <= bx + 4; x++) for (let z = bz - 4; z <= bz + 4; z++) for (let y = by - 3; y <= by; y++) W.set(x, y, z, ID['stone']);
+    CF.tnts.length = 0;
+    W.set(bx, by + 1, bz, ID['tnt']);
+    CF.inv.fill(null); CF.give('flint_and_steel', 1); CF.sel = 0;
+    const primed = CF.useFlintSteel({ x: bx, y: by + 1, z: bz });
+    CF.assert(r, 'tnt.prime(' + primed + ',block=' + W.get(bx, by + 1, bz) + ')', primed === true && CF.tnts.length === 1 && W.get(bx, by + 1, bz) === 0);
+    for (let i = 0; i < CF.FUSE + 2; i++) CF.tntTick();
+    let crater = 0; for (let x = bx - 3; x <= bx + 3; x++) for (let z = bz - 3; z <= bz + 3; z++) if (W.get(x, by, z) === 0) crater++;
+    CF.assert(r, 'tnt.boom(crater=' + crater + ',tnts=' + CF.tnts.length + ')', CF.tnts.length === 0 && crater > 6);
+
+    // chain: two tnt 2 apart; prime one -> other no longer survives as an intact block (primed-then-boomed)
+    for (let x = bx - 4; x <= bx + 4; x++) for (let z = bz - 4; z <= bz + 4; z++) for (let y = by - 3; y <= by + 1; y++) W.set(x, y, z, ID['stone']);
+    W.set(bx, by + 1, bz, ID['tnt']); W.set(bx + 2, by + 1, bz, ID['tnt']);
+    CF.tnts.length = 0; CF.primeTNT(bx, by + 1, bz, 5);
+    for (let i = 0; i < CF.FUSE + 40; i++) CF.tntTick();
+    CF.assert(r, 'tnt.chain(left=' + W.get(bx + 2, by + 1, bz) + ',tnts=' + CF.tnts.length + ')', W.get(bx, by + 1, bz) === 0 && W.get(bx + 2, by + 1, bz) === 0 && CF.tnts.length === 0);
+    // bedrock resists (blastRes 1200): a tnt sitting on bedrock leaves the bedrock intact
+    for (let x = bx - 4; x <= bx + 4; x++) for (let z = bz - 4; z <= bz + 4; z++) for (let y = by - 3; y <= by; y++) W.set(x, y, z, ID['stone']);
+    W.set(bx, by, bz, ID['bedrock']); W.set(bx, by + 1, bz, ID['tnt']); CF.tnts.length = 0;
+    CF.primeTNT(bx, by + 1, bz, 3); for (let i = 0; i < CF.FUSE + 5; i++) CF.tntTick();
+    CF.assert(r, 'tnt.bedrock-survives', W.get(bx, by, bz) === ID['bedrock']);
+    for (let x = bx - 4; x <= bx + 4; x++) for (let z = bz - 4; z <= bz + 4; z++) for (let y = by - 3; y <= by + 2; y++) W.set(x, y, z, 0);
+    CF.tnts.length = 0;
+  };
+})();
+
 /* ==== src/game.js ==== */
 // Cubeforge boot: WebGL2 canvas + fixed 20 UPS tick loop.
 window.CF = window.CF || {};
@@ -4278,6 +4421,7 @@ window.CF = window.CF || {};
         CF.world.tick();
         CF.playerTick && CF.playerTick();
         CF.mobTick && CF.mobTick(); // #035 entities (spawn scheduler is survival-gated)
+        CF.tntTick && CF.tntTick(); // #042 primed TNT fuses + chain + explode
       }
       CF.renderTick && CF.renderTick();
       CF.onTick && CF.onTick();
@@ -4341,6 +4485,7 @@ window.CF = window.CF || {};
     { name: 'ui', run: (r) => CF.uiTests && CF.uiTests(r) },
     { name: 'survival', run: (r) => CF.survivalTests && CF.survivalTests(r) },
     { name: 'mobs', run: (r) => CF.mobTests && CF.mobTests(r) },
+    { name: 'tnt', run: (r) => CF.tntTests && CF.tntTests(r) },
     { name: 'save', run: (r) => CF.persistTests && CF.persistTests(r) },
   ];
 
