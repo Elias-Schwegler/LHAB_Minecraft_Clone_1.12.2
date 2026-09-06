@@ -1,25 +1,29 @@
 # AGENTS.md — project STATE memory (1-minute grounding)
 Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each session) · Spec: docs/REFERENCE.md
 
-## Current state (2026-09-06, sprint 03 it9)
+## Current state (2026-09-06, sprint 03 it10)
 - Tags: v0.0.0 scaffold → v0.1.0 sprint01+fixes → v0.2.0 SPRINT 02 CLOSED (audit #4 READY).
-- Sprint 03 ACTIVE (docs/sprints/03.md): #033 + #035 + #032(furnace GUI) DONE. NEXT: #036 mob AI (WIP on
-  branch: heap A* chase done, 143 green - needs shots+close), then #037 skeleton/creeper, #038 passives+breeding,
-  #039 spawn caps polish, #040 chests, #041 beds/weather, #042 TNT, #043 fluids polish, #044 mob art/polish.
+- Sprint 03 ACTIVE (docs/sprints/03.md): #033 + #035 + #032(furnace) + #036(mob AI) DONE. NEXT: #037
+  skeleton(ranged)+creeper(fuse+crater), #038 passives+breeding, #039 spawn caps, #040 chests,
+  #041 beds/weather, #042 TNT, #043 fluids polish+buckets(#031), #044 mob art/polish. Then audit#6 + close 03.
   SPK-7 (nether scale) before any nether work.
-- Gate: TEST GREEN 132 asserts full / 121 quick (post-#032; #036 WIP = 143 full), 0 errors. Parity: 18/399
+- Gate: TEST GREEN 144 asserts full / 133 quick, 0 errors. Parity: 18/399
   proof-bound (t1 18/125): 15 core blocks + torch + furnace; water/lava NOT counted until buckets (#031).
 - Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy+AO-less shaded+light+fog),
   break/place/drops/tiers+crafting+smelting, items/inventory/UI, physics, day/night, block+sky light,
   fluids v1, survival stats+HUD, save/load, F3 v2, torch per-face, MOB CORE v1 (entity physics, light<=7
-  night/cave spawning survival-gated, sun burn, player-kill loot; mobs render as palette-lit boxes).
-  Remaining Tier-1: mob AI+combat(#036), more mobs(#037-#039), chests(#040), TNT, beds/sleep,
-  combat cooldown polish, infinite-streaming verify, recipe book UI.
+  night/cave spawning survival-gated, sun burn, player-kill loot; mobs render as palette-lit boxes),
+  MOB AI v1 (heap-A* chase + 1.12 melee + player 1.9 charge-meter combat, knockback, entity-over-mining).
+  Remaining Tier-1: more mobs(#037-#039), chests(#040), TNT, beds/sleep,
+  infinite-streaming verify, recipe book UI.
 - Carried FIXes: #031 (water banding rows + lava tile brightness + buckets→+2 parity). #032 CLOSED it9.
 - Nice dev seed: 5 = plains (all baselines use it). Play mode = open game/index.html (F4 survival, E inv,
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #036 mob AI: heap-A* (SPK-4 ALT: cap1500, budget2/tick, sense35, step-up) chase + 1.12 melee (3dmg NORMAL,
+  10t invuln) + player 1.9 charge meter (sword12/tool20/hand5t, entity-over-mining priority, knockback);
+  +12 asserts, mob-fight.png/mob-chase.png vision PASS; stopGameLoop-in-shot = black-frame lesson -> PLAYBOOK
 - #032 furnace GUI: ui.js container slots+panel (burn/cook bars), RMB useBlock routing, furnaceBreak
   returns contents; furnace functional:true proof-bound -> parity 18/399; +7 ui.furn-* asserts
 - #035 mob core: src/mobs.js (CF.mobs entity store, physics sweep, light<=7 spawn, sun burn, loot) +

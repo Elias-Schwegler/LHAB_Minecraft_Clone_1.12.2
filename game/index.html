@@ -2375,7 +2375,9 @@ window.CF = window.CF || {};
     '#furn{display:none;margin:6px 0;padding:6px;border:1px solid #666}' +
     '#furn .row{display:flex;gap:8px;align-items:center;justify-content:center}' +
     '#furn .bar{width:22px;height:36px;background:#333;border:1px solid #555;position:relative;overflow:hidden}' +
-    '#furn .bar>i{position:absolute;left:0;right:0;bottom:0;background:#e8a33d;display:block}';
+    '#furn .bar>i{position:absolute;left:0;right:0;bottom:0;background:#e8a33d;display:block}' +
+    '#atk{position:fixed;bottom:72px;left:50%;transform:translateX(-50%);width:120px;height:4px;background:#222;border:1px solid #555;z-index:21;display:none}' +
+    '#atk>i{display:block;height:100%;background:#c03028;width:0}';
   document.head ? document.head.appendChild(style) : document.addEventListener('DOMContentLoaded', () => document.head.appendChild(style));
 
   const ICON_URL = window.__ATLAS_B64 ? 'url(data:image/png;base64,' + window.__ATLAS_B64 + ')' : 'none';
@@ -2406,6 +2408,7 @@ window.CF = window.CF || {};
 
   let hud, inv, ghostEl, hudSlots = [], invSlots = [], craftSlots = [], resultSlot = null;
   let furnEl, finSlot, ffuelSlot, foutSlot, burnBar, cookArrow;
+  let atkEl;
 
   function build() {
     hud = document.createElement('div'); hud.id = 'hud';
@@ -2445,6 +2448,8 @@ window.CF = window.CF || {};
     ghostEl = document.createElement('div'); ghostEl.id = 'ghost';
     const gi = document.createElement('div'); gi.className = 'icon'; ghostEl.appendChild(gi);
     document.body.appendChild(hud); document.body.appendChild(inv); document.body.appendChild(ghostEl);
+    atkEl = document.createElement('div'); atkEl.id = 'atk'; atkEl.innerHTML = '<i></i>';
+    document.body.appendChild(atkEl);
     refresh();
   }
   if (document.body) build(); else document.addEventListener('DOMContentLoaded', build);
@@ -2482,6 +2487,11 @@ window.CF = window.CF || {};
       Object.assign(ghostEl.querySelector('.icon').style, { position: 'absolute', inset: '0', backgroundRepeat: 'no-repeat' }, iconCss(itemTile(CF.ui.ghost.name)));
       ghostEl.querySelector('.cnt') || 0;
     } else ghostEl.style.display = 'none';
+    if (atkEl) { // #036: 1.9-style charge meter, visible only mid-cooldown (sword 12t / tool 20t / hand 5t via CF.atkCdInfo)
+      const ch = Math.min(1, (CF.atkTick === undefined ? 20 : CF.atkTick) / (CF.atkCdInfo ? CF.atkCdInfo() : 20));
+      atkEl.style.display = ch < 0.999 ? 'block' : 'none';
+      atkEl.firstChild.style.width = (ch * 100).toFixed(0) + '%';
+    }
     // recompute result from current craft grid
   }
 
@@ -2731,13 +2741,15 @@ window.CF = window.CF || {};
   CF.damage = (n, why) => {
     if (!CF.survival || hurtCd > 0 && why !== 'fall') return;
     S.hp -= n;
-    hurtCd = why === 'fall' ? 0 : 4;
+    hurtCd = why === 'fall' ? 0 : 10; // 1.12: post-hurt no-damage window (0.5s) - #036
+    if (why === 'drown') hurtCd = 20; // drown keeps its 1s rhythm (2 dmg/s)
     if (why) CF.lastHurt = why;
     if (S.hp <= 0) respawn();
   };
   function respawn() {
     S.deaths++;
     S.hp = 20; S.food = 20; S.sat = 5; S.air = 300;
+    peakY = null; // stale fall-peaks must never damage across teleports (phantom-fall bug, #036)
     const P = CF.player;
     P.tp(P.spawn[0], P.spawn[1], P.spawn[2]);
     CF.lastDeathAt = CF.ticks;
@@ -3112,9 +3124,9 @@ window.CF = window.CF || {};
 })();
 
 /* ==== src/mobs.js ==== */
-// Mobs (#035): entity system (AABB physics, lifecycle, lit-box render) + zombie.
+// Mobs (#035 core, #036 AI/combat): entity system (AABB physics, lifecycle, lit-box render) + zombie.
 // 1.12 spawn rule: hostile needs max(blockLight, skyLight*dayFactor) <= 7 ("light 0" is 1.18+!).
-// AI/pathing/attack deliberately NOT here - SPK-4 heap A* lands in #036. Mobs are physics bodies + burn + die.
+// #036: heap-A* chase on walkable columns (SPK-4 ALT, sense 35, budget 2/tick) + 1.9-style charge combat.
 window.CF = window.CF || {};
 (function () {
   const CF = window.CF;
@@ -3135,10 +3147,10 @@ window.CF = window.CF || {};
   };
 
   const M = CF.mobs = {
-    list: [], nextUid: 1,
+    list: [], nextUid: 1, sched: true, // sched=false used by tests for deterministic arenas
     spawn(type, x, y, z, opts) { // y = FEET level. Raw create (no rules) - shots/tests use this.
       const T = CF.MOBS[type]; if (!T) return null;
-      const m = { uid: M.nextUid++, type, pos: [x, y + T.h / 2, z], vel: [0, 0, 0], hp: T.hp, onGround: false, burnT: 0, burning: false };
+      const m = { uid: M.nextUid++, type, pos: [x, y + T.h / 2, z], vel: [0, 0, 0], hp: T.hp, onGround: false, burnT: 0, burning: false, atkCd: 0, path: null, repathT: 0 };
       if (opts && opts.vel) m.vel = opts.vel.slice();
       M.list.push(m);
       return m;
@@ -3216,12 +3228,161 @@ window.CF = window.CF || {};
     if (ny < -20) m.dead = true;
   };
 
-  // Per-tick: physics, sun burn, despawn, and (survival only) the spawn scheduler.
+  // ============================ #036: AI (SPK-4 heap A*) + 1.12 melee ============================
+  const STEP_UP = 1, MAX_FALL = 4, NODE_CAP = 1500, REPATH_CD = 20, REPATH_BUDGET = 2;
+  const SWORD_DMG = { wood: 4, stone: 5, iron: 6, diamond: 7 }; // 1.12 attack damage
+
+  function Heap() { this.f = []; this.k = []; }
+  Heap.prototype = {
+    push(f, k) {
+      const F = this.f, K = this.k; F.push(f); K.push(k);
+      let i = F.length - 1;
+      while (i > 0) { const p = (i - 1) >> 1; if (F[p] <= F[i]) break; let t = F[p]; F[p] = F[i]; F[i] = t; t = K[p]; K[p] = K[i]; K[i] = t; i = p; }
+    },
+    pop() {
+      const F = this.f, K = this.k, kf = F[0], kk = K[0], lf = F.pop(), lk = K.pop();
+      if (F.length) {
+        F[0] = lf; K[0] = lk; let i = 0;
+        for (;;) {
+          const l = 2 * i + 1, r = l + 1; let s = i;
+          if (l < F.length && F[l] < F[s]) s = l;
+          if (r < F.length && F[r] < F[s]) s = r;
+          if (s === i) break;
+          let t = F[s]; F[s] = F[i]; F[i] = t; t = K[s]; K[s] = K[i]; K[i] = t; i = s;
+        }
+      }
+      return [kf, kk];
+    },
+  };
+
+  // standable probe: solid below + 2 clear (real cells - heightAt is noise-only and blind to edits!)
+  function standable(x, y, z) {
+    const W = CF.world;
+    return W.get(x, y - 1, z) && !W.get(x, y, z) && !W.get(x, y + 1, z) ? true : false;
+  }
+  function astar(sx, sy, sz, tx, ty, tz) { // columnar A* w/ direct cell probe: 8-dir no corner-cut,
+    const W = CF.world, K = (x, z) => (x + 4096) * 8192 + (z + 4096);
+    const stepUp = (cx2, cy, cz2, dx, dz) => { // best standable feet y in [cy-4..cy+1] toward goal dir
+      if (dx && dz && !standable(cx2 + dx, cy, cz2) && !standable(cx2, cy, cz2 + dz) &&
+        !standable(cx2 + dx, cy + 1, cz2) && !standable(cx2, cy + 1, cz2 + dz)) return -1;
+      for (let ny = cy + 1; ny >= cy - 4; ny--) if (standable(cx2 + dx, ny, cz2 + dz)) return ny;
+      return -1;
+    };
+    const h = (x, z, y) => Math.abs(x - tx) + Math.abs(z - tz) + Math.abs(y - ty) * 0.5;
+    const open = new Heap(), came = new Map(), g = new Map(), ys = new Map();
+    const k0 = K(sx, sz);
+    g.set(k0, 0); ys.set(k0, sy); open.push(h(sx, sz, sy), k0);
+    let expanded = 0;
+    const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+    while (open.f.length) {
+      const [, ck] = open.pop();
+      const cz = ck % 8192 - 4096, cx = Math.floor(ck / 8192) - 4096, cy = ys.get(ck);
+      if (Math.abs(cx - tx) + Math.abs(cz - tz) <= 1 && Math.abs(cy - ty) <= 1) {
+        const path = []; let k = ck;
+        while (k !== undefined && k !== k0) { const pz = k % 8192 - 4096, px = Math.floor(k / 8192) - 4096; path.push({ x: px, z: pz }); k = came.get(k); }
+        return path.reverse();
+      }
+      if (++expanded > NODE_CAP) return null;
+      for (let di = 0; di < 8; di++) {
+        const dx = DIRS[di][0], dz = DIRS[di][1], nx = cx + dx, nz = cz + dz;
+        const ny = stepUp(cx, cy, cz, dx, dz);
+        if (ny < 0) continue;
+        const nk = K(nx, nz), ng = g.get(ck) + (dx && dz ? 1.41 : 1);
+        if (ng < (g.get(nk) ?? Infinity)) { came.set(nk, ck); g.set(nk, ng); ys.set(nk, ny); open.push(ng + h(nx, nz, ny), nk); }
+      }
+    }
+    return null;
+  }
+  CF.astar = astar; // exposed for harness + #037/#038
+  CF.__standable = standable; // debug probe (tests only)
+
+  function steer(m, tx, tz, spd) {
+    const dx = tx - m.pos[0], dz = tz - m.pos[2], l = Math.hypot(dx, dz) || 1;
+    m.vel[0] = dx / l * spd; m.vel[2] = dz / l * spd; m.yaw = Math.atan2(dx, dz);
+  }
+
+  function aiChase(m, T, P) {
+    if (CF.mobSense === false) return; // test isolation: scheduler windows must not be invalidated by chasing
+    const dx = P.pos[0] - m.pos[0], dz = P.pos[2] - m.pos[2], d = Math.hypot(dx, dz);
+    const dy = Math.abs(P.pos[1] - m.pos[1]);
+    if (d > 35 || dy > 12) { m.path = null; m.vel[0] = m.vel[2] = 0; return; } // MC zombie sense radius 35
+    if (d < 1.35 && dy < 2.2) { // in melee reach
+      m.vel[0] = m.vel[2] = 0; m.path = null;
+      if (--m.atkCd <= 0) { m.atkCd = 20; if (CF.survival) CF.damage(T.dmg || 3, 'mob'); } // NORMAL difficulty
+      return;
+    }
+    m.atkCd = 0;
+    m.repathT = (m.repathT || 0) - 1;
+    if ((!m.path || !m.path.length) && m.repathT <= 0 && aiBudget > 0) {
+      aiBudget--; m.repathT = REPATH_CD;
+      m.path = astar(Math.floor(m.pos[0]), Math.floor(m.pos[1] - T.h / 2 + 0.001), Math.floor(m.pos[2]), Math.floor(P.pos[0]), Math.floor(P.pos[1] - 0.9), Math.floor(P.pos[2]));
+    }
+    const wp = m.path && m.path[0];
+    if (wp) {
+      if (Math.hypot(wp.x + 0.5 - m.pos[0], wp.z + 0.5 - m.pos[2]) < 0.8) m.path.shift();
+      else steer(m, wp.x + 0.5, wp.z + 0.5, T.speed);
+    } else steer(m, P.pos[0], P.pos[2], T.speed); // no path: walk straight (wall-block covers us)
+  }
+  let aiBudget = REPATH_BUDGET;
+
+  // --- player melee: 1.12 charge meter + attack-over-mining priority + knockback
+  document.addEventListener('mousedown', (e) => { if (e.button === 0) CF._freshClick = true; }, true);
+  CF.mobHitAt = (o, d, maxD) => {
+    let best = null;
+    for (const m of M.list) {
+      const T = CF.MOBS[m.type], hw = T.w / 2 + 0.15, hh = T.h / 2 + 0.1;
+      for (let t = 0; t < maxD; t += 0.25) {
+        const px = o[0] + d[0] * t, py = o[1] + d[1] * t, pz = o[2] + d[2] * t;
+        if (Math.abs(px - m.pos[0]) < hw && py > m.pos[1] - hh && py < m.pos[1] + hh && Math.abs(pz - m.pos[2]) < hw) {
+          if (!best || t < best.t) best = { m, t };
+          break;
+        }
+      }
+    }
+    return best;
+  };
+  CF.atkCdInfo = () => { // 1.12 attack-speed cooldowns (ticks to full charge): sword 12, tool 20, hand 5
+    const held = CF.held && CF.held(), def = CF.ITEMS[held];
+    if (def && def.tool) return def.tool.type === 'sword' ? 12 : 20;
+    return 5;
+  };
+  CF.trySwing = (hit) => { // returns true if the swing targeted a mob (mining suppressed)
+    const P = CF.player;
+    if (!P || !M.list.length) return false;
+    const cy = Math.cos(P.yaw), sy = Math.sin(P.yaw), cp = Math.cos(P.pitch), sp = Math.sin(P.pitch);
+    const o = [P.pos[0], P.pos[1] - 0.9 + 1.62, P.pos[2]], d = [sy * cp, sp, cy * cp];
+    const hm = CF.mobHitAt(o, d, 3.5);
+    if (!hm) return false;
+    const blockT = hit ? Math.hypot(hit.x + 0.5 - o[0], hit.y + 0.5 - o[1], hit.z + 0.5 - o[2]) : 1e9;
+    if (hm.t > blockT - 0.5) return false; // block closer -> mine through
+    CF.lastSwing = 0;
+    if (CF._freshClick) {
+      CF._freshClick = false;
+      const charge = Math.min(1, (CF.atkTick || 0) / (CF.atkCdInfo ? CF.atkCdInfo() : 20)); // 1.12 charge meter
+      const held = CF.held && CF.held(), def = CF.ITEMS[held];
+      const base = def && def.tool && def.tool.type === 'sword' ? (SWORD_DMG[held.split('_')[0]] || 4) : 1;
+      CF.lastSwing = base * (0.2 + 0.8 * charge);
+      CF.atkTick = 0;
+      const kx = hm.m.pos[0] - P.pos[0], kz = hm.m.pos[2] - P.pos[2], kl = Math.hypot(kx, kz) || 1;
+      hm.m.vel[0] = kx / kl * 4.5; hm.m.vel[2] = kz / kl * 4.5; hm.m.vel[1] = 3.2;
+      hm.m.path = null; hm.m.repathT = REPATH_CD;
+      M.hurt(hm.m, CF.lastSwing, 'player');
+    }
+    return true; // mob occupies crosshair: suppress mining entirely
+  };
+  const origMineStart = CF.mineStart;
+  CF.mineStart = (hit) => { if (CF.trySwing(hit)) { CF.mining = null; return; } origMineStart(hit); };
+
+  // ============================ per-tick: physics, AI, burn, spawn ============================
   CF.mobTick = (dt = 0.05) => {
     const W = CF.world, P = CF.player;
     if (!W) return;
+    CF.atkTick = (CF.atkTick || 0) + 1;
+    aiBudget = REPATH_BUDGET;
+    const ai0 = performance.now();
     for (const m of M.list.slice()) {
       const T = CF.MOBS[m.type];
+      if (P && T.hostile) aiChase(m, T, P);
       M.step(m, dt);
       if (m.dead) { M.remove(m); continue; }
       // sunlight burn (1.12: sky-exposed undead catch fire during the day)
@@ -3240,7 +3401,7 @@ window.CF = window.CF || {};
       }
     }
     // scheduler: spawn attempts only in survival (creative stays a calm sandbox + suites stay mob-free)
-    if (CF.survival && P && M.hostileCount() < HOSTILE_CAP) {
+    if (CF.survival && M.sched !== false && P && M.hostileCount() < HOSTILE_CAP) {
       let budget = 2;
       while (budget-- > 0) {
         const ang = Math.random() * Math.PI * 2, rr = 24 + Math.random() * 16;
@@ -3251,6 +3412,7 @@ window.CF = window.CF || {};
         M.trySpawnAt('zombie', x + 0.5, fy, z + 0.5);
       }
     }
+    CF.mobAiMs = performance.now() - ai0;
   };
   const hh = (m) => CF.MOBS[m.type].h / 2;
 
@@ -3302,11 +3464,80 @@ window.CF = window.CF || {};
     CF.renderDraw(CF.camera);
   };
 
+  CF.shotScenarios['mob-chase'] = async () => {
+    CF.freeCam = true;
+    CF.timeOffset = 18000;
+    const W = CF.world, P = CF.player;
+    W.ensureAround(8, 8, 4);
+    for (let i = 0; i < 60 && W.stats().queue; i++) W.tick();
+    const h = W.heightAt(8, 8);
+    M.clear();
+    P.spawn = [8.5, h + 1, 8.5];
+    P.tp(8.5, h + 1, 8.5);
+    const zx = 20, zz = 8;
+    const zh = W.heightAt(zx, zz);
+    for (let wx2 = zx - 2; wx2 <= zx + 2; wx2++) for (let wz2 = zz - 2; wz2 <= zz + 2; wz2++) {
+      if (wz2 === zz && wx2 === zx - 2) continue; // doorway faces the player
+      for (let wy2 = zh + 1; wy2 <= zh + 2; wy2++) W.set(wx2, wy2, wz2, CF.IDOF['cobblestone']);
+    }
+    const z = M.spawn('zombie', zx + 0.5, zh + 1, zz + 0.5);
+    CF.survival = true;
+    CF.stats.hp = 9999; // immortal dummy so the shot never catches a death animation
+    for (let t = 0; t < 420; t++) {
+      CF.mobTick();
+      for (let i = M.list.length - 1; i >= 0; i--) if (M.list[i] !== z) M.remove(M.list[i]);
+    }
+    CF.mobTick = () => {}; // FREEZE sim (mob AI + atkTick drain) but keep the game loop rendering (shots need live frames; stopGameLoop would kill them)
+    for (const [tx2, tz2] of [[8, 6], [12, 8], [16, 8]]) W.set(tx2, W.heightAt(tx2, tz2) + 1, tz2, CF.IDOF['torch']);
+    for (let i = 0; i < 40; i++) { W.tick(); CF.renderTick(); }
+    const d = Math.hypot(P.pos[0] - z.pos[0], P.pos[2] - z.pos[2]);
+    const ux = (z.pos[0] - P.pos[0]) / (d || 1), uz = (z.pos[2] - P.pos[2]) / (d || 1);
+    const ccx = P.pos[0] - ux * 5, ccz = P.pos[2] - uz * 5, ccy = z.pos[1] + 0.4;
+    CF.camera = { pos: [ccx, ccy, ccz], yaw: Math.atan2(z.pos[0] - ccx, z.pos[2] - ccz),
+      pitch: -Math.atan2(ccy - z.pos[1], Math.hypot(z.pos[0] - ccx, z.pos[2] - ccz)) };
+    CF.renderDraw(CF.camera);
+    await new Promise((res) => setTimeout(res, 150));
+    CF.shotExtra = { distToPlayer: +d.toFixed(2) };
+    CF.renderDraw(CF.camera);
+  };
+
+  CF.shotScenarios['mob-fight'] = async () => {
+    CF.freeCam = true;
+    CF.timeOffset = 18000;
+    const W = CF.world, P = CF.player;
+    W.ensureAround(8, 8, 4);
+    for (let i = 0; i < 60 && W.stats().queue; i++) W.tick();
+    const h = W.heightAt(8, 8);
+    M.clear(); M.sched = false; // no scheduler noise stealing the frame
+    P.spawn = [8.5, h + 1, 8.5];
+    P.tp(8.5, h + 1, 8.5); P.onGround = false;
+    for (let t = 0; t < 60 && !P.onGround; t++) CF.playerTick();
+    // clear the duel clearing so no tree steals the frame
+    for (let wx2 = 4; wx2 <= 13; wx2++) for (let wz2 = 4; wz2 <= 13; wz2++) for (let wy2 = h + 1; wy2 <= h + 8; wy2++) W.set(wx2, wy2, wz2, 0);
+    // torch the clearing so the night moment is readable (block light hits mobs AND terrain)
+    for (const [tx2, tz2] of [[8, 5], [8, 11]]) W.set(tx2, W.heightAt(tx2, tz2) + 1, tz2, CF.IDOF['torch']);
+    for (let i = 0; i < 30; i++) { W.tick(); CF.renderTick(); }
+    const z = M.spawn('zombie', P.pos[0] + 4.2, W.heightAt(Math.floor(P.pos[0] + 4.2), Math.floor(P.pos[2] + 0.4)) + 1, P.pos[2] + 0.4);
+    CF.survival = true;
+    for (let t = 0; t < 24; t++) { CF.mobTick(); CF.onTick(); } // mid-stride approach (not yet in melee)
+    CF.mobTick = () => {}; // freeze sim at the dramatic frame, keep the render loop alive for the shot
+    CF.stats.hp = 12; CF.atkTick = 2; // wounded + mid-cooldown (bare hand cd=5t): the 1.12 fight moment
+    CF.survRefresh && CF.survRefresh(); CF.uiRefresh && CF.uiRefresh();
+    const dx = z.pos[0] - P.pos[0], dz = z.pos[2] - P.pos[2], dl = Math.hypot(dx, dz) || 1;
+    const camx = P.pos[0] - dx / dl * 2.2, camz = P.pos[2] - dz / dl * 2.2, camy = z.pos[1] + 0.35;
+    const hd = Math.hypot(z.pos[0] - camx, z.pos[2] - camz);
+    CF.camera = { pos: [camx, camy, camz], yaw: Math.atan2(z.pos[0] - camx, z.pos[2] - camz), pitch: -Math.atan2(camy - z.pos[1], hd) };
+    CF.renderDraw(CF.camera);
+    await new Promise((res) => setTimeout(res, 150));
+    CF.shotExtra = { hp: CF.stats.hp, atkTick: CF.atkTick, mobHp: z.hp, mobDist: +Math.hypot(P.pos[0] - z.pos[0], P.pos[2] - z.pos[2]).toFixed(2) };
+    CF.renderDraw(CF.camera);
+  };
+
   // --- test suite
   const settle = (n) => { for (let i = 0; i < n && CF.world.stats().queue; i++) CF.world.tick(); };
   CF.mobTests = async (r) => {
-    const W = CF.world, P = CF.player, ID = CF.IDOF, surv0 = CF.survival, t0 = CF.timeOffset;
-    M.clear();
+    const W = CF.world, P = CF.player, ID = CF.IDOF, S = CF.stats, surv0 = CF.survival, t0 = CF.timeOffset;
+    M.clear(); M.sched = false; // deterministic arenas; scheduler gets its own test window
     CF.survival = false;
 
     // physics: fall & land & no-sink
@@ -3362,9 +3593,11 @@ window.CF = window.CF || {};
     CF.assert(r, 'mob.min-dist(24-block rule)', M.trySpawnAt('zombie', near + 0.5, nearY, nearZ + 0.5) === null);
 
     // scheduler over 400 night ticks: spawns happen, all >=20 away, cap respected
-    M.clear(); CF.survival = true; CF.timeOffset = 18000;
+    // (sense OFF during this window: AI chase would otherwise pull spawns to the player, MC 1.12 sense=35)
+    M.clear(); CF.survival = true; CF.timeOffset = 18000; M.sched = true; CF.mobSense = false;
     W.ensureAround(P.pos[0], P.pos[2], 4); settle(40);
     for (let t = 0; t < 400; t++) CF.mobTick();
+    M.sched = false; CF.mobSense = true;
     let minD = 1e9; for (const z2 of M.list) minD = Math.min(minD, Math.hypot(P.pos[0] - z2.pos[0], P.pos[2] - z2.pos[2]));
     CF.assert(r, 'mob.spawn-night(' + M.list.length + ' spawned)', M.list.length >= 1);
     CF.assert(r, 'mob.min-dist(min=' + minD.toFixed(1) + ')', M.list.length === 0 || minD >= 20);
@@ -3393,6 +3626,111 @@ window.CF = window.CF || {};
     CF.assert(r, 'mob.env-kill-no-loot', (() => { const c0 = CF.countItem('rotten_flesh'); const zz = M.spawn('zombie', bx + 0.5, by, bz + 0.5); M.hurt(zz, 999, 'burn'); return CF.countItem('rotten_flesh') === c0; })());
     M.clear();
 
+    // ---- #036: A* + chase + 1.12 melee (flatten arena so terrain noise can't move the goal)
+    M.clear(); CF.survival = false;
+    const flat = (x0, x1, z0, z1, h) => {
+      W.ensureAround(x0, z0, 1); settle(20); W.ensureAround(x1, z1, 1); settle(20);
+      for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) {
+        for (let y = 2; y <= h; y++) W.set(x, y, z, ID['stone']);
+        for (let y = h + 1; y <= h + 8; y++) W.set(x, y, z, 0);
+      }
+    };
+    const ax = 160, az = 160;
+    flat(ax - 3, ax + 13, az - 3, az + 3, 70);
+    const ah = 70;
+    // U pocket around start (ax,az): west wall + north/south rows, east open into the corridor
+    for (let wy2 = ah + 1; wy2 <= ah + 2; wy2++) {
+      for (let wz2 = az - 3; wz2 <= az + 3; wz2++) W.set(ax - 3, wy2, wz2, ID['cobblestone']);
+      for (let wx2 = ax - 3; wx2 <= ax + 3; wx2++) { W.set(wx2, wy2, az - 3, ID['cobblestone']); W.set(wx2, wy2, az + 3, ID['cobblestone']); }
+    }
+    const path = CF.astar(ax, ah + 1, az, ax + 12, ah + 1, az);
+    CF.assert(r, 'mob.astar-found(len=' + (path && path.length) + ')', !!path && path.length >= 6);
+    const path2 = CF.astar(ax, ah + 1, az, ax, ah + 12, az); // goal unreachable (above sealed pocket) -> exhaust/cap -> null
+    CF.assert(r, 'mob.astar-cap(' + (path2 === null ? 'null' : 'len' + path2.length) + ')', path2 === null);
+    for (let wx2 = ax - 3; wx2 <= ax + 3; wx2++) for (let wz2 = az - 3; wz2 <= az + 3; wz2++)
+      for (let wy2 = ah + 1; wy2 <= ah + 2; wy2++) if (W.get(wx2, wy2, wz2) === ID['cobblestone']) W.set(wx2, wy2, wz2, 0);
+    settle(20);
+
+    // chase: pocketed zombie with doorway reaches near the player (A* rounding the wall)
+    M.clear(); CF.survival = true; CF.timeOffset = 18000;
+    const gx = 240, gz = 240;
+    flat(gx - 4, gx + 24, gz - 4, gz + 4, 70);
+    const gh = 70;
+    P.tp(gx + 0.5, gh + 40, gz + 0.5); // drop onto plain
+    P.onGround = false; // tp() keeps the stale flag (player.js contract) - must force a real fall
+    for (let t = 0; t < 200 && !P.onGround; t++) CF.playerTick();
+    for (let wx2 = gx - 3; wx2 <= gx + 3; wx2++) for (let wz2 = gz - 3; wz2 <= gz + 3; wz2++) {
+      if (Math.abs(wx2 - gx) !== 3 && Math.abs(wz2 - gz) !== 3) continue; // ring only
+      if (wx2 === gx + 3 && (wz2 === gz || wz2 === gz + 1)) continue; // door faces +X (toward mob side)
+      for (let wy2 = gh + 1; wy2 <= gh + 2; wy2++) W.set(wx2, wy2, wz2, ID['cobblestone']);
+    }
+    const zc2 = M.spawn('zombie', gx + 20.5, gh + 1, gz + 0.5);
+    for (let t = 0; t < 900; t++) {
+      CF.mobTick();
+      for (let z3i = M.list.length - 1; z3i >= 0; z3i--) if (M.list[z3i] !== zc2) M.remove(M.list[z3i]); // scheduler noise out
+      if (zc2.dead) break;
+    }
+    const dChase = Math.hypot(P.pos[0] - zc2.pos[0], P.pos[2] - zc2.pos[2]);
+    CF.assert(r, 'mob.chase(d=' + dChase.toFixed(1) + ',path=' + (zc2.path ? zc2.path.length : String(zc2.path)) + ',vel=' + zc2.vel[0].toFixed(2) + ',PonG=' + P.onGround + ')', zc2.hp === 20 && dChase < 3.5);
+    let aiOk = CF.mobAiMs !== undefined && CF.mobAiMs < 8;
+    CF.assert(r, 'mob.ai-budget(' + (CF.mobAiMs || 0).toFixed(1) + 'ms<8)', aiOk);
+
+    // attack: contact damage -3 with 1.12 rhythm + invuln window (onTick drives hurtCd decay)
+    M.clear(); // no leftover chasers may pollute the duel
+    const pfx = Math.floor(P.pos[0]), pfz = Math.floor(P.pos[2]);
+    flat(pfx - 4, pfx + 4, pfz - 4, pfz + 4, Math.max(40, Math.floor(P.pos[1])));
+    P.tp(pfx + 0.5, Math.max(40, Math.floor(P.pos[1])) + 1.9, pfz + 0.5);
+    for (let t = 0; t < 40; t++) { CF.playerTick(); CF.onTick(); } // settle landing (absorb fall dmg before the duel)
+    CF.survival = true; S.hp = 20;
+    const hurtLog = [];
+    const odmg = CF.damage;
+    CF.damage = (n, why) => { hurtLog.push(why + '(-' + n + '→' + (CF.stats.hp - n) + ')'); odmg(n, why); };
+    const zc3 = M.spawn('zombie', P.pos[0] + 1.1, Math.max(40, Math.floor(P.pos[1])) + 1, P.pos[2]);
+    for (let t = 0; t < 1; t++) { CF.mobTick(); CF.onTick(); }
+    CF.mobTick(); CF.onTick();
+    for (let t = 0; t < 8; t++) { CF.mobTick(); CF.onTick(); }
+    CF.assert(r, 'mob.attack-hp(' + S.hp + ',' + hurtLog.slice(0, 4).join(' ') + ')', S.hp === 17 && CF.lastHurt === 'mob');
+    CF.damage = odmg;
+    for (let t = 0; t < 14; t++) { CF.mobTick(); CF.onTick(); }
+    CF.assert(r, 'mob.attack-rhythm(' + S.hp + ')', S.hp <= 14);
+    M.remove(zc3);
+    // creative: zero mob damage
+    CF.survival = false; S.hp = 20;
+    const zc4 = M.spawn('zombie', P.pos[0] + 1.0, P.pos[1] - 0.9 + 1, P.pos[2]);
+    for (let t = 0; t < 60; t++) CF.mobTick();
+    CF.assert(r, 'mob.attack-creative(' + S.hp + ')', S.hp === 20);
+    M.remove(zc4);
+
+    // player melee: charged sword 6, spam 1.2, kill -> loot
+    CF.survival = false;
+    CF.inv.fill(null); CF.give('iron_sword', 1); CF.sel = 0;
+    const zc5 = M.spawn('zombie', P.pos[0] + 2.2, P.pos[1] - 0.9 + 1, P.pos[2]);
+    P.pitch = 0; P.yaw = Math.atan2(zc5.pos[0] - P.pos[0], zc5.pos[2] - P.pos[2]);
+    CF.atkTick = 20; CF._freshClick = true;
+    CF.mineStart(CF.aim());
+    CF.assert(r, 'mob.hit-charge(dmg=' + CF.lastSwing + ',hp=' + zc5.hp + ')', Math.abs(CF.lastSwing - 6) < 0.01 && Math.abs(zc5.hp - 14) < 0.01);
+    CF._freshClick = true;
+    CF.mineStart(CF.aim());
+    CF.assert(r, 'mob.hit-spam(dmg=' + CF.lastSwing + ')', Math.abs(CF.lastSwing - 1.2) < 0.01);
+    for (let k = 0; k < 4 && !zc5.dead; k++) { CF.atkTick = 20; CF._freshClick = true; CF.mineStart(CF.aim()); }
+    CF.assert(r, 'mob.hit-kill(dead=' + !!zc5.dead + ')', zc5.dead === true && M.list.indexOf(zc5) < 0);
+    CF.inv.fill(null);
+    let lootT = 0;
+    for (let k = 0; k < 8; k++) {
+      CF.give('iron_sword', 1); CF.sel = 0;
+      const zz = M.spawn('zombie', P.pos[0] + 2.2, P.pos[1] - 0.9 + 1, P.pos[2]);
+      P.yaw = Math.atan2(zz.pos[0] - P.pos[0], zz.pos[2] - P.pos[2]);
+      for (let s = 0; s < 4 && !zz.dead; s++) { CF.atkTick = 20; CF._freshClick = true; CF.mineStart(CF.aim()); }
+      lootT = CF.countItem('rotten_flesh');
+    }
+    CF.assert(r, 'mob.melee-loot(' + lootT + ')', lootT >= 1);
+    CF.atkTick = 0; CF.uiRefresh();
+    const bar = document.getElementById('atk');
+    const half = bar && bar.style.display === 'block';
+    CF.atkTick = 20; CF.uiRefresh();
+    CF.assert(r, 'mob.cbt-bar(half=' + half + ',full=' + (bar && bar.style.display) + ')',
+      half === true && bar.style.display === 'none');
+
     // render: pixel in front of camera changes with a mob there; GL clean
     for (let i = 0; i < 60 && !CF.rendererStats.ready; i++) { CF.renderTick(); await new Promise((s) => setTimeout(s, 25)); }
     CF.timeOffset = 6000; CF.freeCam = true;
@@ -3410,7 +3748,7 @@ window.CF = window.CF || {};
     CF.assert(r, 'mob.px-draw(d=' + delta + ',b=' + e1 + ')', delta > 12 && CF.rendererStats.mtris >= 24);
     CF.assert(r, 'mob.glErr(' + CF.rendererStats.glErr + ')', CF.rendererStats.glErr === 0);
     M.clear();
-    CF.survival = surv0; CF.timeOffset = t0; CF.freeCam = false;
+    CF.survival = surv0; CF.timeOffset = t0; CF.freeCam = false; M.sched = true;
     CF.renderDraw(CF.camera || cam);
   };
 })();
