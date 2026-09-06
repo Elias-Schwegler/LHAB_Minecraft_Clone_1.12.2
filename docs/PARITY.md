@@ -11,18 +11,19 @@ shot.mjs PNG + vision verdict. `parity.mjs` counts a variant ONLY if the game re
 marks it `functional:true` AND `qa/blocks/<variant>.png` exists AND a texture tile is
 Blender-sourced (`tools/tex` manifest). No self-declared counts.
 
-## Block % (tiered) — live from parity.mjs (2026-09-05, re-verified; earlier table had drifted at 14)
+## Block % (tiered) — live from parity.mjs (2026-09-06, re-verified; earlier table had drifted at 14)
 | Tier | variants total | functional | % |
 |------|---------------|-----------|---|
-| 1 | 125 | 17 | 13.6% |
+| 1 | 125 | 18 | 14.4% |
 | 2 | 163 | 0 | 0% |
 | 3 | 111 | 0 | 0% |
-| **all** | **399** | **17** | **4.3%** |
+| **all** | **399** | **18** | **4.5%** |
 
 Counted (evidence: qa/blocks/*.png + blender tiles + functional flag + test asserts):
 stone, grass, dirt, cobblestone, planks:oak, log:oak, leaves:oak, sand, gravel, glass,
 obsidian, coal/iron/gold/diamond ore (t1) = 15, + glowstone (#020, qa/blocks + light asserts),
-+ torch (#024, cross-model + per-face attach asserts) = **17**.
++ torch (#024, cross-model + per-face attach asserts), + furnace (#032, ui.furn-* GUI asserts +
+smelt pipeline) = **18**.
 (2026-09-04 audit: snow cube was 1.13-era -> snow_layer t2 unimplemented; functional flags now proof-bound
 via parity.mjs; water/lava NOT counted until buckets #031)
 Not counted though registered: bedrock (creative-only, §7 'breakable' fails), red_sand +
@@ -41,7 +42,7 @@ wood variants (no tiles), all Tier-2/3 families.
 [x] torches + spawn-by-light rules                         <- #024/#028 torch asserts + #035 mob.spawn-* asserts
 [ ] hostile mobs (zombie/skeleton/creeper/spider/enderman) + passive w/ breeding   <- zombie core+light-spawn+burn+drop #035 (mob.* asserts, night-mobs.png); AI #036, more mobs #037-#039
 [x] health/hunger/fall damage                          <- #026 (surv.* asserts + hud-low.png)
-[ ] chests/furnaces
+[ ] chests/furnaces                                        <- furnace GUI+proof #032 (ui.furn-* asserts, ui-furnace.png); chest -> #040
 [x] wood→tools→mining tiers                              <- #006 tier gates + #024 (items.iron-pickaxe/speed-stone-wood asserts)
 [ ] TNT
 [ ] beds/sleep

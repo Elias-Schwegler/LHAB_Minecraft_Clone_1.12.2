@@ -75,6 +75,7 @@ window.CF = window.CF || {};
         dropName = lr < 0.05 ? 'sapling' : lr < 0.055 ? 'apple' : null;
       }
       const drops = tierOk && dropName ? [{ name: dropName, n: 1, x: m.x + 0.5, y: m.y + 0.5, z: m.z + 0.5 }] : [];
+      if (v.name === 'furnace' && CF.furnaceBreak) CF.furnaceBreak(m.x, m.y, m.z); // #032: contents to player
       CF.world.set(m.x, m.y, m.z, 0);
       for (const d of drops) CF.give ? CF.give(d.name, d.n) : 0;
       CF.drops.push(...drops);
@@ -118,7 +119,7 @@ window.CF = window.CF || {};
   window.addEventListener('mousedown', (e) => {
     if (!CF.player) return;
     if (e.button === 0) CF.mineStart(CF.aim());
-    if (e.button === 2) { if (!(CF.useHeld && CF.useHeld())) CF.place(CF.aim()); }
+    if (e.button === 2) { if (!(CF.useBlock && CF.useBlock(CF.aim())) && !(CF.useHeld && CF.useHeld())) CF.place(CF.aim()); }
   });
   window.addEventListener('mouseup', () => { CF.mining = null; });
   window.addEventListener('wheel', (e) => { CF.sel = (CF.sel + (e.deltaY > 0 ? 1 : -1) + CF.hotbar.length) % CF.hotbar.length; CF.uiRefresh && CF.uiRefresh(); });
