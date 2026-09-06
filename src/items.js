@@ -93,6 +93,7 @@ window.CF = window.CF || {};
     P(['m', 's', 's'], null, 'shovel', 4),
     P(['m', 'm', 's'], null, 'sword', 4),
     P([' i', 'i '], { i: 'iron_ingot' }, 'shears', 1),
+    P(['www', 'ppp'], { w: 'wool', p: 'planks' }, 'bed', 1), // #041 (1.12: any colours; single white simplification)
     // #042 TNT (1.12: 5 gunpowder + 4 sand) + flint & steel (1.12: iron ingot + flint)
     P(['gsg', 'sgs', 'gsg'], { g: 'gunpowder', s: 'sand' }, 'tnt', 1),
     P(['i', 'f'], { i: 'iron_ingot', f: 'flint' }, 'flint_and_steel', 1),

@@ -77,6 +77,7 @@ window.CF = window.CF || {};
       const drops = tierOk && dropName ? [{ name: dropName, n: 1, x: m.x + 0.5, y: m.y + 0.5, z: m.z + 0.5 }] : [];
       if (v.name === 'furnace' && CF.furnaceBreak) CF.furnaceBreak(m.x, m.y, m.z); // #032: contents to player
       if (v.name === 'chest' && CF.chestBreak) CF.chestBreak(m.x, m.y, m.z); // #040: contents to player
+      if (v.name === 'bed' && CF.bedBreak) CF.bedBreak(m.x, m.y, m.z); // #041: both halves
       CF.world.set(m.x, m.y, m.z, 0);
       for (const d of drops) CF.give ? CF.give(d.name, d.n) : 0;
       CF.drops.push(...drops);
@@ -104,6 +105,7 @@ window.CF = window.CF || {};
         : CF.solidAt(CF.world.get(tx - f[0], ty - f[1], tz - f[2]));
       if (!support) return false;
     }
+    if (v.name === 'bed' && CF.bedPlace) return CF.bedPlace(tx, ty, tz, CF.dirFromYaw(p.yaw)); // #041 2-cell, consumes itself
     const ok = CF.world.set(tx, ty, tz, id);
     if (ok && v.cross && CF.world.flatSet) {
       const f = hit.face;

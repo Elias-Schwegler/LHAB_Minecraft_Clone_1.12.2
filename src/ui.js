@@ -293,7 +293,9 @@ window.CF = window.CF || {};
 
   // #032: right-click block use (furnace opens its GUI instead of placing)
   CF.useBlock = (hit) => {
-    if (!hit || !CF.blockEntities) return false;
+    if (!hit) return false;
+    if (CF.useBed && CF.useBed(hit)) return true; // #041 bed
+    if (!CF.blockEntities) return false;
     const k = hit.x + ',' + hit.y + ',' + hit.z;
     const f = CF.blockEntities[k];
     if (f && (f.type === 'furnace' || f.type === 'chest')) { CF.uiOpenContainer(k); return true; } // #032/#040
