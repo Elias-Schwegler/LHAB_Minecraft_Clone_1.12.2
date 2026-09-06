@@ -1,12 +1,12 @@
 # AGENTS.md — project STATE memory (1-minute grounding)
 Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each session) · Spec: docs/REFERENCE.md
 
-## Current state (2026-09-06, sprint 03 it15)
+## Current state (2026-09-06, sprint 03 it16)
 - Tags: v0.0.0 scaffold → v0.1.0 sprint01+fixes → v0.2.0 SPRINT 02 CLOSED (audit #4 READY).
-- Sprint 03 ACTIVE (docs/sprints/03.md): #033 #035 #032 #036 #037 #038 #042 #039 #040 DONE. NEXT:
-  #041 beds/weather, #043 fluids polish+buckets(#031), #044 mob art, #045 crafting-table 3x3 GUI.
-  Then audit#6 + close 03. SPK-7 (nether scale) before any nether work.
-- Gate: TEST GREEN 182 asserts full / 171 quick, 0 errors. Parity: 18/399 (TNT+chest functional:false -
+- Sprint 03 ACTIVE: #033 #035 #032 #036 #037 #038 #042 #039 #040 #041 DONE (SPRINT EXIT MET: night dangerous
+  + sleep through it). NEXT: #043 fluids polish+buckets(#031), #034 SPK-7, then #044/#045 backlog,
+  audit#6 + close 03. SPK-7 (nether scale) before any nether work.
+- Gate: TEST GREEN 192 asserts full / 181 quick, 0 errors. Parity: 18/399 (TNT/chest/bed functional:false -
   procedural tiles, not Blender; mechanics shipped+tested, not counted: honest)
   proof-bound (t1 18/125): 15 core blocks + torch + furnace; water/lava NOT counted until buckets (#031).
 - Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy+AO-less shaded+light+fog),
@@ -15,13 +15,16 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   night/cave spawning survival-gated, sun burn, player-kill loot; mobs render as palette-lit boxes),
   MOB AI v1 (heap-A* chase + 1.12 melee + player 1.9 charge-meter combat, knockback, entity-over-mining),
   MOB ROSTER v2 (skeleton ranged+arrows, creeper fuse+1.12 ray-marched crater via src/explode.js).
-  Remaining Tier-1: spawn-rule polish(#039), chests(#040), beds/sleep(#041), fluids+buckets(#043/#031),
-  infinite-streaming verify, recipe-book UI. (mob roster + combat + TNT DONE)
+  Remaining Tier-1: fluids+buckets(#043/#031), infinite-streaming verify, recipe-book UI.
+  (mob roster + combat + spawn rules + TNT + chests + beds/sleep + weather all DONE)
 - Carried FIXes: #031 (water banding rows + lava tile brightness + buckets→+2 parity). #032 CLOSED it9.
 - Nice dev seed: 5 = plains (all baselines use it). Play mode = open game/index.html (F4 survival, E inv,
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- 40ce5d7 #041 bed+weather: 2-cell bed (flat dir/head bits), sleep night-window + monster guard + spawn@head +
+  dawn skip + rain clear; rain/thunder cycles + lightning strike (overcast sky, flash, blast camera shake);
+  +10 asserts; bed-sleep/storm-sky vision PASS
 - #040 chest: 27-slot container UI ('cs' slots on #032 plumbing), chest<->inv quickmove, break-ejects contents,
   procedural chest tiles in free atlas cells, **BE save/load added (fixes latent furnace-contents-lost bug)**;
   +7 asserts; ui-chest.png vision PASS; chest functional:false honest (not Blender-sourced)

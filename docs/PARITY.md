@@ -45,7 +45,7 @@ wood variants (no tiles), all Tier-2/3 families.
 [x] chests/furnaces                                        <- #032 furnace GUI (ui.furn-*), #040 chest 27-slot UI+quickmove+break-ejects (ui.chest-*), BE save/load fixed; block tiles procedural (not counted)
 [x] wood→tools→mining tiers                              <- #006 tier gates + #024 (items.iron-pickaxe/speed-stone-wood asserts)
 [x] TNT                                                  <- #042 craft/place/prime(flint&steel)/80t-fuse/power-4 explode/chain/blast-resist (tnt.* asserts, tnt-fuse.png); block functional:false (procedural tile, not Blender) + 3x3 craft GUI -> #045
-[ ] beds/sleep
+[x] beds/sleep                                             <- #041 2-cell place/break, night window + monster-guard sleep, dawn-skip, spawn@head (bed.* asserts, bed-sleep.png); 16 colours -> #044
 [x] survival + creative                                  <- #026 stats+HUD, F4 toggle (surv.* asserts)
 [x] localStorage save/load                               <- #023 save.* asserts + tower-save.png roundtrip
 [x] F3 debug                                             <- #009 asserts
