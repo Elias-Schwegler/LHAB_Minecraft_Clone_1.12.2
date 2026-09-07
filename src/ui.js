@@ -49,7 +49,9 @@ window.CF = window.CF || {};
     '#furn .bar{width:22px;height:36px;background:#333;border:1px solid #555;position:relative;overflow:hidden}' +
     '#furn .bar>i{position:absolute;left:0;right:0;bottom:0;background:#e8a33d;display:block}' +
     '#atk{position:fixed;bottom:72px;left:50%;transform:translateX(-50%);width:120px;height:4px;background:#222;border:1px solid #555;z-index:21;display:none}' +
-    '#atk>i{display:block;height:100%;background:#c03028;width:0}';
+    '#atk>i{display:block;height:100%;background:#c03028;width:0}' +
+    '#xh{position:fixed;left:50%;top:50%;width:16px;height:16px;transform:translate(-50%,-50%);z-index:15;pointer-events:none;mix-blend-mode:difference;background:' +
+    'linear-gradient(#fff,#fff) center/2px 16px no-repeat,linear-gradient(#fff,#fff) center/16px 2px no-repeat}';
   document.head ? document.head.appendChild(style) : document.addEventListener('DOMContentLoaded', () => document.head.appendChild(style));
 
   const ICON_URL = window.__ATLAS_B64 ? 'url(data:image/png;base64,' + window.__ATLAS_B64 + ')' : 'none';
@@ -130,6 +132,7 @@ window.CF = window.CF || {};
     document.body.appendChild(hud); document.body.appendChild(inv); document.body.appendChild(ghostEl);
     atkEl = document.createElement('div'); atkEl.id = 'atk'; atkEl.innerHTML = '<i></i>';
     document.body.appendChild(atkEl);
+    const xh = document.createElement('div'); xh.id = 'xh'; document.body.appendChild(xh); // #047 crosshair
     refresh();
   }
   if (document.body) build(); else document.addEventListener('DOMContentLoaded', build);
@@ -143,6 +146,7 @@ window.CF = window.CF || {};
 
   function refresh() {
     if (!hud) return;
+    const xh = document.getElementById('xh'); if (xh) xh.style.display = CF.ui.open ? 'none' : 'block'; // #047
     for (let i = 0; i < 9; i++) {
       paint(hudSlots[i], CF.inv[i]);
       hudSlots[i].classList.toggle('sel', i === CF.sel);
@@ -400,6 +404,17 @@ window.CF = window.CF || {};
     const got = CF.chestBreak(cx0, cy0, cz0);
     CF.assert(r, 'ui.chest-break', got >= 5 && CF.countItem('dirt') === 5 && !CF.blockEntities[ck]);
     CF.world.set(cx0, cy0, cz0, 0);
+    // #047 crosshair present + hidden while a GUI is open; camera interpolation keeps standing y EXACT
+    const xh = document.getElementById('xh');
+    CF.ui.open = true; refresh(); const xhHidden = xh.style.display === 'none';
+    CF.ui.open = false; refresh();
+    CF.assert(r, 'ui.crosshair(' + !!xh + ',' + xhHidden + ')', !!xh && xhHidden === true && xh.style.display === 'block');
+    const P = CF.player;
+    P.tp(60.5, CF.world.heightAt(60, 60) + 12, 60.5); P.onGround = false; P.prevPos = P.pos.slice();
+    for (let i = 0; i < 80 && !P.onGround; i++) CF.playerTick();
+    let y0 = P.pos[1], still = true;
+    for (let i = 0; i < 600; i++) { CF.playerTick(); if (Math.abs(P.pos[1] - y0) > 1e-9) still = false; }
+    CF.assert(r, 'ui.stand-rock-still(dy=' + (P.pos[1] - y0) + ')', still === true && P.onGround === true);
     CF.ui.open = false; CF.ui.container = null; if (inv) inv.style.display = 'none';
   };
 

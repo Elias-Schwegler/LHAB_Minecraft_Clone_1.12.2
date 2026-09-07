@@ -1885,6 +1885,7 @@ window.CF = window.CF || {};
 
   function tick(dt = 0.05) {
     if (!CF.world) return;
+    player.prevPos = player.pos.slice(); // #047: interpolation source for rAF rendering
     readInput();
     const i = player.input;
     const speed = (i.sprint && (!CF.canSprint || CF.canSprint())) ? SPRINT : i.sneak ? SNEAK : WALK;
@@ -2537,7 +2538,9 @@ window.CF = window.CF || {};
     '#furn .bar{width:22px;height:36px;background:#333;border:1px solid #555;position:relative;overflow:hidden}' +
     '#furn .bar>i{position:absolute;left:0;right:0;bottom:0;background:#e8a33d;display:block}' +
     '#atk{position:fixed;bottom:72px;left:50%;transform:translateX(-50%);width:120px;height:4px;background:#222;border:1px solid #555;z-index:21;display:none}' +
-    '#atk>i{display:block;height:100%;background:#c03028;width:0}';
+    '#atk>i{display:block;height:100%;background:#c03028;width:0}' +
+    '#xh{position:fixed;left:50%;top:50%;width:16px;height:16px;transform:translate(-50%,-50%);z-index:15;pointer-events:none;mix-blend-mode:difference;background:' +
+    'linear-gradient(#fff,#fff) center/2px 16px no-repeat,linear-gradient(#fff,#fff) center/16px 2px no-repeat}';
   document.head ? document.head.appendChild(style) : document.addEventListener('DOMContentLoaded', () => document.head.appendChild(style));
 
   const ICON_URL = window.__ATLAS_B64 ? 'url(data:image/png;base64,' + window.__ATLAS_B64 + ')' : 'none';
@@ -2618,6 +2621,7 @@ window.CF = window.CF || {};
     document.body.appendChild(hud); document.body.appendChild(inv); document.body.appendChild(ghostEl);
     atkEl = document.createElement('div'); atkEl.id = 'atk'; atkEl.innerHTML = '<i></i>';
     document.body.appendChild(atkEl);
+    const xh = document.createElement('div'); xh.id = 'xh'; document.body.appendChild(xh); // #047 crosshair
     refresh();
   }
   if (document.body) build(); else document.addEventListener('DOMContentLoaded', build);
@@ -2631,6 +2635,7 @@ window.CF = window.CF || {};
 
   function refresh() {
     if (!hud) return;
+    const xh = document.getElementById('xh'); if (xh) xh.style.display = CF.ui.open ? 'none' : 'block'; // #047
     for (let i = 0; i < 9; i++) {
       paint(hudSlots[i], CF.inv[i]);
       hudSlots[i].classList.toggle('sel', i === CF.sel);
@@ -2888,6 +2893,17 @@ window.CF = window.CF || {};
     const got = CF.chestBreak(cx0, cy0, cz0);
     CF.assert(r, 'ui.chest-break', got >= 5 && CF.countItem('dirt') === 5 && !CF.blockEntities[ck]);
     CF.world.set(cx0, cy0, cz0, 0);
+    // #047 crosshair present + hidden while a GUI is open; camera interpolation keeps standing y EXACT
+    const xh = document.getElementById('xh');
+    CF.ui.open = true; refresh(); const xhHidden = xh.style.display === 'none';
+    CF.ui.open = false; refresh();
+    CF.assert(r, 'ui.crosshair(' + !!xh + ',' + xhHidden + ')', !!xh && xhHidden === true && xh.style.display === 'block');
+    const P = CF.player;
+    P.tp(60.5, CF.world.heightAt(60, 60) + 12, 60.5); P.onGround = false; P.prevPos = P.pos.slice();
+    for (let i = 0; i < 80 && !P.onGround; i++) CF.playerTick();
+    let y0 = P.pos[1], still = true;
+    for (let i = 0; i < 600; i++) { CF.playerTick(); if (Math.abs(P.pos[1] - y0) > 1e-9) still = false; }
+    CF.assert(r, 'ui.stand-rock-still(dy=' + (P.pos[1] - y0) + ')', still === true && P.onGround === true);
     CF.ui.open = false; CF.ui.container = null; if (inv) inv.style.display = 'none';
   };
 
@@ -2959,7 +2975,11 @@ window.CF = window.CF || {};
   hud.id = 'surv';
   hud.style.cssText = 'position:fixed;bottom:56px;left:50%;transform:translateX(-50%);display:none;gap:0;z-index:21;font:13px monospace';
   hud.innerHTML = '<div id="hearts" style="display:flex;gap:1px"></div><div id="food" style="display:flex;gap:1px;margin-left:60%"></div>';
-  (document.body ? Promise.resolve() : new Promise((r) => document.addEventListener('DOMContentLoaded', r))).then(() => document.body.appendChild(hud));
+  // #047: append synchronously when body already exists (scripts run at </body>) - the old
+  // Promise.resolve().then() deferred one microtask so getElementById('hearts') could miss it
+  // when a test suite ran before the flush (latent since #026, hit by the bedsuite standalone).
+  if (document.body) document.body.appendChild(hud);
+  else document.addEventListener('DOMContentLoaded', () => document.body.appendChild(hud));
 
   const HEART = '#c03028', EMPTY = '#3a3a3a', FOODC = '#c88038', DRY = '#2e2e2e';
   function pip(el, n, max, colorFull, colorEmpty, half) {
@@ -2977,8 +2997,9 @@ window.CF = window.CF || {};
     const on = CF.survival;
     hud.style.display = on ? 'flex' : 'none';
     if (!on) return;
-    pip(document.getElementById('hearts'), Math.max(0, Math.ceil(S.hp)), 10, HEART, EMPTY, true);
-    pip(document.getElementById('food'), Math.max(0, Math.ceil(S.food)), 10, FOODC, DRY, false);
+    const hc = document.getElementById('hearts'), fc = document.getElementById('food');
+    if (hc) pip(hc, Math.max(0, Math.ceil(S.hp)), 10, HEART, EMPTY, true);
+    if (fc) pip(fc, Math.max(0, Math.ceil(S.food)), 10, FOODC, DRY, false);
   }
   CF.survRefresh = hudRefresh;
 
@@ -4852,12 +4873,19 @@ window.CF = window.CF || {};
       CF.onTick && CF.onTick();
       if (CF.renderDraw) CF.renderDraw(CF.camera || { pos: [8, CF.world ? CF.world.heightAt(0, 0) + 26 : 90, 8], yaw: 0.7, pitch: -0.9 });
       CF.simMs = performance.now() - t0;
+      CF.lastSimAt = performance.now(); // #047: rAF interpolates camera between 20Hz sim ticks
       CF.ticks++;
     }, 50);
     CF.stopGameLoop = () => { clearInterval(loopId); CF.stopDraw = true; };
     function frame() {
       if (CF.stopDraw) return;
       if (CF.renderDraw) {
+        // #047 smooth camera: lerp the player's eye position from prevPos->pos by elapsed tick fraction
+        if (CF.player && !CF.freeCam && !CF.sleeping && CF.player.prevPos) {
+          const P = CF.player, a = Math.min(1, (performance.now() - (CF.lastSimAt || performance.now())) / 50);
+          const l = (i) => P.prevPos[i] + (P.pos[i] - P.prevPos[i]) * a;
+          CF.camera = { pos: [l(0), l(1) - 0.9 + 1.62, l(2)], yaw: P.yaw, pitch: P.pitch };
+        }
         CF.renderDraw(CF.camera || { pos: [8, CF.world ? CF.world.heightAt(0, 0) + 26 : 90, 8], yaw: 0.7, pitch: -0.9 });
       } else {
         gl.clearColor(0.6, 0.75, 1.0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
