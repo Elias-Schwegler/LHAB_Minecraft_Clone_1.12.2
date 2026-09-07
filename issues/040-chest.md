@@ -37,3 +37,5 @@
   coal5/iron3/log8 rendered w/ correct icons+counts, Main shows apple4, furnace panel hidden, chest block
   visible in-world right, hotbar/inventory intact, no magenta.
 - Follow-ups -> #044: chest facing (metadata rotation), lid-open anim, double chests, item entities for drops.
+
+> RETRO (#043 P1 audit note, audit #6 F2): the (64,48)/(80,48) cells cited above were NOT free - the gen.py icon-stride bug had item tiles there. Cells relocated to (64,96)/(80,96) and atlas regenerated collision-free; sheets re-shot 2026-09-07. Claim verified-correct again post-fix.

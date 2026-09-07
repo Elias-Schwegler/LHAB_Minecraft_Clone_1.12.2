@@ -11,10 +11,10 @@ shot.mjs PNG + vision verdict. `parity.mjs` counts a variant ONLY if the game re
 marks it `functional:true` AND `qa/blocks/<variant>.png` exists AND a texture tile is
 Blender-sourced (`tools/tex` manifest). No self-declared counts.
 
-## Block % (tiered) — live from parity.mjs (2026-09-06, re-verified; earlier table had drifted at 14)
+## Block % (tiered) — live from parity.mjs (2026-09-07 #043 close: t1=20; water+lava joined via bucket proofs)
 | Tier | variants total | functional | % |
 |------|---------------|-----------|---|
-| 1 | 125 | 18 | 14.4% |
+| 1 | 125 | 20 | 16.0% |
 | 2 | 163 | 0 | 0% |
 | 3 | 111 | 0 | 0% |
 | **all** | **399** | **20** | **5.0%** |
@@ -35,7 +35,7 @@ wood variants (no tiles), all Tier-2/3 families.
 ### Tier-1 (50% bar gate)
 [ ] chunked infinite worldgen w/ biomes + ores + caves   <- #002 asserts+shot; streaming-unlimited pending
 [x] block place/break/AABB collision                     <- #005/#006 interact asserts + walking.png
-[ ] 1.9-style player physics + combat cooldown           <- #005 physics asserted; cooldown needs combat
+[x] 1.9-style player physics + combat cooldown           <- #005 physics asserts + #036 charge-meter combat w/ per-tool cooldown (items.*+mob.* asserts: mob.cdm-* window tests, starter combat shots)
 [x] hotbar/inventory/drag-drop                           <- #025 (ui.open/drag/result/craft-collect asserts, ui-inventory.png)
 [ ] crafting grid + recipe book + smelting                        <- grid/recipes/smelting #024 (items.planks/torch/table/iron-pickaxe/smelt asserts); recipe BOOK UI missing
 [x] day/night + sky/block light engine                   <- #020 light + #021 cycle (time.* asserts, night shots)
@@ -54,4 +54,4 @@ wood variants (no tiles), all Tier-2/3 families.
 
 ### Tier-2 / Tier-3: see REFERENCE.md §tiers + backlog epics; parity.mjs prints live table.
 
-Last auto-run: (parity.mjs appends automatically)
+Last auto-run: 2026-09-07 (20/399, audit #6 re-ran independently) - parity.mjs writes qa/parity-latest.json; this doc's table is updated MANUALLY at each merge (audit #6 F5)

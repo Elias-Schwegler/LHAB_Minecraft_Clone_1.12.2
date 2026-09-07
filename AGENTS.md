@@ -1,15 +1,15 @@
 # AGENTS.md — project STATE memory (1-minute grounding)
 Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each session) · Spec: docs/REFERENCE.md
 
-## Current state (2026-09-07, sprint 03 it18)
-- Tags: v0.0.0 scaffold → v0.1.0 sprint01+fixes → v0.2.0 SPRINT 02 CLOSED (audit #4 READY).
-- Sprint 03 ACTIVE: #033 #035 #032 #036 #037 #038 #042 #039 #040 #041 #046 #047 #043 #034 DONE (#043 closed
+## Current state (2026-09-07, SPRINT 03 CLOSED - planning sprint 04)
+- Tags: v0.0.0 scaffold → v0.1.0 sprint01+fixes → v0.2.0 sprint02 closed -> v0.3.0 SPRINT 03 CLOSED (audit #6 READY-WITH-NOTES, 7 P3 fixed same-close).
+- Sprint 03 ACTIVE: #033 #035 #032 #036 #037 #038 #042 #039 #040 #041 #046 #047 #043 #034 ALL DONE (#043 closed
   #031 + fixed P1 atlas icon-stride bug; README+GitHub origin+issue mirror done).
-  NEXT: #034 SPK-7 GO. Sprint issues COMPLETE -> #044/#045/#048 backlog,
-  CEREMONIES: audit#6 (sub-agent full), review/retro/METRICS, tag v0.3.0, then sprint 04 planning.
+  SPRINT 04 NEXT (plan doc docs/sprints/04.md): nether/dimension FEAT (SPK-7 GO design!), #044 mob polish, #045 3x3 GUI,
+  #048 fidelity (+F7 black patch), spider/enderman, redstone SPK (Tier-2 gate), infinite-streaming verify, recipe book.
 - Gate: TEST GREEN 203 full / 191 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 20/399 (TNT/chest/bed functional:false -
   procedural tiles, not Blender; mechanics shipped+tested, not counted: honest)
-  proof-bound (t1 20/125): 15 core blocks + torch + furnace + water + lava (#043 buckets).
+  proof-bound (t1 20/125): 15 core+torch+glowstone+furnace + water+lava (#043 buckets).
 - Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy TWO-SIDED faces+AO-less shaded+light+fog),
   break/place/drops/tiers+crafting+smelting, items/inventory/UI, physics(snap-ratchet fixed #046), day/night, block+sky light,
   fluids v1, survival stats+HUD, save/load, F3 v2, torch per-face, MOB CORE v1 (entity physics, light<=7

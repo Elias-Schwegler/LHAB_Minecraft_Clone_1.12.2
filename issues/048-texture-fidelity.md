@@ -16,6 +16,7 @@ but for the record:
 - [ ] bucket sprite: MC-shaped handle loop (current is a serviceable cup+rim)
 - [ ] block 'block' shot scenario: freeze worldTick for fluid blocks (lava/water sources spread over the
       whole pedestal pad during the 300ms virtual wait -> sheets show floods, not pedestals)
+- [ ] fluid-pool.png shows a solid-black rectangular patch on the pool left side (audit #6 F7 - light hole or degenerate quad? non-banding)
 - [ ] regenerate atlas + all 25 qa/blocks sheets + vision re-pass after changes
 
 ## Acceptance criteria
