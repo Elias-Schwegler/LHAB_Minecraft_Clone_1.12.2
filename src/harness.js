@@ -106,15 +106,19 @@
     const reg = CF.REGISTRY[name];
     const key = Object.keys(reg.variants)[0];
     const id = reg.variants[key].id;
+    document.title = 'BS:1-' + name;
     const by = 70;
     for (let x = 7; x <= 13; x++) for (let z = 7; z <= 13; z++) for (let y = by - 2; y < by + 8; y++) W.set(x, y, z, 0);
     for (let x = 7; x <= 13; x++) for (let z = 7; z <= 13; z++) W.set(x, by, z, CF.IDOF['stone']);
     W.set(10, by + 1, 10, id);
+    document.title = 'BS:2';
     for (let i = 0; i < 100; i++) CF.renderTick();
+    document.title = 'BS:3';
     const camx = 13.4, camy = by + 2.6, camz = 13.4, tx = 10.5, ty = by + 1.5, tz = 10.5;
     const horiz = Math.hypot(camx - tx, camz - tz);
     CF.camera = { pos: [camx, camy, camz], yaw: Math.atan2(tx - camx, tz - camz), pitch: -Math.atan2(camy - ty, horiz) };
     CF.renderDraw(CF.camera);
+    document.title = 'BS:4';
     await new Promise((r) => setTimeout(r, 300));
   };
   CF.shotScenarios['walking'] = async () => {
@@ -286,6 +290,27 @@
   if (h === '#test') runTests('all');
   else if (h.startsWith('#test=')) runTests(decodeURIComponent(h.slice(6)));
   else if (h.startsWith('#shot=')) runShot(h.slice(6));
+  CF.shotScenarios['bucket-demo'] = async () => { // #043: bucket icons in hotbar + source pools, seen from the corner
+    CF.freeCam = true;
+    const W = CF.world, rx = 44, rz = 160, py = 64;
+    W.ensureAround(rx, rz, 2);
+    for (let i = 0; i < 40 && W.stats().queue; i++) W.tick();
+    const h0 = Math.max(W.heightAt(rx, rz), 8);
+    for (let x = rx - 6; x <= rx + 6; x++) for (let z = rz - 6; z <= rz + 6; z++) {
+      for (let y = h0 + 1; y <= h0 + 6; y++) W.set(x, y, z, 0);
+      W.set(x, h0, z, CF.IDOF['stone']);
+    }
+    for (let x = rx - 3; x <= rx - 1; x++) for (let z = rz - 2; z <= rz; z++) { W.set(x, h0 + 1, z, CF.IDOF['water']); W.flatSet(x, h0 + 1, z, 0); }
+    for (let x = rx + 1; x <= rx + 3; x++) for (let z = rz - 2; z <= rz; z++) { W.set(x, h0 + 1, z, CF.IDOF['lava']); W.flatSet(x, h0 + 1, z, 0); }
+    CF.mobTick = () => {}; CF.survival = false;
+    CF.inv.fill(null);
+    CF.inv[0] = { name: 'bucket', count: 1 }; CF.inv[1] = { name: 'water_bucket', count: 1 }; CF.inv[2] = { name: 'lava_bucket', count: 1 };
+    CF.timeOffset = 600;
+    CF.camera = { pos: [rx + 9, h0 + 7, rz + 9], yaw: Math.atan2(-9, -9), pitch: -0.5 };
+    for (let i = 0; i < 200 && W.dirty.size; i++) CF.renderTick();
+    CF.renderDraw(CF.camera);
+    await new Promise((res) => setTimeout(res, 400));
+  };
   CF.shotScenarios['mob-px'] = async () => { // #046 debug/evidence: EXACT mob.px-draw test setup, visible
     CF.freeCam = true;
     const W = CF.world, M = CF.mobs, rx = 44, rz = 100, py0 = 96;

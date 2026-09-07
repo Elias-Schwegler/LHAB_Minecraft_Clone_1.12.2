@@ -87,14 +87,18 @@ window.CF = window.CF || {};
     return { progress: m.progress / m.need };
   };
 
+  CF.cellHitsPlayer = (tx, ty, tz) => { // #043 shared placement rule (place + bucket)
+    const p = CF.player;
+    const ox = Math.abs(p.pos[0] - (tx + 0.5)) < 0.3 + 0.5 && Math.abs(p.pos[2] - (tz + 0.5)) < 0.3 + 0.5;
+    const oy = p.pos[1] - 0.9 < ty + 1 && p.pos[1] + 0.9 > ty;
+    return ox && oy;
+  };
+
   CF.place = (hit) => {
     if (!hit) return false;
     const tx = hit.x + hit.face[0], ty = hit.y + hit.face[1], tz = hit.z + hit.face[2];
     if (CF.world.get(tx, ty, tz)) return false;
-    const p = CF.player;
-    const ox = Math.abs(p.pos[0] - (tx + 0.5)) < 0.3 + 0.5 && Math.abs(p.pos[2] - (tz + 0.5)) < 0.3 + 0.5;
-    const oy = p.pos[1] - 0.9 < ty + 1 && p.pos[1] + 0.9 > ty;
-    if (ox && oy) return false;
+    if (CF.cellHitsPlayer(tx, ty, tz)) return false;
     const id = CF.hotId();
     if (!id) return false;
     const v = CF.BY_ID[id];
@@ -123,7 +127,7 @@ window.CF = window.CF || {};
   window.addEventListener('mousedown', (e) => {
     if (!CF.player) return;
     if (e.button === 0) CF.mineStart(CF.aim());
-    if (e.button === 2) { if (!(CF.useFlintSteel && CF.useFlintSteel(CF.aim())) && !(CF.useBlock && CF.useBlock(CF.aim())) && !(CF.mobFeed && CF.mobFeed()) && !(CF.useHeld && CF.useHeld())) CF.place(CF.aim()); }
+    if (e.button === 2) { if (!(CF.useFlintSteel && CF.useFlintSteel(CF.aim())) && !(CF.useBlock && CF.useBlock(CF.aim())) && !(CF.useBucket && CF.useBucket(CF.aim())) && !(CF.mobFeed && CF.mobFeed()) && !(CF.useHeld && CF.useHeld())) CF.place(CF.aim()); }
   });
   window.addEventListener('mouseup', () => { CF.mining = null; });
   window.addEventListener('wheel', (e) => { CF.sel = (CF.sel + (e.deltaY > 0 ? 1 : -1) + CF.hotbar.length) % CF.hotbar.length; CF.uiRefresh && CF.uiRefresh(); });

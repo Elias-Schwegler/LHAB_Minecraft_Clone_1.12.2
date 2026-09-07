@@ -17,15 +17,17 @@ Blender-sourced (`tools/tex` manifest). No self-declared counts.
 | 1 | 125 | 18 | 14.4% |
 | 2 | 163 | 0 | 0% |
 | 3 | 111 | 0 | 0% |
-| **all** | **399** | **18** | **4.5%** |
+| **all** | **399** | **20** | **5.0%** |
 
 Counted (evidence: qa/blocks/*.png + blender tiles + functional flag + test asserts):
 stone, grass, dirt, cobblestone, planks:oak, log:oak, leaves:oak, sand, gravel, glass,
 obsidian, coal/iron/gold/diamond ore (t1) = 15, + glowstone (#020, qa/blocks + light asserts),
 + torch (#024, cross-model + per-face attach asserts), + furnace (#032, ui.furn-* GUI asserts +
-smelt pipeline) = **18**.
+smelt pipeline), + water + lava (#043, items.bucket-* 7 asserts + fluids.* incl. bucket-lava glow +
+fluid/bucket-demo shots; counted HONESTLY post-atlas-P1-fix: tiles were stride-overlapped until #043
+regenerated the atlas - sheets re-shot on the fixed build 2026-09-07) = **20**.
 (2026-09-04 audit: snow cube was 1.13-era -> snow_layer t2 unimplemented; functional flags now proof-bound
-via parity.mjs; water/lava NOT counted until buckets #031)
+via parity.mjs; water/lava counted since #043 buckets)
 Not counted though registered: bedrock (creative-only, §7 'breakable' fails), red_sand +
 wood variants (no tiles), all Tier-2/3 families.
 
@@ -38,7 +40,7 @@ wood variants (no tiles), all Tier-2/3 families.
 [ ] crafting grid + recipe book + smelting                        <- grid/recipes/smelting #024 (items.planks/torch/table/iron-pickaxe/smelt asserts); recipe BOOK UI missing
 [x] day/night + sky/block light engine                   <- #020 light + #021 cycle (time.* asserts, night shots)
 [ ] gravity blocks (sand/gravel/concrete_powder)  <- sand+gravel done #013 asserts; concrete_powder pending
-[x] water/lava flow + obsidian/cobblestone            <- #022 asserts (spread/caps/3 Java interactions) + fluid shots; buckets->#031
+[x] water/lava flow + obsidian/cobblestone            <- #022 asserts (spread/caps/3 Java interactions) + #043 (1.12 delays water5/lava30, mover-resolves-contact, fluids.lava-slow, bucket round-trip, bucket-demo.png reaction ring)
 [x] torches + spawn-by-light rules                         <- #024/#028 torch asserts + #035 light<=7 spawn + #039 caps(70/10)/per-chunk scheduler/despawn bands (mob.* asserts, mob-crowd.png)
 [ ] hostile mobs (zombie/skeleton/creeper/spider/enderman) + passive w/ breeding   <- zombie+skeleton+creeper #035-#037 AND pig/cow/sheep (wander/breed/drop) #038 (mob.* asserts, mob-*.png); spider/enderman/other species -> #039+/#044
 [x] health/hunger/fall damage                          <- #026 (surv.* asserts + hud-low.png)

@@ -193,29 +193,40 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
       px.data[(127 * 128 + 127) * 4 + 0] = 255; px.data[(127 * 128 + 127) * 4 + 1] = 0;
       px.data[(127 * 128 + 127) * 4 + 2] = 255; px.data[(127 * 128 + 127) * 4 + 3] = 255;
       ctx.putImageData(px, 0, 0);
-      // #042 TNT tiles drawn procedurally into free atlas cells (no Blender, zero-download; block
-      // stays functional:false so parity is untouched). tnt_side at (32,48), tnt_top at (48,48).
+      // #042/#040/#041/#043 procedurally painted tiles in FREE atlas cells (zero-download rule; these
+      // blocks stay functional:false so parity is untouched). NOTE (#043 P1 fix): until the gen.py row-
+      // stride fix these cells collided with real item icons; free row layout now = y96 (from x32) + y112.
       const cell = (ox, oy, fn) => { for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { const c = fn(x, y); ctx.fillStyle = c; ctx.fillRect(ox + x, oy + y, 1, 1); } };
-      cell(32, 48, (x, y) => (y >= 6 && y <= 9) ? (x % 4 < 2 ? '#3a2018' : '#d8d2c0') : (y < 3 || y > 12 ? '#a83028' : '#c84030')); // red body, dark band, "TNT" hint
-      cell(48, 48, (x, y) => (x > 6 && x < 9 && y > 6 && y < 9) ? '#e8d040' : (x > 5 && x < 10 && y > 7 && y < 9 ? '#3a3a3a' : ((x % 2) ^ (y % 2) ? '#6a6a6a' : '#4a4a4a'))); // grey gunpowder top + fuse
-      // #040 chest tiles (free cells): lid seam + latch
-      cell(64, 48, (x, y) => (y === 4 || y === 5) ? '#6a4a22' : (x > 6 && x < 9 && y > 5 && y < 9) ? '#d8d2c0' : (y > 12 ? '#5a3c1a' : ((x + y) % 7 === 0 ? '#7a5528' : '#8a6230')));
-      cell(80, 48, (x, y) => (y > 6 && y < 9) ? '#6a4a22' : ((x + y) % 6 === 0 ? '#7a5528' : '#96703a'));
-      cell(112, 16, (x, y) => { // #031/#043: blender water tile was half-empty (camera-plane bug) - repaint: blue w/ wave streaks, ~55% opaque
-        const w = Math.sin((x + y * 2) * 0.9) > 0.6 ? 1 : 0, n = ((x * 7 + y * 13) % 5) - 2;
-        return w ? 'rgba(120,190,255,0.72)' : `rgba(${42 + n},${106 + n},${208 + n},0.62)`;
-      });
-      cell(0, 32, (x, y) => { // #031/#043: lava: bright orange noise + veins (MC emissive feel)
-        const n = (x * 11 + y * 17 + (x ^ y) * 5) % 7;
-        return n === 0 ? '#f8c858' : n < 3 ? '#e86818' : '#c8380a';
-      });
-      // #041 bed tiles: red blanket + white pillow (head side of top), wooden frame edge
-      cell(96, 48, (x, y) => (y < 3 || y > 12) ? '#6a4a22' : (x < 3 ? '#6a4a22' : '#c03830'));
-      cell(112, 48, (x, y) => (y < 2 || y > 13) ? '#6a4a22' : (y < 5 ? '#e8e4da' : '#c03830'));
+      cell(32, 96, (x, y) => (y >= 6 && y <= 9) ? (x % 4 < 2 ? '#3a2018' : '#d8d2c0') : (y < 3 || y > 12 ? '#a83028' : '#c84030')); // tnt_side: red body, dark band, "TNT" hint
+      cell(48, 96, (x, y) => (x > 6 && x < 9 && y > 6 && y < 9) ? '#e8d040' : (x > 5 && x < 10 && y > 7 && y < 9 ? '#3a3a3a' : ((x % 2) ^ (y % 2) ? '#6a6a6a' : '#4a4a4a'))); // tnt_top: grey gunpowder + fuse
+      // #040 chest tiles: lid seam + latch
+      cell(64, 96, (x, y) => (y === 4 || y === 5) ? '#6a4a22' : (x > 6 && x < 9 && y > 5 && y < 9) ? '#d8d2c0' : (y > 12 ? '#5a3c1a' : ((x + y) % 7 === 0 ? '#7a5528' : '#8a6230')));
+      cell(80, 96, (x, y) => (y > 6 && y < 9) ? '#6a4a22' : ((x + y) % 6 === 0 ? '#7a5528' : '#96703a'));
+      // #041 bed tiles: red blanket + white pillow (head), wooden frame edge
+      cell(96, 96, (x, y) => (y < 3 || y > 12) ? '#6a4a22' : (x < 3 ? '#6a4a22' : '#c03830'));
+      cell(112, 96, (x, y) => (y < 2 || y > 13) ? '#6a4a22' : (y < 5 ? '#e8e4da' : '#c03830'));
+      const T43 = 'rgba(0,0,0,0)';
+      const bucket = (fill) => (x, y) => { // #043 MC-style bucket sprites (empty/water/lava) on free row y=112
+        if (y === 5 && x >= 3 && x <= 12) return '#d8d8d8'; // rim
+        if (y === 4 && (x === 3 || x === 12)) return '#c0c0c0';
+        if (y >= 6 && y <= 13 && x >= 3 && x <= 12) {
+          if (fill && y >= 7 && y <= 9 && x >= 4 && x <= 11) return fill === 'lava' ? (y % 2 ? '#e86818' : '#f8c858') : (y % 2 ? '#3f76e4' : '#4a84f0');
+          if (x <= 4 || x >= 11) return '#8a8a8a'; // side shading (MC buckets taper lighter->darker)
+          return y >= 10 && !fill ? '#b4b4b4' : '#c6c6c6';
+        }
+        return T43;
+      };
+      cell(0, 112, bucket(null)); cell(16, 112, bucket('water')); cell(32, 112, bucket('lava'));
       CF.__tntCellsDrawn = true;
       gl.bindTexture(gl.TEXTURE_2D, tex);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cv);
       texReady = true;
+      // #043: hand the UI the PAINTED atlas (bucket/tnt/chest/bed/water cells) - hotbar icons then match GL
+      try {
+        const url = cv.toDataURL();
+        window.__ATLAS_B64 = url.slice(url.indexOf(',') + 1);
+        document.documentElement.style.setProperty('--cfatlas', 'url(' + url + ')');
+      } catch (e) { /* tainted canvas impossible (same-origin data URL), keep static icons if so */ }
     };
     if (window.__ATLAS_B64) img.src = 'data:image/png;base64,' + window.__ATLAS_B64;
     // #035 solid-color palette for mob boxes (16x1, texture unit 1). Generated in-code: zero assets,

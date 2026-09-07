@@ -26,7 +26,7 @@ node tools/build.mjs                      # src/* (+atlas b64) -> game/index.htm
 node --check src/mobs.js                  # after big edits: build is CONCAT-ONLY, a duplicate const in a
                                           # shared function scope parses per-file but kills the whole bundle
                                           # at runtime (boot hangs, no TESTRESULT). --check each edited src/*.js.
-node tools/test.mjs                       # full gate: 15 suites, expect "TEST GREEN" (193 asserts as of #046)
+node tools/test.mjs                       # full gate: 15 suites, expect "TEST GREEN" (203 asserts as of #043)
 node tools/test.mjs --quick               # dev loop (skips slow: grass/time/fluids); ~144s WALL since #046
                                           # (two-sided mesher ~2x buildMesh; in-page SIM time lies - wall is real)
 node tools/test.mjs --suites=world,light  # surgical
@@ -108,6 +108,24 @@ Engine/logic:
   not natural terrain — trees break LOS (creeper won't fuse) and holes desync the player (stale-onGround fall ->
   respawn mid-test). The mob.explode crater destroys the floor -> duel() re-fills it every call.
 - `x || default` falsy trap for counters where 0 is meaningful (atkTick=0 rendered as 20). Use === undefined.
+- ASSET MANIFEST LIES ARE SILENT: gen.py icon placer used `(idx//GRID)*GRID` (8px) instead of `*SIZE`
+  -> item icons baked OVER block tiles for the whole of sprint 02 (furnace rendered black). parity.mjs
+  checks tile EXISTS, not that PNG pixels land where the JSON says. After ANY tex/gen change: collision-
+  check manifest (no two names share x,y) + VISION-CHECK the regenerated atlas.png + block sheets.
+  Runtime "free cell" paints must be re-derived from the CURRENT manifest each time cells move.
+- Headless repro pattern (cracked relight-perf + fluid-delay in minutes, not browser round-trips):
+  spike/worldsim.cjs = load registry.js+world.js via new Function() with window/document/location stubs,
+  run the EXACT failing sequence, time tick phases via an instrumented copy (spike/lightprof.cjs).
+  A "browser hangs" shot on an await-y page usually = one very slow SYNC loop, not a deadlock.
+- Relight re-seed rule of thumb (#043): after clearing a region, only (a) emitter blocks, (b) open sky
+  columns, (c) the perimeter ring and (d) light that lived UNDER COVER need re-pushing (covered-cell
+  test = one array read). The old 6x lightAt() per cell = ~600ms relights (12/tick budget -> freeze).
+  Skylight seeds must run for LIQUIDS too (lava light never seeded = glowed 0 for sprints).
+- PowerShell SET-CONTENT -NoNewline ON A (Get-Content) ARRAY FLATTENS THE FILE TO ONE LINE - the whole
+  file becomes comment/code mush that still passes `node --check` (it parsed as one giant line...).
+  Multi-line edits: use the Edit tool (or join with `r`n`). This cost a full diagnosis cycle.
+- Item stack sizes are per-item in 1.12 (tools/buckets=1, eggs=16...): CF.give honors ITEMS[x].stack now -
+  set it on any new non-block item or it stacks 64 (MC-wrong + bucket swap math breaks).
 - Mixed dirty tree from an interrupted session: `git stash push -m tag -- path1 path2` to split into clean
   per-issue merges, `git stash pop` after the first merge. Verify each partial state builds+tests GREEN alone.
 - PS unicode: -replace on content containing -> / em-dash often MISSES (encoding); use the Edit tool for

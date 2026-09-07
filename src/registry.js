@@ -702,7 +702,7 @@ window.CF.REGISTRY = /*REGISTRY-START*/
   "tier": 1,
   "variants": {
    "default": {
-    "functional": false,
+    "functional": true,
     "tiles": [
      "water",
      "water",
@@ -717,7 +717,19 @@ window.CF.REGISTRY = /*REGISTRY-START*/
     "minTier": 9,
     "solid": false,
     "light": 0,
-    "liquid": "water"
+    "liquid": "water",
+    "proof": {
+     "issue": "#043",
+     "tests": [
+      "fluids.spread",
+      "fluids.obsidian",
+      "fluids.solidify",
+      "items.bucket-fill",
+      "items.bucket-place",
+      "items.bucket-no-flow",
+      "items.bucket-self-place"
+     ]
+    }
    }
   }
  },
@@ -726,7 +738,7 @@ window.CF.REGISTRY = /*REGISTRY-START*/
   "tier": 1,
   "variants": {
    "default": {
-    "functional": false,
+    "functional": true,
     "tiles": [
      "lava",
      "lava",
@@ -741,7 +753,16 @@ window.CF.REGISTRY = /*REGISTRY-START*/
     "minTier": 9,
     "solid": false,
     "light": 15,
-    "liquid": "lava"
+    "liquid": "lava",
+    "proof": {
+     "issue": "#043",
+     "tests": [
+      "fluids.lava-slow",
+      "fluids.stone-lava-into-water",
+      "items.bucket-lava",
+      "items.bucket-fill"
+     ]
+    }
    }
   }
  }
