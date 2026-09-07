@@ -217,7 +217,8 @@ window.CF = window.CF || {};
           for (let y = CH - 1; y >= 1; y--) {
             const id = c.arr[(y * CZ + lz) * CX + lx];
             const liq = id && CF.BY_ID[id] && CF.BY_ID[id].liquid;
-            if (id && !liq) {
+            const passable = liq || (id && CF.BY_ID[id].boxes && !(flatAt(c.cx * CX + lx, y, c.cz * CZ + lz) & 4)); // #052: 1.12 slabs pass skylight (only doubles opaque)
+            if (id && !passable) {
               const lv = CF.BY_ID[id] ? CF.BY_ID[id].light : 0;
               if (lv) { c.light[(y * CZ + lz) * CX + lx] = lv; pushQ(c.cx * 16 + lx, y, c.cz * 16 + lz, 0, lv); }
               sky = 0;
@@ -258,7 +259,11 @@ window.CF = window.CF || {};
           if (!c2) continue; // unloaded = opaque boundary (v1)
           if (!c2.light) c2.light = new Uint8Array(CX * CH * CZ);
           const cell = lightCell(c2, nx, ny, nz);
-          if (c2.arr[cell] && !(CF.BY_ID[c2.arr[cell]] && CF.BY_ID[c2.arr[cell]].liquid)) continue; // opaque stops; liquids pass
+          {
+            const nid2 = c2.arr[cell];
+            const pass2 = nid2 && (CF.BY_ID[nid2].liquid || (CF.BY_ID[nid2].boxes && !(flatAt(nx, ny, nz) & 4))); // #052 slabs pass light; doubles don't
+            if (nid2 && !pass2) continue; // opaque stops; liquids + open-half slabs pass
+          }
           const ns = s === 15 ? 15 : s ? (dy !== 0 ? s : s - 1) : 0; // MC rule: FULL 15 skylight NEVER decays (any dir); else vertical free-fall keeps level, horizontal -1 (fixes #031 banding: pool rows were getting sky 14 under canopy gaps)
           const nb = b ? b - 1 : 0;
           if (!ns && !nb) continue;

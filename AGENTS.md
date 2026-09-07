@@ -7,8 +7,8 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   #031 + fixed P1 atlas icon-stride bug; README+GitHub origin+issue mirror done).
   SPRINT 04 PLANNED+ACTIVE (docs/sprints/04.md, issues 049-059 mirrored): nether/dimension FEAT (SPK-7 GO design!), #044 mob polish, #045 3x3 GUI,
   #048 fidelity (+F7 black patch), spider/enderman, redstone SPK (Tier-2 gate), infinite-streaming verify, recipe book.
-    #049 #050 #051 DONE (wood+saplings 29/399, wool 45/399, storage+clay 50/399=12.5%). NEXT: #052 slabs, #053 stairs, #054 farming, #055+#056 NETHER, #057 redstone SPK,
-    #058 streaming, #059 recipe book; backlog #044/#045/#048 (+vines issue from mossy cut). Audit #7 at close. - Gate: TEST GREEN 214 full / 198 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 50/399 (TNT/chest/bed functional:false -
+    #049 #050 #051 #052 DONE (wood 29/399, wool 45, storage 50, SLABS multi-box model 53/399=13.3%). NEXT: #053 stairs, #054 farming, #055+#056 NETHER, #057 redstone SPK,
+    #058 streaming, #059 recipe book; backlog #044/#045/#048 (+vines issue from mossy cut). Audit #7 at close. - Gate: TEST GREEN 216 full / 200 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 53/399 (TNT/chest/bed functional:false -
   procedural tiles, not Blender; mechanics shipped+tested, not counted: honest)
   proof-bound (t1 20/125): 15 core+torch+glowstone+furnace + water+lava (#043 buckets).
 - Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy TWO-SIDED faces+AO-less shaded+light+fog),
@@ -25,6 +25,9 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
 
 ## Recent merges (newest first)
 - GIT DEBT: #051 direct-commit on main (90a1fe3) - rule restored from #052; see PLAYBOOK process line.
+- #052 slabs: multi-box model class (v.boxes + flat bits 2/4; mesher coverFace; physics cellTopAt
+  stand@+0.5; top-face upgrade->double drops 2; slabs pass skylight 1.12). Found+fixed 5 latent bugs incl.
+  boxes-at-chunk-origin + abs-UV. stone_slab cobble/stone + wooden oak; 216/200; slab-scene vision PASS.
 - #049 wood II: birch/jungle (log/planks/leaves) + sapling blocks w/ deterministic growSapling API + name-based
   decay + 20pct birch gen; atlas GRID12 192px + numpy icon pass (Cycles flattened icon alpha = black boxes);
   fixed 4 latent bugs: NaN liquid UVs (const A shadowed by coord A - water rendered green since #043!),

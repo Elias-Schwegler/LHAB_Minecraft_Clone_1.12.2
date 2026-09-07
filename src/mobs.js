@@ -118,13 +118,16 @@ window.CF = window.CF || {};
   };
 
   const solid = (x, y, z) => CF.solidAt(CF.world.get(Math.floor(x), Math.floor(y), Math.floor(z)));
-  function boxHits(hw, hh, px, py, pz) {
-    for (let x = Math.floor(px - hw); x <= Math.floor(px + hw); x++)
-      for (let y = Math.floor(py - hh + 0.001); y <= Math.floor(py + hh - 0.001); y++)
-        for (let z = Math.floor(pz - hw); z <= Math.floor(pz + hw); z++)
-          if (solid(x, y, z)) return true;
-    return false;
-  }
+  // #052: boxes-aware collider (player exports cellTopAt/solidSpanXZ; fallback keeps cell semantics)
+  const boxHit = (hw, hh, px, py, pz) => CF.solidSpanXZ
+    ? CF.solidSpanXZ(py - hh + 0.001, py + hh - 0.001, px, hw, pz)
+    : (function () {
+        for (let x = Math.floor(px - hw); x <= Math.floor(px + hw); x++)
+          for (let y = Math.floor(py - hh + 0.001); y <= Math.floor(py + hh - 0.001); y++)
+            for (let z = Math.floor(pz - hw); z <= Math.floor(pz + hw); z++)
+              if (solid(x, y, z)) return true;
+        return false;
+      })();
 
   // per-axis sweep, same shape as player.tick but input-free (AI is #036)
   M.step = (m, dt = 0.05) => {
@@ -132,26 +135,35 @@ window.CF = window.CF || {};
     m.vel[1] -= GRAV * dt;
     let [x, y, z] = m.pos;
     let nx = x + m.vel[0] * dt;
-    if (boxHits(hw, hh, nx, y, z)) {
+    if (boxHit(hw, hh, nx, y, z)) {
       const stepY = y + 0.6; // 1-block climb like the player
-      if (m.onGround && !boxHits(hw, hh, nx, stepY, z)) { y = stepY; nx = x + m.vel[0] * dt * 0.75; }
+      if (m.onGround && !boxHit(hw, hh, nx, stepY, z)) { y = stepY; nx = x + m.vel[0] * dt * 0.75; }
       else nx = x;
     }
     x = nx;
     let nz = z + m.vel[2] * dt;
-    if (boxHits(hw, hh, x, y, nz)) {
+    if (boxHit(hw, hh, x, y, nz)) {
       const stepY = y + 0.6;
-      if (m.onGround && !boxHits(hw, hh, x, stepY, nz)) { y = stepY; nz = z + m.vel[2] * dt * 0.75; }
+      if (m.onGround && !boxHit(hw, hh, x, stepY, nz)) { y = stepY; nz = z + m.vel[2] * dt * 0.75; }
       else nz = z;
     }
     z = nz;
     let ny = y + m.vel[1] * dt;
     m.onGround = false;
-    if (boxHits(hw, hh, x, ny, z)) {
+    if (boxHit(hw, hh, x, ny, z)) {
       if (m.vel[1] < 0) {
         m.onGround = true;
-        ny = Math.floor(ny - hh) + 1 + hh; // #046: rest on the penetrated surface (stale-y snap ratcheted mobs +1 block/tick)
-        for (let g = 0; g < 8 && boxHits(hw, hh, x, ny, z); g++) ny += 1; // push up out of deep penetration
+        // #052: solid-top scan (full cells + slab halves) like the player
+        const feet = ny - hh;
+        let top = -Infinity;
+        for (let sx = Math.floor(x - hw); sx <= Math.floor(x + hw); sx++)
+          for (let sz = Math.floor(z - hw); sz <= Math.floor(z + hw); sz++)
+            for (let sy = Math.floor(feet) - 1; sy <= Math.floor(feet) + 1; sy++) {
+              const sp = CF.cellTopAt(sx, sy, sz);
+              if (sp && sp[1] <= feet + 0.001 && sp[1] > top) top = sp[1];
+            }
+        ny = (isFinite(top) ? top : Math.floor(ny - hh) + 1) + hh;
+        for (let g = 0; g < 8 && boxHit(hw, hh, x, ny, z); g++) ny += 1; // push up out of deep penetration
       }
       else ny = Math.ceil(y + hh) - 1 - hh - 0.001;
       m.vel[1] = 0;
