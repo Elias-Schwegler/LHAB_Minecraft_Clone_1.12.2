@@ -110,6 +110,10 @@ window.CF = window.CF || {};
     P(['ggg', 'ggg', 'ggg'], { i: 'gold_ingot', g: 'gold_ingot' }, 'gold_block', 1),
     P(['ddd', 'ddd', 'ddd'], { i: 'diamond', d: 'diamond' }, 'diamond_block', 1),
     P(['bb', 'bb'], { b: 'brick' }, 'brick_block', 1),
+    // #052 slabs: 3 same material in a row -> 6
+    P(['ccc'], { c: 'cobblestone' }, 'stone_slab:cobblestone', 6),
+    P(['sss'], { s: 'stone' }, 'stone_slab:stone', 6),
+    P(['ppp'], { p: 'planks' }, 'wooden_slab:oak', 6),
     { shapeless: { iron_block: 1 }, out: { name: 'iron_ingot', n: 9 } },
     { shapeless: { gold_block: 1 }, out: { name: 'gold_ingot', n: 9 } },
     { shapeless: { diamond_block: 1 }, out: { name: 'diamond', n: 9 } },

@@ -304,6 +304,40 @@
     gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.deleteFramebuffer(fb);
     await new Promise((res) => setTimeout(res, 100));
   };
+  CF.shotScenarios['slab-scene'] = async () => { // #052: bottom/top/double slabs scene
+    CF.freeCam = true;
+    const W = CF.world, rx = 260, rz = 260;
+    W.ensureAround(rx, rz, 1);
+    for (let i = 0; i < 30 && W.stats().queue; i++) W.tick();
+    const h0 = Math.max(W.heightAt(rx, rz), 8);
+    for (let x = rx - 5; x <= rx + 5; x++) for (let z = rz - 5; z <= rz + 5; z++) {
+      for (let y = h0 + 1; y <= h0 + 10; y++) W.set(x, y, z, 0);
+      W.set(x, h0, z, CF.IDOF['stone']);
+    }
+    W.set(rx - 2, h0 + 1, rz, CF.IDOF['stone_slab:cobblestone']); // bottom cobble
+    W.set(rx - 1, h0 + 1, rz, CF.IDOF['stone_slab:cobblestone']); W.flatSet(rx - 1, h0 + 1, rz, 4); // double cobble
+    W.set(rx, h0 + 1, rz, CF.IDOF['wooden_slab:oak']); W.flatSet(rx, h0 + 1, rz, 2); // top-half oak
+    W.set(rx + 1, h0 + 1, rz, CF.IDOF['stone_slab:stone']); W.flatSet(rx + 1, h0 + 1, rz, 4); // double stone
+    for (let i = 0; i < 400 && W.dirty.size; i++) CF.renderTick();
+    for (let i = 0; i < 10; i++) CF.renderTick();
+    CF.camera = { pos: [rx - 1, h0 + 3.2, rz + 6], yaw: Math.atan2(rx - 0.5 - (rx - 1), rz - (rz + 6)), pitch: -0.22 };
+    CF.renderDraw(CF.camera);
+    { // #052 trace
+      const cells = {};
+      for (const dx of [-2, -1, 0, 1]) for (const dy of [0, 1]) {
+        const id = W.get(rx + dx, h0 + dy, rz);
+        cells[dx + ',' + dy] = [id, id ? CF.BY_ID[id].name + ':' + CF.BY_ID[id].variant : 'air', W.flatAt(rx + dx, h0 + dy, rz)];
+      }
+      const q = new Uint8Array(4); CF.gl.readPixels((CF.canvas.width * 0.5) | 0, (CF.canvas.height * 0.5) | 0, 1, 1, CF.gl.RGBA, CF.gl.UNSIGNED_BYTE, q);
+      CF.renderDraw({ pos: [rx - 1.5, h0 + 5, rz + 0.01], yaw: Math.PI + 0.01, pitch: -1.2 });
+      const q2 = new Uint8Array(4); CF.gl.readPixels((CF.canvas.width * 0.5) | 0, (CF.canvas.height * 0.5) | 0, 1, 1, CF.gl.RGBA, CF.gl.UNSIGNED_BYTE, q2);
+      CF.renderDraw({ pos: [rx - 1.5, h0 + 8, rz + 3.99], yaw: Math.PI, pitch: -0.9 });
+      const q3 = new Uint8Array(4); CF.gl.readPixels((CF.canvas.width * 0.5) | 0, (CF.canvas.height * 0.44) | 0, 1, 1, CF.gl.RGBA, CF.gl.UNSIGNED_BYTE, q3);
+      document.title = 'SS:' + JSON.stringify({ h0, mid: [q[0], q[1], q[2]], over: [q2[0], q2[1], q2[2]], overBottom: [q3[0], q3[1], q3[2]], lights: [W.lightAt(rx - 2, h0 + 1, rz + 1), W.lightAt(rx - 2, h0 + 2, rz), W.lightAt(rx - 1, h0 + 2, rz + 1)], tris: CF.rendererStats.tris });
+      CF.renderDraw(CF.camera);
+    }
+    await new Promise((res) => setTimeout(res, 300));
+  };
   CF.shotScenarios['storage-wall'] = async () => { // #051: gold/iron/diamond/brick/clay row
     CF.freeCam = true;
     const W = CF.world, rx = 120, rz = 120;

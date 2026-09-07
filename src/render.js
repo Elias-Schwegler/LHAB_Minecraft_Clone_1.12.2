@@ -18,8 +18,80 @@ window.CF = window.CF || {};
     const off = [cx * CX, 0, cz * CZ];
     const dims = [CX, CH, CZ];
     const coord = (a, ua, va, d, u, v) => { const Q = [0, 0, 0]; Q[a] = d; Q[ua] = u; Q[va] = v; for (let i = 0; i < 3; i++) Q[i] += off[i]; return Q; };
+    // #052 multi-box model pass (slabs etc): per-cell explicit boxes, per-face neighbor culling.
+    // v.boxes = [[x0,y0,z0,x1,y1,z1],...] in cell-local 0..1; variant meta via flat bits: 2=top-half,4=double.
+    const boxCells = [];
+    for (let x = 0; x < CX; x++) for (let z = 0; z < CZ; z++) for (let y = 1; y < CH - 1; y++) {
+      const id = W.get(cx * CX + x, y, cz * CZ + z);
+      const v = id && CF.BY_ID[id];
+      if (v && v.boxes) boxCells.push([x, y, z, v, id]);
+    }
+    for (const [x, y, z, v, id] of boxCells) {
+      const fmeta = W.flatAt ? W.flatAt(cx * CX + x, y, cz * CZ + z) : 0;
+      const boxes = (fmeta & 4) ? [[0, 0, 0, 1, 1, 1]] : (fmeta & 2) ? [[0, 0.5, 0, 1, 1, 1]] : v.boxes;
+      const wx = cx * CX + x, wz = cz * CZ + z;
+      for (const bx of boxes) {
+        for (let a = 0; a < 3; a++) for (const sgn of [1, -1]) {
+          const ua = (a + 1) % 3, va = (a + 2) % 3;
+          const n = [0, 0, 0]; n[a] = sgn > 0 ? bx[3 + a] : bx[a];
+          const nc = [wx, y, wz]; nc[a] += sgn;
+          const nid = W.get(nc[0], nc[1], nc[2]);
+          if (nid && CF.solidAt(nid)) { // hide against real solids; #052: horizontal box faces only hide when flush with the cell boundary (top-half bottom face stays visible under the lip)
+            let hide = a !== 1 || (sgn > 0 ? bx[3 + a] === 1 : bx[a] === 0);
+            if (a !== 1) { // #052: side faces against SLAB neighbors hide only where the neighbor's box actually covers this face's y range
+              const nv = CF.BY_ID[nid];
+              if (nv && nv.boxes) {
+                const nf = W.flatAt ? W.flatAt(nc[0], nc[1], nc[2]) : 0;
+                const nboxes = (nf & 4) ? [[0, 0, 0, 1, 1, 1]] : (nf & 2) ? [[0, 0.5, 0, 1, 1, 1]] : nv.boxes;
+                hide = nboxes.some((nb) => bx[1] >= nb[1] - 1e-6 && bx[4] <= nb[4] + 1e-6);
+              }
+            }
+            if (hide) continue;
+          } else if (nid && CF.BY_ID[nid] && CF.BY_ID[nid].boxes && nid === id && a !== 1) {
+            const nf = W.flatAt ? W.flatAt(nc[0], nc[1], nc[2]) : 0;
+            const nboxes = (nf & 4) ? [[0, 0, 0, 1, 1, 1]] : (nf & 2) ? [[0, 0.5, 0, 1, 1, 1]] : CF.BY_ID[nid].boxes;
+            if (nboxes.some((nb) => bx[1] >= nb[1] - 1e-6 && bx[4] <= nb[4] + 1e-6)) continue; // same-family, full-height coverage -> shared face hidden (v1)
+          }
+          const p0 = [0, 0, 0]; p0[a] = n[a]; p0[ua] = bx[ua]; p0[va] = bx[va];
+          const p1 = [0, 0, 0]; p1[a] = n[a]; p1[ua] = bx[3 + ua]; p1[va] = bx[va];
+          const p2 = [0, 0, 0]; p2[a] = n[a]; p2[ua] = bx[3 + ua]; p2[va] = bx[3 + va];
+          const p3 = [0, 0, 0]; p3[a] = n[a]; p3[ua] = bx[ua]; p3[va] = bx[3 + va];
+          const cs = [p0, p1, p2, p3].map((p) => [wx + p[0], y + p[1], wz + p[2]]); // absolute world corners (cell + local, NOT chunk origin!)
+          const faceIdx = a * 2 + (sgn > 0 ? 0 : 1);
+          const tile = v.tiles[faceIdx] || v.tiles[0];
+          const meta = (window.__TEXMETA || {})[tile];
+          if (!meta) stats.missingTiles.add(tile);
+          const sh = SHADE[a] * (sgn > 0 ? 1 : (a === 1 ? 0.45 : 0.7));
+          const lp = [wx, y, wz];
+          const flush = a !== 1 || (sgn > 0 ? bx[3 + a] === 1 : bx[a] === 0); // #052: interior planes (top-half bottom face) sample THIS cell's light, not the neighbor solid
+          if (flush) lp[a] += sgn;
+          const br = W.lightAt(lp[0], lp[1], lp[2]) / 255;
+          const du = bx[3 + ua] - bx[ua], dv = bx[3 + va] - bx[va];
+          const tw = (meta ? (meta.w - 0.5) : 15.5) / ASZ / (du || 1);
+          const th = (meta ? (meta.h - 0.5) : 15.5) / ASZ / (dv || 1);
+          const uv0 = meta ? [(meta.x + 0.25) / ASZ, (meta.y + 0.25) / ASZ] : MAGENTA_UV.slice(0, 2);
+          const ps = [p0, p1, p2, p3]; // keep local corners for UV math (cs are absolute, unsuitable for it!)
+          const uvc = ps.map((p) => [uv0[0] + tw * (p[ua] - bx[ua]), uv0[1] + th * (bx[3 + va] - p[va])]);
+          for (const oi of [0, 1, 2, 0, 2, 3]) {
+            pos.push(cs[oi][0], cs[oi][1], cs[oi][2]);
+            col.push(uvc[oi][0], uvc[oi][1], sh, br);
+          }
+          tris[0] += 2;
+        }
+      }
+    }
     for (let a = 0; a < 3; a++) {
       const ua = (a + 1) % 3, va = (a + 2) % 3;
+      // #052: does neighbor cell (id2, flat fm2) fully cover a face of the cell on axis a side sgn?
+      const coverFace = (id2, fm2, ax, sg) => {
+        if (!id2) return false;
+        const v2 = CF.BY_ID[id2];
+        if (!v2 || !CF.solidAt(id2)) return false;
+        if (!v2.boxes || (fm2 & 4)) return true; // full block or double slab = opaque cover
+        const yLo = (fm2 & 2) ? 0.5 : 0, yHi = (fm2 & 2) ? 1 : 0.5; // single slab spans one half
+        if (ax === 1) return sg > 0 ? yLo === 0 : yHi === 1; // +Y face covered iff neighbor box starts at its cell floor
+        return false; // sides of full blocks against a single slab stay visible (v1, no split faces)
+      };
       for (const sgn of [1, -1]) { // #046: BOTH face signs (was +axis only -> 3 of 6 faces never meshed)
       if (a === 0 && sgn === 1) {
         // cross-model blocks (torch #024): two vertical quads, no greedy
@@ -54,10 +126,10 @@ window.CF = window.CF || {};
           const A = coord(a, ua, va, d, u, v);
           const cur = W.get(A[0], A[1], A[2]);
           if (!cur) continue;
-          if (CF.BY_ID[cur] && (CF.BY_ID[cur].cross || CF.BY_ID[cur].liquid)) continue; // drawn separately
+          if (CF.BY_ID[cur] && (CF.BY_ID[cur].cross || CF.BY_ID[cur].liquid || CF.BY_ID[cur].boxes)) continue; // drawn separately
           const B = A.slice(); B[a] += sgn;
           const nid = W.get(B[0], B[1], B[2]);
-          if (nid && CF.solidAt(nid)) continue; // #049: face visible when neighbour is air OR non-solid (torch/sapling) - was culling on any id = black holes under crosses
+          if (coverFace(nid, W.flatAt ? W.flatAt(B[0], B[1], B[2]) : 0, a, sgn)) continue; // #049 non-solid + #052 half-cover aware culling
           // merge buckets split by id AND light quartile so greedy quads respect lighting (#020)
           const packed = W.lightAt(B[0], B[1], B[2]);
           const lv = Math.max(packed >> 4, packed & 15);

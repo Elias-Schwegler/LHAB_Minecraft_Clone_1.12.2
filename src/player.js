@@ -13,12 +13,34 @@ window.CF = window.CF || {};
   CF.player = player;
 
   const solid = (x, y, z) => CF.solidAt(CF.world.get(Math.floor(x), Math.floor(y), Math.floor(z)));
-  function boxHits(px, py, pz) {
-    for (let x = Math.floor(px - HW); x <= Math.floor(px + HW); x++)
-      for (let y = Math.floor(py - HH + 0.001); y <= Math.floor(py + HH - 0.001); y++)
-        for (let z = Math.floor(pz - HW); z <= Math.floor(pz + HW); z++)
-          if (solid(x, y, z)) return true;
+  // #052 boxes-aware solidness: multi-box variants (slabs) only collide within their box halves.
+  // Returns the [yLo, yHi] span of solid geometry at cell (x,y,z) covering this column, or null.
+  function cellTopAt(x, y, z) {
+    const id = CF.world.get(Math.floor(x), Math.floor(y), Math.floor(z));
+    if (!id) return null;
+    const v = CF.BY_ID[id];
+    if (!v || !CF.solidAt(id)) return null;
+    if (!v.boxes) return [Math.floor(y), Math.floor(y) + 1];
+    const fmeta = CF.world.flatAt ? CF.world.flatAt(Math.floor(x), Math.floor(y), Math.floor(z)) : 0;
+    const boxes = (fmeta & 4) ? [[0, 0, 0, 1, 1, 1]] : (fmeta & 2) ? [[0, 0.5, 0, 1, 1, 1]] : v.boxes;
+    let lo = Infinity, hi = -Infinity;
+    for (const b of boxes) { lo = Math.min(lo, b[1]); hi = Math.max(hi, b[4]); }
+    const fy = Math.floor(y);
+    return [fy + lo, fy + hi];
+  }
+  // vertical/horizontal solid test over a box span; cell-level boxes via cellTopAt
+  function solidSpanXZ(lo, hi, px, hw, pz) {
+    for (let x = Math.floor(px - hw); x <= Math.floor(px + hw); x++)
+      for (let z = Math.floor(pz - hw); z <= Math.floor(pz + hw); z++)
+        for (let y = Math.floor(lo); y <= Math.floor(hi - 0.001); y++) {
+          const sp = cellTopAt(x, y, z);
+          if (sp && sp[0] < hi - 1e-6 && sp[1] > lo + 1e-6) return true;
+        }
     return false;
+  }
+  CF.cellTopAt = cellTopAt; CF.solidSpanXZ = solidSpanXZ;
+  function boxHits(px, py, pz) {
+    return solidSpanXZ(py - HH + 0.001, py + HH - 0.001, px, HW, pz);
   }
 
   const keys = {};
@@ -71,7 +93,16 @@ window.CF = window.CF || {};
     if (boxHits(x, ny, z)) {
       if (player.vel[1] < 0) {
         player.onGround = true;
-        ny = Math.floor(ny - HH) + 1 + HH; // #046: rest on the penetrated surface (stale-y snap ratcheted +1/tick = the reported bounce)
+        // #052: rest on the highest solid TOP under the box (full cells AND slab halves), from penetrated pos
+        const feet = ny - HH;
+        let top = -Infinity;
+        for (let sx = Math.floor(x - HW); sx <= Math.floor(x + HW); sx++)
+          for (let sz = Math.floor(z - HW); sz <= Math.floor(z + HW); sz++)
+            for (let sy = Math.floor(feet) - 1; sy <= Math.floor(feet) + 1; sy++) {
+              const sp = cellTopAt(sx, sy, sz);
+              if (sp && sp[1] <= feet + 0.001 && sp[1] > top) top = sp[1];
+            }
+        ny = (isFinite(top) ? top : Math.floor(ny - HH) + 1) + HH;
         for (let g = 0; g < 8 && boxHits(x, ny, z); g++) ny += 1; // fast falls penetrate several cells - push up until free
       }
       else ny = Math.ceil(y + HH) - 1 - HH - 0.001;

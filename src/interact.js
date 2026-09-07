@@ -12,6 +12,12 @@ window.CF = window.CF || {};
   CF.hotId = () => {
     const h = CF.held && CF.held();
     if (!h) return 0;
+    if (h.indexOf(':') > 0) { // #052: variant items ('stone_slab:cobblestone')
+      const p2 = h.split(':');
+      const r2 = CF.REGISTRY[p2[0]];
+      if (r2 && r2.variants[p2[1]]) return r2.variants[p2[1]].id;
+      return 0;
+    }
     const reg = CF.REGISTRY[h];
     if (!reg) return 0;
     const k = Object.keys(reg.variants)[0];
@@ -69,12 +75,14 @@ window.CF = window.CF || {};
       const heldName = CF.held && CF.held();
       const tierOk = CF.canHarvest ? CF.canHarvest(v, heldName) : (HAND_TIER >= v.minTier || !v.tool);
       let dropName = v.drop;
+      let dropN = v.dropN || 1; // #052: double slab yields 2; #051 dropN
+      if (v.boxes && CF.world.flatAt && (CF.world.flatAt(m.x, m.y, m.z) & 4)) dropN = 2; // 1.12: double slab -> 2 slabs
       if (v.name === 'gravel' && dropName && Math.random() < 0.1) dropName = 'flint'; // 1.12: 10% flint
       if (v.name === 'leaves') { // 1.12: oak leaves 5% sapling, 0.5% apple, else nothing (#019)
         const lr = Math.random();
         dropName = lr < 0.05 ? (v.variant === 'oak' ? 'sapling' : 'sapling:' + v.variant) : lr < 0.055 && v.variant === 'oak' ? 'apple' : null; // #049 species saplings; apples oak-only (1.12)
       }
-      const drops = tierOk && dropName ? [{ name: dropName, n: v.dropN || 1, x: m.x + 0.5, y: m.y + 0.5, z: m.z + 0.5 }] : [];
+      const drops = tierOk && dropName ? [{ name: dropName, n: dropN, x: m.x + 0.5, y: m.y + 0.5, z: m.z + 0.5 }] : [];
       if (v.name === 'furnace' && CF.furnaceBreak) CF.furnaceBreak(m.x, m.y, m.z); // #032: contents to player
       if (v.name === 'chest' && CF.chestBreak) CF.chestBreak(m.x, m.y, m.z); // #040: contents to player
       if (v.name === 'bed' && CF.bedBreak) CF.bedBreak(m.x, m.y, m.z); // #041: both halves
@@ -96,12 +104,22 @@ window.CF = window.CF || {};
 
   CF.place = (hit) => {
     if (!hit) return false;
-    const tx = hit.x + hit.face[0], ty = hit.y + hit.face[1], tz = hit.z + hit.face[2];
-    if (CF.world.get(tx, ty, tz)) return false;
-    if (CF.cellHitsPlayer(tx, ty, tz)) return false;
+    let tx = hit.x + hit.face[0], ty = hit.y + hit.face[1], tz = hit.z + hit.face[2];
     const id = CF.hotId();
     if (!id) return false;
     const v = CF.BY_ID[id];
+    // #052 slab rule: clicking the TOP FACE of an existing same single-slab upgrades it to double (1.12)
+    const hid0 = CF.world.get(hit.x, hit.y, hit.z);
+    if (v.boxes && hit.face[1] === 1 && hid0) {
+      const hv = CF.BY_ID[hid0];
+      if (hv && hv === v && CF.world.flatAt && !(CF.world.flatAt(hit.x, hit.y, hit.z) & 4)) {
+        CF.world.flatSet(hit.x, hit.y, hit.z, CF.world.flatAt(hit.x, hit.y, hit.z) | 4);
+        if (!CF.creative && CF.consume) CF.consume(CF.held(), 1);
+        return true;
+      }
+    }
+    if (CF.world.get(tx, ty, tz)) return false;
+    if (CF.cellHitsPlayer(tx, ty, tz)) return false;
     if (v.cross) {
       // MC support rule: floor face needs solid below; side faces need solid on that side
       const f = hit.face;
@@ -115,6 +133,10 @@ window.CF = window.CF || {};
       const f = hit.face;
       const code = f[1] === 1 ? 1 : f[0] === 1 ? 2 : f[0] === -1 ? 6 : f[2] === 1 ? 4 : 8;
       CF.world.flatSet(tx, ty, tz, code);
+    }
+    if (ok && v.boxes && CF.world.flatSet) {
+      // #052: bottom slab onto floor face (up) = bit0-style default(0); top slab onto ceiling face (down) = bit 2
+      if (hit.face[1] === -1) CF.world.flatSet(tx, ty, tz, 2);
     }
     if (ok && !CF.creative && CF.consume) CF.consume(CF.held(), 1);
     if (ok && CF.BY_ID[id].name === 'furnace' && CF.furnacePlace) CF.furnacePlace(tx, ty, tz);
@@ -191,6 +213,30 @@ window.CF = window.CF || {};
     }
     CF.assert(r, 'interact.leaves-drop(' + sap + '/' + leafTot + ')', leafTot === 600 && sap > 12 && sap < 55);
 
+    // #052: clicking a bottom slab's top face with the same slab upgrades it to double; breaking a double yields 2
+    {
+      const h = CF.world.heightAt(66, 66) + 1;
+      CF.world.ensureAround(66, 66, 1);
+      for (let i = 0; i < 20 && CF.world.stats().queue; i++) CF.world.tick();
+      for (let x = 64; x <= 68; x++) for (let z = 64; z <= 68; z++) for (let y = h; y < h + 5; y++) CF.world.set(x, y, z, 0);
+      CF.world.set(66, h, 66, IDOF['stone_slab:cobblestone']);
+      CF.world.flatSet(66, h, 66, 0);
+      const invSave = CF.inv.map((s) => (s ? { name: s.name, count: s.count } : null)), selSave = CF.sel;
+      CF.inv.fill(null);
+      CF.inv[0] = { name: 'stone_slab:cobblestone', count: 1 }; CF.sel = 0;
+      const okU = CF.place({ x: 66, y: h, z: 66, face: [0, 1, 0] }); // aim AT the slab top face -> same-cell upgrade
+      const fm = CF.world.flatAt(66, h, 66);
+      CF.inv[1] = { name: 'wood_pickaxe', count: 1 }; CF.sel = 1; // stone_slab needs a pickaxe to drop (1.12)
+      CF.drops.length = 0;
+      CF.mineStart({ x: 66, y: h, z: 66 });
+      let broke = null, ticks = 0;
+      while (ticks < 400 && !(broke && broke.broke)) { broke = CF.mineTick(0.05); ticks++; }
+      const got = CF.drops.reduce((n, d) => n + d.n, 0);
+      CF.assert(r, 'interact.slab-place-upgrade(' + okU + ',' + fm + ',got=' + got + ')',
+        okU === true && (fm & 4) === 4 && got === 2);
+      CF.drops.length = 0; CF.world.set(66, h, 66, 0); CF.world.flatSet(66, h, 66, 0);
+      CF.inv.fill(null); for (const s of invSave) if (s) CF.give(s.name, s.count); CF.sel = selSave; CF.uiRefresh && CF.uiRefresh(); // restore hotbar (place/bedrock tests below depend on it)
+    }
     // #051: clay block yields 4 clay balls (1.12)
     {
       const h = CF.world.heightAt(74, 74) + 1;

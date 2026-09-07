@@ -1557,6 +1557,123 @@ window.CF.REGISTRY = /*REGISTRY-START*/{
     "dropN": 4
    }
   }
+ },
+ "stone_slab": {
+  "id": 44,
+  "tier": 2,
+  "variants": {
+   "cobblestone": {
+    "functional": true,
+    "tiles": [
+     "slab_cobblestone_side",
+     "slab_cobblestone_side",
+     "slab_cobblestone_top",
+     "slab_cobblestone_bottom",
+     "slab_cobblestone_side",
+     "slab_cobblestone_side"
+    ],
+    "boxes": [
+     [
+      0,
+      0,
+      0,
+      1,
+      0.5,
+      1
+     ]
+    ],
+    "hardness": 2,
+    "drop": "stone_slab:cobblestone",
+    "tool": "pickaxe",
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#052",
+     "tests": [
+      "registry.slab-model",
+      "physics.slab-stand",
+      "interact.slab-place-upgrade"
+     ]
+    }
+   },
+   "stone": {
+    "functional": true,
+    "tiles": [
+     "slab_stone_side",
+     "slab_stone_side",
+     "slab_stone_top",
+     "slab_stone_bottom",
+     "slab_stone_side",
+     "slab_stone_side"
+    ],
+    "boxes": [
+     [
+      0,
+      0,
+      0,
+      1,
+      0.5,
+      1
+     ]
+    ],
+    "hardness": 1.5,
+    "drop": "stone_slab:stone",
+    "tool": "pickaxe",
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#052",
+     "tests": [
+      "registry.slab-model",
+      "physics.slab-stand",
+      "interact.slab-place-upgrade"
+     ]
+    }
+   }
+  }
+ },
+ "wooden_slab": {
+  "id": 126,
+  "tier": 2,
+  "variants": {
+   "oak": {
+    "functional": true,
+    "tiles": [
+     "planks_oak",
+     "planks_oak",
+     "planks_oak",
+     "planks_oak",
+     "planks_oak",
+     "planks_oak"
+    ],
+    "boxes": [
+     [
+      0,
+      0,
+      0,
+      1,
+      0.5,
+      1
+     ]
+    ],
+    "hardness": 2,
+    "drop": "wooden_slab:oak",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#052",
+     "tests": [
+      "registry.slab-model",
+      "physics.slab-stand",
+      "interact.slab-place-upgrade"
+     ]
+    }
+   }
+  }
  }
 }/*REGISTRY-END*/;
 
@@ -1595,6 +1712,14 @@ window.CF.REGISTRY = /*REGISTRY-START*/{
     CF.assert(r, 'registry.tiles-exist', allTiles);
     CF.assert(r, 'registry.tiles-6-faces', allSix);
     CF.assert(r, 'registry.planks-oak', !!CF.REGISTRY.planks.variants.oak);
+    CF.assert(r, 'registry.slab-model', (() => {
+      const meta = window.__TEXMETA || {};
+      const cs = CF.REGISTRY.stone_slab && CF.REGISTRY.stone_slab.variants.cobblestone;
+      const ok = !!cs && cs.boxes.length === 1 && cs.boxes[0][4] === 0.5 && cs.tiles.every((t) => meta[t]) &&
+        !!CF.REGISTRY.stone_slab.variants.stone && !!CF.REGISTRY.wooden_slab && !!CF.REGISTRY.wooden_slab.variants.oak && !!CF.IDOF['stone_slab:cobblestone'];
+      if (!ok) CF.__SLABDBG = { cs: !!cs, boxes: cs && cs.boxes, tiles: cs && cs.tiles.map((t) => !!meta[t]), stone: !!(CF.REGISTRY.stone_slab && CF.REGISTRY.stone_slab.variants.stone), ws: !!CF.REGISTRY.wooden_slab, idof: CF.IDOF['stone_slab:cobblestone'] };
+      return ok;
+    })());
     CF.assert(r, 'registry.storage', (() => {
       const meta = window.__TEXMETA || {};
       return ['gold_block', 'iron_block', 'diamond_block', 'brick_block', 'clay'].every((n) =>
