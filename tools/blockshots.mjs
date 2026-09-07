@@ -20,7 +20,7 @@ let n = 0;
 for (const [name, key] of wanted) {
   const fname = key === 'default' ? name : `${name}-${key}`;
   const out = `${dir}\\${fname}.png`;
-  runBrowser({ url: toFileUrl(p('game', 'index.html')) + `?block=${name}&seed=5#shot=block`, screenshot: out, budget: 9000, timeout: 90000 });
+  runBrowser({ url: toFileUrl(p('game', 'index.html')) + `?block=${name}&variant=${key}&seed=5#shot=block`, screenshot: out, budget: 9000, timeout: 90000 });
   const ok = existsSync(out) && statSync(out).size > 2000;
   console.log(`${ok ? 'OK ' : 'BAD'} ${name} (${ok ? statSync(out).size : 0}B)`);
   n++;
