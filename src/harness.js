@@ -224,11 +224,14 @@
     CF.freeCam = true;
     const W = CF.world;
     let bx = 0, bz = 0;
-    outer: for (const [cx2, cz2] of [[40, 40], [80, 20], [20, 80], [120, 120], [60, 100], [0, 0]]) {
+    const isLiq = (x, y, z) => { const b = CF.BY_ID[W_get(x, y, z)]; return !!(b && b.liquid); };
+    const W_get = (x, y, z) => CF.world.get(x, y, z);
+    outer: for (const [cx2, cz2] of [[40, 40], [80, 20], [20, 80], [120, 120], [60, 100], [160, 40], [40, 160], [0, 0]]) {
       W.ensureAround(cx2, cz2, 1);
       for (let i = 0; i < 10 && W.stats().queue; i++) W.tick();
-      for (let x = cx2 - 7; x <= cx2 + 7; x++) for (let z = cz2 - 7; z <= cz2 + 7; z++) for (let y = 1; y < 100; y++)
-        if (W.get(x, y, z)) { continue outer; } // any solid at/above surface band? skip spot
+      const h0 = W.heightAt(cx2, cz2);
+      if ([h0 - 1, h0, h0 + 1].some((y) => isLiq(cx2, y, cz2))) continue outer; // no pools in lakes
+      for (let x = cx2 - 9; x <= cx2 + 9; x++) for (let z = cz2 - 9; z <= cz2 + 9; z++) if (W.heightAt(x, z) > h0 + 1) continue outer; // flat pad incl. camera approach
       bx = cx2; bz = cz2; break;
     }
     W.ensureAround(bx, bz, 2);
@@ -241,13 +244,21 @@
     W.set(bx, by + 1, bz, CF.IDOF['water']);
     for (let i = 0; i < 300; i++) { W.tick(); if (i % 10 === 0) CF.renderTick(); }
     for (let i = 0; i < 60; i++) CF.renderTick();
-    CF.camera = { pos: [bx + 9, by + 7, bz + 9], yaw: Math.atan2(-9, -9), pitch: -0.5 };
+    CF.camera = { pos: [bx + 9, Math.max(by + 7, W.heightAt(bx + 9, bz + 9) + 3), bz + 9], yaw: Math.atan2(-9, -9), pitch: -0.55 }; // #046: lift above neighbouring hill (old camera sat inside terrain, hidden by the missing-faces bug)
     CF.renderDraw(CF.camera);
     const canvasPx = CF.canvas.width, canvasPy = CF.canvas.height;
     const px = (nx, ny) => { const q = new Uint8Array(4); CF.gl.readPixels((canvasPx * nx) | 0, (canvasPy * ny) | 0, 1, 1, CF.gl.RGBA, CF.gl.UNSIGNED_BYTE, q); return [q[0], q[1], q[2], q[3]]; };
+    const cov = [];
+    for (let z = bz - 5; z <= bz + 5; z++) { let row = ''; for (let x = bx - 5; x <= bx + 5; x++) { const id = W.get(x, by + 1, z); row += id === CF.IDOF['water'] ? (W.flatAt ? (W.flatAt(x, by + 1, z) & 15) || 'S' : 'W') : (id ? '.' : ' '); } cov.push(row); }
     document.title = 'FP:' + encodeURIComponent(JSON.stringify({
       spot: [bx, bz], wtris: CF.rendererStats.wtris, waterLight: W.lightAt(bx + 1, by + 1, bz + 1),
-      pixCenter: px(0.5, 0.55), pixLeft: px(0.35, 0.5), glErr: CF.rendererStats.glErr,
+      cam: CF.camera.pos.map((v) => +v.toFixed(1)), camBlk: W.get(Math.floor(CF.camera.pos[0]), Math.floor(CF.camera.pos[1]), Math.floor(CF.camera.pos[2])),
+      camLight: W.lightAt(Math.floor(CF.camera.pos[0]), Math.floor(CF.camera.pos[1]), Math.floor(CF.camera.pos[2])), midLight: W.lightAt(bx + 4, by + 4, bz + 4),
+      lightGrid: (() => { const g = []; for (let z = -3; z <= 3; z++) { let row = ''; for (let x = -3; x <= 3; x++) { const l = W.lightAt(bx + x, by + 2, bz + z); row += (l >> 4).toString(16); } g.push(row); } return g; })(),
+      columns: (() => { const g = []; for (let x = -3; x <= 3; x++) { const c = []; for (let y = by; y <= by + 3; y++) { const id = W.get(bx + x, y, bz); c.push(id ? (CF.BY_ID[id].name[0] + (id === CF.IDOF['water'] ? (W.flatAt(bx + x, y, bz) & 7) : '')) : '_'); } g.push(c.join('')); } return g; })(),
+      scanline: (() => { const out = []; const y0 = CF.canvas.height * 0.45 | 0; for (let i = 0; i < 14; i++) { const q = new Uint8Array(4); CF.gl.readPixels((CF.canvas.width * (0.28 + i * 0.035)) | 0, y0, 1, 1, CF.gl.RGBA, CF.gl.UNSIGNED_BYTE, q); out.push(q[1]); } return out; })(),
+      missTiles: [...(CF.rendererStats.missingTiles || [])],
+      pixCenter: px(0.5, 0.55), pixLeft: px(0.35, 0.5), glErr: CF.rendererStats.glErr, cov,
     }));
     await new Promise((r) => setTimeout(r, 300));
   };

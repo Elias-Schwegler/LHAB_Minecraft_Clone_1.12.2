@@ -213,7 +213,7 @@ window.CF = window.CF || {};
           let useful = false;
           for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
             const nb = lightAt(wx + dx, y + dy, wz + dz);
-            if ((s > 0 && (dy !== 0 ? s : s - 1) > (nb >> 4)) || (b > 1 && b - 1 > (nb & 15))) { useful = true; break; }
+            if ((s > 0 && (s === 15 ? 15 : dy !== 0 ? s : s - 1) > (nb >> 4)) || (b > 1 && b - 1 > (nb & 15))) { useful = true; break; }
           }
           if (useful) pushQ(wx, y, wz, s, b);
         }
@@ -230,7 +230,7 @@ window.CF = window.CF || {};
           if (!c2.light) c2.light = new Uint8Array(CX * CH * CZ);
           const cell = lightCell(c2, nx, ny, nz);
           if (c2.arr[cell] && !(CF.BY_ID[c2.arr[cell]] && CF.BY_ID[c2.arr[cell]].liquid)) continue; // opaque stops; liquids pass
-          const ns = s ? (dy !== 0 ? s : s - 1) : 0; // vertical skylight: no decay
+          const ns = s === 15 ? 15 : s ? (dy !== 0 ? s : s - 1) : 0; // MC rule: FULL 15 skylight NEVER decays (any dir); else vertical free-fall keeps level, horizontal -1 (fixes #031 banding: pool rows were getting sky 14 under canopy gaps)
           const nb = b ? b - 1 : 0;
           if (!ns && !nb) continue;
           const cur = c2.light[cell];

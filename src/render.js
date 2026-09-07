@@ -128,7 +128,7 @@ window.CF = window.CF || {};
           const P0 = coord(a, ua, va, plane, u, v), P1 = coord(a, ua, va, plane, u + 1, v);
           const P2 = coord(a, ua, va, plane, u + 1, v + 1), P3 = coord(a, ua, va, plane, u, v + 1);
           const packed = W.lightAt(B[0], B[1], B[2]);
-          const br = packed / 255;
+          const br = v2.name === 'lava' ? 1 : packed / 255; // #043 lava self-luminous (eff=1 -> full bright, MC-like emissive)
           const uvf = meta ? [(meta.x + 0.25) / 128, (meta.y + 0.25) / 128, (meta.x + 15.75) / 128, (meta.y + 15.75) / 128] : MAGENTA_UV;
           const c00 = [P0[0], P0[1], P0[2]], c10 = [P1[0], P1[1], P1[2]], c11 = [P2[0], P2[1], P2[2]], c01 = [P3[0], P3[1], P3[2]];
           if (a === 1 && sgn > 0) for (const q of [c00, c10, c11, c01]) q[1] -= 0.12; // water surface slightly below bank (MC-like, avoids coplanar z-fight)
@@ -201,6 +201,14 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
       // #040 chest tiles (free cells): lid seam + latch
       cell(64, 48, (x, y) => (y === 4 || y === 5) ? '#6a4a22' : (x > 6 && x < 9 && y > 5 && y < 9) ? '#d8d2c0' : (y > 12 ? '#5a3c1a' : ((x + y) % 7 === 0 ? '#7a5528' : '#8a6230')));
       cell(80, 48, (x, y) => (y > 6 && y < 9) ? '#6a4a22' : ((x + y) % 6 === 0 ? '#7a5528' : '#96703a'));
+      cell(112, 16, (x, y) => { // #031/#043: blender water tile was half-empty (camera-plane bug) - repaint: blue w/ wave streaks, ~55% opaque
+        const w = Math.sin((x + y * 2) * 0.9) > 0.6 ? 1 : 0, n = ((x * 7 + y * 13) % 5) - 2;
+        return w ? 'rgba(120,190,255,0.72)' : `rgba(${42 + n},${106 + n},${208 + n},0.62)`;
+      });
+      cell(0, 32, (x, y) => { // #031/#043: lava: bright orange noise + veins (MC emissive feel)
+        const n = (x * 11 + y * 17 + (x ^ y) * 5) % 7;
+        return n === 0 ? '#f8c858' : n < 3 ? '#e86818' : '#c8380a';
+      });
       // #041 bed tiles: red blanket + white pillow (head side of top), wooden frame edge
       cell(96, 48, (x, y) => (y < 3 || y > 12) ? '#6a4a22' : (x < 3 ? '#6a4a22' : '#c03830'));
       cell(112, 48, (x, y) => (y < 2 || y > 13) ? '#6a4a22' : (y < 5 ? '#e8e4da' : '#c03830'));
@@ -368,7 +376,7 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
     // translucent liquid pass (no depth write) (#022) - premultiplied blending
     gl.enable(gl.BLEND);
     gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-    gl.depthMask(false);
+    gl.depthMask(true); // #043: WRITE depth so a nearer liquid face occludes farther ones -> no double-blend banding (was depthMask(false))
     let wtris = 0;
     for (const [, e] of meshMap) {
       if (!e.wn) continue;
@@ -437,9 +445,8 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
       W.ensureAround(rx, rz, 1);
       for (let i = 0; i < 30 && W.stats().queue; i++) W.tick();
       for (let x = rx - 4; x <= rx + 4; x++) for (let z = rz - 4; z <= rz + 4; z++) { W.set(x, px0, z, CF.IDOF['stone']); for (let y = px0 + 1; y <= px0 + 6; y++) W.set(x, y, z, 0); }
-      const drain = () => { for (let i = 0; i < 300 && W.dirty.size; i++) CF.renderTick(); };
       W.ensureLight(rx >> 4, rz >> 4); for (let i = 0; i < 8; i++) W.tick();
-      for (let i = 0; i < 40; i++) CF.renderTick();
+      const drain = () => { for (let i = 0; i < 300 && W.dirty.size; i++) CF.renderTick(); };
       const shot = (id) => {
         W.set(rx, px0 + 1, rz, id); drain();
         CF.renderDraw({ pos: [rx - 1.4, px0 + 2.4, rz - 1.4], yaw: Math.atan2(1.9, 1.9), pitch: -0.32 });

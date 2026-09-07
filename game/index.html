@@ -1017,7 +1017,7 @@ window.CF = window.CF || {};
           let useful = false;
           for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
             const nb = lightAt(wx + dx, y + dy, wz + dz);
-            if ((s > 0 && (dy !== 0 ? s : s - 1) > (nb >> 4)) || (b > 1 && b - 1 > (nb & 15))) { useful = true; break; }
+            if ((s > 0 && (s === 15 ? 15 : dy !== 0 ? s : s - 1) > (nb >> 4)) || (b > 1 && b - 1 > (nb & 15))) { useful = true; break; }
           }
           if (useful) pushQ(wx, y, wz, s, b);
         }
@@ -1034,7 +1034,7 @@ window.CF = window.CF || {};
           if (!c2.light) c2.light = new Uint8Array(CX * CH * CZ);
           const cell = lightCell(c2, nx, ny, nz);
           if (c2.arr[cell] && !(CF.BY_ID[c2.arr[cell]] && CF.BY_ID[c2.arr[cell]].liquid)) continue; // opaque stops; liquids pass
-          const ns = s ? (dy !== 0 ? s : s - 1) : 0; // vertical skylight: no decay
+          const ns = s === 15 ? 15 : s ? (dy !== 0 ? s : s - 1) : 0; // MC rule: FULL 15 skylight NEVER decays (any dir); else vertical free-fall keeps level, horizontal -1 (fixes #031 banding: pool rows were getting sky 14 under canopy gaps)
           const nb = b ? b - 1 : 0;
           if (!ns && !nb) continue;
           const cur = c2.light[cell];
@@ -1520,7 +1520,7 @@ window.CF = window.CF || {};
           const P0 = coord(a, ua, va, plane, u, v), P1 = coord(a, ua, va, plane, u + 1, v);
           const P2 = coord(a, ua, va, plane, u + 1, v + 1), P3 = coord(a, ua, va, plane, u, v + 1);
           const packed = W.lightAt(B[0], B[1], B[2]);
-          const br = packed / 255;
+          const br = v2.name === 'lava' ? 1 : packed / 255; // #043 lava self-luminous (eff=1 -> full bright, MC-like emissive)
           const uvf = meta ? [(meta.x + 0.25) / 128, (meta.y + 0.25) / 128, (meta.x + 15.75) / 128, (meta.y + 15.75) / 128] : MAGENTA_UV;
           const c00 = [P0[0], P0[1], P0[2]], c10 = [P1[0], P1[1], P1[2]], c11 = [P2[0], P2[1], P2[2]], c01 = [P3[0], P3[1], P3[2]];
           if (a === 1 && sgn > 0) for (const q of [c00, c10, c11, c01]) q[1] -= 0.12; // water surface slightly below bank (MC-like, avoids coplanar z-fight)
@@ -1593,6 +1593,14 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
       // #040 chest tiles (free cells): lid seam + latch
       cell(64, 48, (x, y) => (y === 4 || y === 5) ? '#6a4a22' : (x > 6 && x < 9 && y > 5 && y < 9) ? '#d8d2c0' : (y > 12 ? '#5a3c1a' : ((x + y) % 7 === 0 ? '#7a5528' : '#8a6230')));
       cell(80, 48, (x, y) => (y > 6 && y < 9) ? '#6a4a22' : ((x + y) % 6 === 0 ? '#7a5528' : '#96703a'));
+      cell(112, 16, (x, y) => { // #031/#043: blender water tile was half-empty (camera-plane bug) - repaint: blue w/ wave streaks, ~55% opaque
+        const w = Math.sin((x + y * 2) * 0.9) > 0.6 ? 1 : 0, n = ((x * 7 + y * 13) % 5) - 2;
+        return w ? 'rgba(120,190,255,0.72)' : `rgba(${42 + n},${106 + n},${208 + n},0.62)`;
+      });
+      cell(0, 32, (x, y) => { // #031/#043: lava: bright orange noise + veins (MC emissive feel)
+        const n = (x * 11 + y * 17 + (x ^ y) * 5) % 7;
+        return n === 0 ? '#f8c858' : n < 3 ? '#e86818' : '#c8380a';
+      });
       // #041 bed tiles: red blanket + white pillow (head side of top), wooden frame edge
       cell(96, 48, (x, y) => (y < 3 || y > 12) ? '#6a4a22' : (x < 3 ? '#6a4a22' : '#c03830'));
       cell(112, 48, (x, y) => (y < 2 || y > 13) ? '#6a4a22' : (y < 5 ? '#e8e4da' : '#c03830'));
@@ -1760,7 +1768,7 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
     // translucent liquid pass (no depth write) (#022) - premultiplied blending
     gl.enable(gl.BLEND);
     gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-    gl.depthMask(false);
+    gl.depthMask(true); // #043: WRITE depth so a nearer liquid face occludes farther ones -> no double-blend banding (was depthMask(false))
     let wtris = 0;
     for (const [, e] of meshMap) {
       if (!e.wn) continue;
@@ -1829,9 +1837,8 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
       W.ensureAround(rx, rz, 1);
       for (let i = 0; i < 30 && W.stats().queue; i++) W.tick();
       for (let x = rx - 4; x <= rx + 4; x++) for (let z = rz - 4; z <= rz + 4; z++) { W.set(x, px0, z, CF.IDOF['stone']); for (let y = px0 + 1; y <= px0 + 6; y++) W.set(x, y, z, 0); }
-      const drain = () => { for (let i = 0; i < 300 && W.dirty.size; i++) CF.renderTick(); };
       W.ensureLight(rx >> 4, rz >> 4); for (let i = 0; i < 8; i++) W.tick();
-      for (let i = 0; i < 40; i++) CF.renderTick();
+      const drain = () => { for (let i = 0; i < 300 && W.dirty.size; i++) CF.renderTick(); };
       const shot = (id) => {
         W.set(rx, px0 + 1, rz, id); drain();
         CF.renderDraw({ pos: [rx - 1.4, px0 + 2.4, rz - 1.4], yaw: Math.atan2(1.9, 1.9), pitch: -0.32 });
@@ -5125,11 +5132,14 @@ window.CF = window.CF || {};
     CF.freeCam = true;
     const W = CF.world;
     let bx = 0, bz = 0;
-    outer: for (const [cx2, cz2] of [[40, 40], [80, 20], [20, 80], [120, 120], [60, 100], [0, 0]]) {
+    const isLiq = (x, y, z) => { const b = CF.BY_ID[W_get(x, y, z)]; return !!(b && b.liquid); };
+    const W_get = (x, y, z) => CF.world.get(x, y, z);
+    outer: for (const [cx2, cz2] of [[40, 40], [80, 20], [20, 80], [120, 120], [60, 100], [160, 40], [40, 160], [0, 0]]) {
       W.ensureAround(cx2, cz2, 1);
       for (let i = 0; i < 10 && W.stats().queue; i++) W.tick();
-      for (let x = cx2 - 7; x <= cx2 + 7; x++) for (let z = cz2 - 7; z <= cz2 + 7; z++) for (let y = 1; y < 100; y++)
-        if (W.get(x, y, z)) { continue outer; } // any solid at/above surface band? skip spot
+      const h0 = W.heightAt(cx2, cz2);
+      if ([h0 - 1, h0, h0 + 1].some((y) => isLiq(cx2, y, cz2))) continue outer; // no pools in lakes
+      for (let x = cx2 - 9; x <= cx2 + 9; x++) for (let z = cz2 - 9; z <= cz2 + 9; z++) if (W.heightAt(x, z) > h0 + 1) continue outer; // flat pad incl. camera approach
       bx = cx2; bz = cz2; break;
     }
     W.ensureAround(bx, bz, 2);
@@ -5142,13 +5152,21 @@ window.CF = window.CF || {};
     W.set(bx, by + 1, bz, CF.IDOF['water']);
     for (let i = 0; i < 300; i++) { W.tick(); if (i % 10 === 0) CF.renderTick(); }
     for (let i = 0; i < 60; i++) CF.renderTick();
-    CF.camera = { pos: [bx + 9, by + 7, bz + 9], yaw: Math.atan2(-9, -9), pitch: -0.5 };
+    CF.camera = { pos: [bx + 9, Math.max(by + 7, W.heightAt(bx + 9, bz + 9) + 3), bz + 9], yaw: Math.atan2(-9, -9), pitch: -0.55 }; // #046: lift above neighbouring hill (old camera sat inside terrain, hidden by the missing-faces bug)
     CF.renderDraw(CF.camera);
     const canvasPx = CF.canvas.width, canvasPy = CF.canvas.height;
     const px = (nx, ny) => { const q = new Uint8Array(4); CF.gl.readPixels((canvasPx * nx) | 0, (canvasPy * ny) | 0, 1, 1, CF.gl.RGBA, CF.gl.UNSIGNED_BYTE, q); return [q[0], q[1], q[2], q[3]]; };
+    const cov = [];
+    for (let z = bz - 5; z <= bz + 5; z++) { let row = ''; for (let x = bx - 5; x <= bx + 5; x++) { const id = W.get(x, by + 1, z); row += id === CF.IDOF['water'] ? (W.flatAt ? (W.flatAt(x, by + 1, z) & 15) || 'S' : 'W') : (id ? '.' : ' '); } cov.push(row); }
     document.title = 'FP:' + encodeURIComponent(JSON.stringify({
       spot: [bx, bz], wtris: CF.rendererStats.wtris, waterLight: W.lightAt(bx + 1, by + 1, bz + 1),
-      pixCenter: px(0.5, 0.55), pixLeft: px(0.35, 0.5), glErr: CF.rendererStats.glErr,
+      cam: CF.camera.pos.map((v) => +v.toFixed(1)), camBlk: W.get(Math.floor(CF.camera.pos[0]), Math.floor(CF.camera.pos[1]), Math.floor(CF.camera.pos[2])),
+      camLight: W.lightAt(Math.floor(CF.camera.pos[0]), Math.floor(CF.camera.pos[1]), Math.floor(CF.camera.pos[2])), midLight: W.lightAt(bx + 4, by + 4, bz + 4),
+      lightGrid: (() => { const g = []; for (let z = -3; z <= 3; z++) { let row = ''; for (let x = -3; x <= 3; x++) { const l = W.lightAt(bx + x, by + 2, bz + z); row += (l >> 4).toString(16); } g.push(row); } return g; })(),
+      columns: (() => { const g = []; for (let x = -3; x <= 3; x++) { const c = []; for (let y = by; y <= by + 3; y++) { const id = W.get(bx + x, y, bz); c.push(id ? (CF.BY_ID[id].name[0] + (id === CF.IDOF['water'] ? (W.flatAt(bx + x, y, bz) & 7) : '')) : '_'); } g.push(c.join('')); } return g; })(),
+      scanline: (() => { const out = []; const y0 = CF.canvas.height * 0.45 | 0; for (let i = 0; i < 14; i++) { const q = new Uint8Array(4); CF.gl.readPixels((CF.canvas.width * (0.28 + i * 0.035)) | 0, y0, 1, 1, CF.gl.RGBA, CF.gl.UNSIGNED_BYTE, q); out.push(q[1]); } return out; })(),
+      missTiles: [...(CF.rendererStats.missingTiles || [])],
+      pixCenter: px(0.5, 0.55), pixLeft: px(0.35, 0.5), glErr: CF.rendererStats.glErr, cov,
     }));
     await new Promise((r) => setTimeout(r, 300));
   };
