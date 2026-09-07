@@ -5,9 +5,9 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
 - Tags: v0.0.0 scaffold → v0.1.0 sprint01+fixes → v0.2.0 sprint02 closed -> v0.3.0 SPRINT 03 CLOSED (audit #6 READY-WITH-NOTES, 7 P3 fixed same-close).
 - Sprint 03 ACTIVE: #033 #035 #032 #036 #037 #038 #042 #039 #040 #041 #046 #047 #043 #034 ALL DONE (#043 closed
   #031 + fixed P1 atlas icon-stride bug; README+GitHub origin+issue mirror done).
-  SPRINT 04 NEXT (plan doc docs/sprints/04.md): nether/dimension FEAT (SPK-7 GO design!), #044 mob polish, #045 3x3 GUI,
+  SPRINT 04 PLANNED+ACTIVE (docs/sprints/04.md, issues 049-059 mirrored): nether/dimension FEAT (SPK-7 GO design!), #044 mob polish, #045 3x3 GUI,
   #048 fidelity (+F7 black patch), spider/enderman, redstone SPK (Tier-2 gate), infinite-streaming verify, recipe book.
-- Gate: TEST GREEN 203 full / 191 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 20/399 (TNT/chest/bed functional:false -
+- Gate: main HEAD=v0.3.0-era docs; TEST GREEN 203 full / 191 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 20/399 (TNT/chest/bed functional:false -
   procedural tiles, not Blender; mechanics shipped+tested, not counted: honest)
   proof-bound (t1 20/125): 15 core+torch+glowstone+furnace + water+lava (#043 buckets).
 - Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy TWO-SIDED faces+AO-less shaded+light+fog),
