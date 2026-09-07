@@ -23,6 +23,10 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- 2055be6 #046 two-sided faces: mesher -axis passes (solids+liquid sides, UV-mirror, shade 0.7/0.45) +
+  landing-snap RATCHET fix (penetrated-pos + push-up; player bounce was center/feet round line) +
+  W.dirty-drain pixel-test rule + render.face-back + faces-corner/mob-px shots vision PASS + quick-timeout 240s;
+  fluid banding shots PASS only in #043-tree state (repaint+depthMask unmerged there); #031 closes with #043
 - 40ce5d7 #041 bed+weather: 2-cell bed (flat dir/head bits), sleep night-window + monster guard + spawn@head +
   dawn skip + rain clear; rain/thunder cycles + lightning strike (overcast sky, flash, blast camera shake);
   +10 asserts; bed-sleep/storm-sky vision PASS
