@@ -7,7 +7,10 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   #031 + fixed P1 atlas icon-stride bug; README+GitHub origin+issue mirror done).
   SPRINT 04 PLANNED+ACTIVE (docs/sprints/04.md, issues 049-059 mirrored): nether/dimension FEAT (SPK-7 GO design!), #044 mob polish, #045 3x3 GUI,
   #048 fidelity (+F7 black patch), spider/enderman, redstone SPK (Tier-2 gate), infinite-streaming verify, recipe book.
-- Gate: main HEAD=v0.3.0-era docs; TEST GREEN 203 full / 191 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 20/399 (TNT/chest/bed functional:false -
+  Sprint 04 ACTIVE: #049 DONE (+9 variants = 29/399; atlas GRID12 regen; 4 latent render bugs fixed -
+  NaN liquid UVs via const-A shadowing, flipped torch since #024, cross-under holes, Cycles alpha flatten).
+  NEXT: #050 wool, #051 storage, #052 slabs, #053 stairs, #054 farming, #055+#056 NETHER, #057 redstone SPK,
+   #058 streaming, #059 recipe book; backlog #044/#045/#048. Audit #7 at close. - Gate: main HEAD=v0.3.0-era docs; TEST GREEN 209 full / 193 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 29/399 (TNT/chest/bed functional:false -
   procedural tiles, not Blender; mechanics shipped+tested, not counted: honest)
   proof-bound (t1 20/125): 15 core+torch+glowstone+furnace + water+lava (#043 buckets).
 - Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy TWO-SIDED faces+AO-less shaded+light+fog),
@@ -23,6 +26,11 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #043 fluids+buckets: 1.12 buckets (7 asserts, stack-1, source-only fetch, place=source, self-refuse),
+  water5/lava30 spread delay + mover-resolves-contact + lava-light-seeding fix, live --cfatlas painted
+  icons, P1: gen.py icon stride (items baked OVER blocks all sprint 02) -> atlas regenerated collision-
+  free, paints -> y96/112 free cells, relight perf rule (covered-cell test), 203/191 GREEN, PARITY 20/399,
+  #031 closed, 25 sheets + bucket-demo vision PASS; fidelity leftovers -> #048
 - 1dbbc8e #034 SPK-7 GO: dual makeWorld instances measured pure (49ch/50ms gen, 5ms/100 idle ticks both
   alive, 96KB/chunk, mesh-all swap 1300ms, 195 CF.world refs all dynamic -> swap = reassign + renderReset);
   shipped only the CF.makeWorld export; nether FEAT design recorded for sprint 04+ (persist v2 dims map!)

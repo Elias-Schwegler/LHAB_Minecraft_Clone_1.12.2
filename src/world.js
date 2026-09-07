@@ -63,11 +63,13 @@ window.CF = window.CF || {};
         const h = colHeight(x, z);
         if (arr[(h * CZ + lz) * CX + lx] !== IDOF['grass']) continue;
         const th = 4 + (hash(x + z * 31 + seed) > 0.5 ? 1 : 0);
-        for (let y = h + 1; y <= h + th; y++) arr[(y * CZ + lz) * CX + lx] = IDOF['log'];
+        const sp = hash(x * 7717 + z * 12377 + seed * 3) > 0.8 ? 'birch' : 'oak'; // #049: ~20% birch (forest-ish), jungle from saplings only
+        const logId = IDOF['log:' + sp], leafId = IDOF['leaves:' + sp] || IDOF['leaves'];
+        for (let y = h + 1; y <= h + th; y++) arr[(y * CZ + lz) * CX + lx] = logId;
         for (let dy = th - 1; dy <= th + 1; dy++) for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
           if (Math.abs(dx) === 2 && Math.abs(dz) === 2 && dy > th - 1) continue;
           const yy = h + dy + 1, ax = lx + dx, az = lz + dz;
-          if (yy < CH && !arr[(yy * CZ + az) * CX + ax]) arr[(yy * CZ + az) * CX + ax] = IDOF['leaves'];
+          if (yy < CH && !arr[(yy * CZ + az) * CX + ax]) arr[(yy * CZ + az) * CX + ax] = leafId;
         }
       }
       return chunks.get(cx + ',' + cz);
@@ -137,27 +139,29 @@ window.CF = window.CF || {};
           if (ab === IDOF['sand'] || ab === IDOF['gravel']) fall(x, yy, z, ab);
           else if (ab) break;
         }
-        if (prev === IDOF['log']) decayLeavesNear(x, y, z); // #019: log removed -> decay check
+        if (isLog(prev)) decayLeavesNear(x, y, z); // #019: log removed -> decay check (#049 any species)
       }
       return true;
     }
     // 1.12.2: leaves persist while within 6 (Chebyshev) of any log; else decay to air.
-    const LEAF = IDOF['leaves'], LOG = IDOF['log'];
+    const isLeaves = (id) => id && CF.BY_ID[id] && CF.BY_ID[id].name === 'leaves'; // #049: any species
+    const isLog = (id) => id && CF.BY_ID[id] && CF.BY_ID[id].name === 'log';
+    const LOG = IDOF['log'];
     function decayLeavesNear(x0, y0, z0) {
       const logs = [];
       const R = 12; // candidate leaf range 6 + leaf->log range 6
       for (let x = x0 - R; x <= x0 + R; x++) for (let z = z0 - R; z <= z0 + R; z++) for (let y = y0 - R; y <= y0 + R; y++)
-        if (get(x, y, z) === LOG) logs.push([x, y, z]);
+        if (isLog(get(x, y, z))) logs.push([x, y, z]);
       const toKill = [];
       for (let x = x0 - 6; x <= x0 + 6; x++) for (let z = z0 - 6; z <= z0 + 6; z++) for (let y = y0 - 6; y <= y0 + 6; y++) {
-        if (get(x, y, z) !== LEAF) continue;
+        if (!isLeaves(get(x, y, z))) continue;
         let alive = false;
         for (const [lx, ly, lz] of logs)
           if (Math.abs(lx - x) <= 6 && Math.abs(ly - y) <= 6 && Math.abs(lz - z) <= 6) { alive = true; break; }
         if (!alive) toKill.push([x, y, z]);
       }
       let n = 0;
-      for (const [x, y, z] of toKill) if (get(x, y, z) === LEAF) { set(x, y, z, 0); n++; }
+      for (const [x, y, z] of toKill) if (isLeaves(get(x, y, z))) { set(x, y, z, 0); n++; }
       return n;
     }
     // ---- light engine (#020): packed byte = (sky<<4)|block per cell, per-chunk maps,
@@ -405,6 +409,27 @@ window.CF = window.CF || {};
       set(x, yy, z, id);
       return true;
     }
+    function growTree(x, y, z, sp) { // #049: place full tree via set() (cross-chunk safe)
+      const logId = IDOF['log:' + sp] || IDOF['log'], leafId = IDOF['leaves:' + sp] || IDOF['leaves'];
+      const th = 4 + (hash(x + z * 31 + seed) > 0.5 ? 1 : 0);
+      for (let yy = y; yy < y + th; yy++) set(x, yy, z, logId);
+      for (let dy = th - 2; dy <= th; dy++) for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
+        if (Math.abs(dx) === 2 && Math.abs(dz) === 2 && dy > th - 2) continue;
+        const ty = y + dy;
+        if (!get(x + dx, ty, z + dz)) set(x + dx, ty, z + dz, leafId);
+      }
+      return th;
+    }
+    function growSapling(x, y, z) { // 1.12 bone-meal-ish deterministic growth; true if a tree grew
+      const id = get(x, y, z);
+      if (!id || !CF.BY_ID[id] || CF.BY_ID[id].name !== 'sapling') return false;
+      const below = get(x, y - 1, z);
+      if (!below || !['dirt', 'grass', 'farmland'].includes(CF.BY_ID[below].name)) return false;
+      for (let yy = y + 1; yy < y + 7; yy++) if (get(x, yy, z)) return false; // #049: air check ABOVE the sapling cell
+      set(x, y, z, 0);
+      growTree(x, y, z, id === IDOF['sapling'] ? 'oak' : CF.BY_ID[id].variant);
+      return true;
+    }
     function randomTicks() {
       if (!chunks.size) return;
       const arr = [...chunks.keys()];
@@ -427,11 +452,13 @@ window.CF = window.CF || {};
           }
         } else if (id === SAND || id === GRAVEL) {
           fall(x, y, z, id);
+        } else if (CF.BY_ID[id].name === 'sapling' && rtRng() < 0.5) {
+          growSapling(x, y, z); // #049: randomTick growth (1.12 ~5%/day; amplified here for liveliness, documented)
         }
       }
     }
     function stats() { return { chunks: chunks.size, generated, queue: genQueue.length, dirty: dirty.size, spreadEv }; }    function heightAt(x, z) { const h = colHeight(x, z); return h; }
-    return { get, set, tick, ensureAround, stats, generate, chunks, dirty, heightAt, biome, seed, decayLeavesNear, lightAt, ensureLight, flatAt, flatSet: setFlat, fluidStat };
+    return { get, set, tick, ensureAround, stats, generate, chunks, dirty, heightAt, biome, seed, decayLeavesNear, growSapling, lightAt, ensureLight, flatAt, flatSet: setFlat, fluidStat };
   }
   CF.makeWorld = makeWorld;
   // #021 day/night: 24000-tick cycle; daylight factor curve (moonlight floor handled in shader).
@@ -567,6 +594,42 @@ window.CF = window.CF || {};
     let grassed = 0;
     for (let dx = 0; dx < 5; dx++) for (let dz = 0; dz < 5; dz++) if (w.get(1 + dx, hs, 1 + dz) === ID['grass']) grassed++;
     CF.assert(r, 'world.grass-spread(' + grassed + ',ev' + w.stats().spreadEv + ')', grassed >= 2);
+    // #049 species growth via deterministic growSapling API + cross-species decay
+    {
+      const gx = 30, gz = 30;
+      w.ensureAround(gx, gz, 1);
+      for (let i = 0; i < 20 && w.stats().queue; i++) w.tick();
+      const gy = w.heightAt(gx, gz) + 1;
+      for (let x = gx - 5; x <= gx + 5; x++) for (let z = gz - 5; z <= gz + 5; z++) {
+        for (let y = gy; y < gy + 9; y++) w.set(x, y, z, 0);
+        w.set(x, gy - 1, z, ID['dirt']);
+      }
+      const species = ['oak', 'birch', 'jungle'];
+      const results = {};
+      species.forEach((sp, i) => {
+        const x = gx + i * 3 - 3;
+        w.set(x, gy, gz, ID['sapling:' + sp]);
+        const grew = w.growSapling(x, gy, gz);
+        const logId = sp === 'oak' ? ID['log'] : ID['log:' + sp];
+        const hasLog = w.get(x, gy + 1, gz) === logId;
+        let leaf = false;
+        for (let dx = -2; dx <= 2 && !leaf; dx++) for (let dz = -2; dz <= 2 && !leaf; dz++) {
+          const id = w.get(x + dx, gy + 4, gz + dz);
+          if (id && CF.BY_ID[id].name === 'leaves' && CF.BY_ID[id].variant === sp) leaf = true;
+        }
+        results[sp] = grew && hasLog && leaf;
+      });
+      CF.assert(r, 'grass.sapling-grow-oak', results.oak === true);
+      CF.assert(r, 'grass.sapling-grow-birch', results.birch === true);
+      CF.assert(r, 'grass.sapling-grow-jungle', results.jungle === true);
+      // remove every log of the three trees -> ALL species leaves must decay (name-based #019 rule)
+      for (let x = gx - 5; x <= gx + 5; x++) for (let z = gz - 5; z <= gz + 5; z++)
+        for (let y = gy; y < gy + 8; y++) if (CF.BY_ID[w.get(x, y, z)] && CF.BY_ID[w.get(x, y, z)].name === 'log') w.set(x, y, z, 0);
+      let left = 0;
+      for (let x = gx - 5; x <= gx + 5; x++) for (let z = gz - 5; z <= gz + 5; z++)
+        for (let y = gy; y < gy + 8; y++) if (CF.BY_ID[w.get(x, y, z)] && CF.BY_ID[w.get(x, y, z)].name === 'leaves') left++;
+      CF.assert(r, 'world.leaves-decay-all(' + left + ')', left === 0);
+    }
   };
   CF.timeTests = async (r) => {
     const w = CF.world;

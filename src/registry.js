@@ -5,8 +5,7 @@
 // Variant key rule: catalog `labels` if present; v==1 -> "default"; v>1 without labels -> "0".."v-1".
 // minTier: 0 hand, 1 wood, 2 stone, 3 iron, 4 diamond (1.12 gate levels; see REFERENCE §tool tiers).
 window.CF = window.CF || {};
-window.CF.REGISTRY = /*REGISTRY-START*/
-{
+window.CF.REGISTRY = /*REGISTRY-START*/{
  "stone": {
   "id": 1,
   "tier": 1,
@@ -162,6 +161,56 @@ window.CF.REGISTRY = /*REGISTRY-START*/
       "world.set-persists"
      ]
     }
+   },
+   "birch": {
+    "functional": true,
+    "tiles": [
+     "planks_birch",
+     "planks_birch",
+     "planks_birch",
+     "planks_birch",
+     "planks_birch",
+     "planks_birch"
+    ],
+    "hardness": 2,
+    "drop": "planks:birch",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#049",
+     "tests": [
+      "registry.species-variants",
+      "interact.place",
+      "world.set-persists"
+     ]
+    }
+   },
+   "jungle": {
+    "functional": true,
+    "tiles": [
+     "planks_jungle",
+     "planks_jungle",
+     "planks_jungle",
+     "planks_jungle",
+     "planks_jungle",
+     "planks_jungle"
+    ],
+    "hardness": 2,
+    "drop": "planks:jungle",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#049",
+     "tests": [
+      "registry.species-variants",
+      "interact.place",
+      "world.set-persists"
+     ]
+    }
    }
   }
  },
@@ -191,6 +240,58 @@ window.CF.REGISTRY = /*REGISTRY-START*/
       "interact.break-time",
       "interact.place",
       "world.set-persists"
+     ]
+    }
+   },
+   "birch": {
+    "functional": true,
+    "tiles": [
+     "log_side_birch",
+     "log_side_birch",
+     "log_top_birch",
+     "log_top_birch",
+     "log_side_birch",
+     "log_side_birch"
+    ],
+    "hardness": 2,
+    "drop": "log:birch",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#049",
+     "tests": [
+      "registry.species-variants",
+      "interact.drop-birch",
+      "world.leaves-decay-all",
+      "grass.sapling-grow-birch"
+     ]
+    }
+   },
+   "jungle": {
+    "functional": true,
+    "tiles": [
+     "log_side_jungle",
+     "log_side_jungle",
+     "log_top_jungle",
+     "log_top_jungle",
+     "log_side_jungle",
+     "log_side_jungle"
+    ],
+    "hardness": 2,
+    "drop": "log:jungle",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#049",
+     "tests": [
+      "registry.species-variants",
+      "interact.drop-birch",
+      "world.leaves-decay-all",
+      "grass.sapling-grow-jungle"
      ]
     }
    }
@@ -292,6 +393,54 @@ window.CF.REGISTRY = /*REGISTRY-START*/
       "world.leaves-decay",
       "world.leaves-persist",
       "interact.leaves-drop"
+     ]
+    }
+   },
+   "birch": {
+    "functional": true,
+    "tiles": [
+     "leaves_birch",
+     "leaves_birch",
+     "leaves_birch",
+     "leaves_birch",
+     "leaves_birch",
+     "leaves_birch"
+    ],
+    "hardness": 0.2,
+    "drop": null,
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#049",
+     "tests": [
+      "registry.species-variants",
+      "world.leaves-decay-all"
+     ]
+    }
+   },
+   "jungle": {
+    "functional": true,
+    "tiles": [
+     "leaves_jungle",
+     "leaves_jungle",
+     "leaves_jungle",
+     "leaves_jungle",
+     "leaves_jungle",
+     "leaves_jungle"
+    ],
+    "hardness": 0.2,
+    "drop": null,
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#049",
+     "tests": [
+      "registry.species-variants",
+      "world.leaves-decay-all"
      ]
     }
    }
@@ -765,6 +914,87 @@ window.CF.REGISTRY = /*REGISTRY-START*/
     }
    }
   }
+ },
+ "sapling": {
+  "id": 0,
+  "tier": 1,
+  "variants": {
+   "oak": {
+    "functional": true,
+    "tiles": [
+     "sapling_oak",
+     "sapling_oak",
+     "sapling_oak",
+     "sapling_oak",
+     "sapling_oak",
+     "sapling_oak"
+    ],
+    "hardness": 0,
+    "drop": "sapling",
+    "tool": null,
+    "minTier": 0,
+    "solid": false,
+    "light": 0,
+    "cross": true,
+    "proof": {
+     "issue": "#049",
+     "tests": [
+      "registry.species-variants",
+      "grass.sapling-grow-oak"
+     ]
+    }
+   },
+   "birch": {
+    "functional": true,
+    "tiles": [
+     "sapling_birch",
+     "sapling_birch",
+     "sapling_birch",
+     "sapling_birch",
+     "sapling_birch",
+     "sapling_birch"
+    ],
+    "hardness": 0,
+    "drop": "sapling:birch",
+    "tool": null,
+    "minTier": 0,
+    "solid": false,
+    "light": 0,
+    "cross": true,
+    "proof": {
+     "issue": "#049",
+     "tests": [
+      "registry.species-variants",
+      "grass.sapling-grow-birch"
+     ]
+    }
+   },
+   "jungle": {
+    "functional": true,
+    "tiles": [
+     "sapling_jungle",
+     "sapling_jungle",
+     "sapling_jungle",
+     "sapling_jungle",
+     "sapling_jungle",
+     "sapling_jungle"
+    ],
+    "hardness": 0,
+    "drop": "sapling:jungle",
+    "tool": null,
+    "minTier": 0,
+    "solid": false,
+    "light": 0,
+    "cross": true,
+    "proof": {
+     "issue": "#049",
+     "tests": [
+      "registry.species-variants",
+      "grass.sapling-grow-jungle"
+     ]
+    }
+   }
+  }
  }
 }/*REGISTRY-END*/;
 
@@ -803,6 +1033,15 @@ window.CF.REGISTRY = /*REGISTRY-START*/
     CF.assert(r, 'registry.tiles-exist', allTiles);
     CF.assert(r, 'registry.tiles-6-faces', allSix);
     CF.assert(r, 'registry.planks-oak', !!CF.REGISTRY.planks.variants.oak);
+    CF.assert(r, 'registry.species-variants', (() => {
+      const meta = window.__TEXMETA || {};
+      const want = { planks: ['birch', 'jungle'], log: ['birch', 'jungle'], leaves: ['birch', 'jungle'], sapling: ['oak', 'birch', 'jungle'] };
+      for (const fam in want) for (const v of want[fam]) {
+        const vr = CF.REGISTRY[fam] && CF.REGISTRY[fam].variants && CF.REGISTRY[fam].variants[v];
+        if (!vr || !CF.IDOF[fam + ':' + v] || !meta[vr.tiles[0]]) return false;
+      }
+      return true;
+    })());
     CF.assert(r, 'registry.ids-unique', new Set(CF.BY_ID.map((v) => v && v.id)).size === CF.BY_ID.length);
   };
 })();

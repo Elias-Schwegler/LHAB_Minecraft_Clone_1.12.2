@@ -14,16 +14,18 @@ Blender-sourced (`tools/tex` manifest). No self-declared counts.
 ## Block % (tiered) — live from parity.mjs (2026-09-07 #043 close: t1=20; water+lava joined via bucket proofs)
 | Tier | variants total | functional | % |
 |------|---------------|-----------|---|
-| 1 | 125 | 20 | 16.0% |
-| 2 | 163 | 0 | 0% |
+| 1 | 125 | 26 | 20.8% |
+| 2 | 163 | 3 | 1.8% |
 | 3 | 111 | 0 | 0% |
-| **all** | **399** | **20** | **5.0%** |
+| **all** | **399** | **29** | **7.3%** |
 
 Counted (evidence: qa/blocks/*.png + blender tiles + functional flag + test asserts):
 stone, grass, dirt, cobblestone, planks:oak, log:oak, leaves:oak, sand, gravel, glass,
 obsidian, coal/iron/gold/diamond ore (t1) = 15, + glowstone (#020, qa/blocks + light asserts),
 + torch (#024, cross-model + per-face attach asserts), + furnace (#032, ui.furn-* GUI asserts +
 smelt pipeline), + water + lava (#043, items.bucket-* 7 asserts + fluids.* incl. bucket-lava glow +
+wood-species II (#049: planks/log/leaves birch+jungle + saplings oak/birch/jungle x3,
+registry.species-variants + grass.sapling-grow-* + interact.drop-birch + world.leaves-decay-all, atlas GRID=12 regen: species tiles blender-baked)
 fluid/bucket-demo shots; counted HONESTLY post-atlas-P1-fix: tiles were stride-overlapped until #043
 regenerated the atlas - sheets re-shot on the fixed build 2026-09-07) = **20**.
 (2026-09-04 audit: snow cube was 1.13-era -> snow_layer t2 unimplemented; functional flags now proof-bound

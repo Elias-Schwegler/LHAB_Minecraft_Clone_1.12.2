@@ -37,8 +37,9 @@ window.CF = window.CF || {};
 
   CF.itemDef = (name) => {
     if (CF.ITEMS[name]) return CF.ITEMS[name];
-    const reg = CF.REGISTRY[name];
-    if (reg) { const k = Object.keys(reg.variants)[0]; return { tile: reg.variants[k].tiles[0], block: true }; }
+    let reg = CF.REGISTRY[name], vk = null;
+    if (name.indexOf(':') > 0) { const p = name.split(':'); reg = CF.REGISTRY[p[0]]; vk = p[1]; } // #049: variant items ('log:birch')
+    if (reg) { const k = vk || Object.keys(reg.variants)[0]; return { tile: reg.variants[k].tiles[0], block: true }; }
     return null;
   };
 
@@ -173,8 +174,8 @@ window.CF = window.CF || {};
   CF.furnacePlace = (x, y, z) => { CF.blockEntities[x + ',' + y + ',' + z] = { type: 'furnace', input: null, fuel: null, out: null, burn: 0, cook: 0 }; };
   // #040 chest: 27-slot container block entity (+ tiles drawn procedurally by render at load)
   const meta = (window.__TEXMETA = window.__TEXMETA || {});
-  if (!meta.chest_side) meta.chest_side = { x: 64, y: 96, w: 16, h: 16, src: 'generated:items.js' };
-  if (!meta.chest_top) meta.chest_top = { x: 80, y: 96, w: 16, h: 16, src: 'generated:items.js' };
+  if (!meta.chest_side) meta.chest_side = { x: 48, y: 96, w: 16, h: 16, src: 'generated:items.js' };
+  if (!meta.chest_top) meta.chest_top = { x: 64, y: 96, w: 16, h: 16, src: 'generated:items.js' };
   CF.chestPlace = (x, y, z) => { CF.blockEntities[x + ',' + y + ',' + z] = { type: 'chest', slots: new Array(27).fill(null) }; };
   CF.chestBreak = (x, y, z) => {
     const k = x + ',' + y + ',' + z, c = CF.blockEntities[k];
@@ -188,9 +189,9 @@ window.CF = window.CF || {};
   CF.containerBreak = (name, x, y, z) => { if (name === 'furnace' && CF.furnaceBreak) CF.furnaceBreak(x, y, z); if (name === 'chest' && CF.chestBreak) CF.chestBreak(x, y, z); };
   // #043 bucket tiles (procedural, painted by render.js in free atlas row y=64)
   if (!meta.item_bucket) {
-    meta.item_bucket = { x: 0, y: 112, w: 16, h: 16, src: 'generated:items.js' };
-    meta.item_water_bucket = { x: 16, y: 112, w: 16, h: 16, src: 'generated:items.js' };
-    meta.item_lava_bucket = { x: 32, y: 112, w: 16, h: 16, src: 'generated:items.js' };
+    meta.item_bucket = { x: 16, y: 112, w: 16, h: 16, src: 'generated:items.js' };
+    meta.item_water_bucket = { x: 32, y: 112, w: 16, h: 16, src: 'generated:items.js' };
+    meta.item_lava_bucket = { x: 48, y: 112, w: 16, h: 16, src: 'generated:items.js' };
   }
   CF.useBucket = (hit) => { // RMB: empty bucket + liquid source -> fill (source removed, MC-accurate); filled + air face-adjacent -> place new source
     if (!hit || !CF.world) return false;

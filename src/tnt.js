@@ -4,8 +4,8 @@ window.CF = window.CF || {};
 (function () {
   const CF = window.CF;
   const meta = (window.__TEXMETA = window.__TEXMETA || {});
-  if (!meta.tnt_side) meta.tnt_side = { x: 32, y: 96, w: 16, h: 16, src: 'generated:tnt.js' }; // free atlas cell (post stride-fix layout)
-  if (!meta.tnt_top) meta.tnt_top = { x: 48, y: 96, w: 16, h: 16, src: 'generated:tnt.js' };
+  if (!meta.tnt_side) meta.tnt_side = { x: 16, y: 96, w: 16, h: 16, src: 'generated:tnt.js' }; // free atlas cell (post stride-fix layout)
+  if (!meta.tnt_top) meta.tnt_top = { x: 32, y: 96, w: 16, h: 16, src: 'generated:tnt.js' };
 
   CF.FUSE = 80; // 1.12.2: tnt fuse = 4s = 80 game ticks
   CF.tnts = CF.tnts || [];
