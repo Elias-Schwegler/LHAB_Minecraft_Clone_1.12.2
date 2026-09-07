@@ -19,7 +19,8 @@ window.CF = window.CF || {};
     const coord = (a, ua, va, d, u, v) => { const Q = [0, 0, 0]; Q[a] = d; Q[ua] = u; Q[va] = v; for (let i = 0; i < 3; i++) Q[i] += off[i]; return Q; };
     for (let a = 0; a < 3; a++) {
       const ua = (a + 1) % 3, va = (a + 2) % 3;
-      if (a === 0) {
+      for (const sgn of [1, -1]) { // #046: BOTH face signs (was +axis only -> 3 of 6 faces never meshed)
+      if (a === 0 && sgn === 1) {
         // cross-model blocks (torch #024): two vertical quads, no greedy
         for (let x = 0; x < CX; x++) for (let z = 0; z < CZ; z++) for (let y = 1; y < CH; y++) {
           const id = W.get(cx * 16 + x, y, cz * 16 + z);
@@ -52,7 +53,7 @@ window.CF = window.CF || {};
           const cur = W.get(A[0], A[1], A[2]);
           if (!cur) continue;
           if (CF.BY_ID[cur] && (CF.BY_ID[cur].cross || CF.BY_ID[cur].liquid)) continue; // drawn separately
-          const B = A.slice(); B[a]++;
+          const B = A.slice(); B[a] += sgn;
           if (W.get(B[0], B[1], B[2])) continue;
           // merge buckets split by id AND light quartile so greedy quads respect lighting (#020)
           const packed = W.lightAt(B[0], B[1], B[2]);
@@ -66,15 +67,18 @@ window.CF = window.CF || {};
           let hh = 1;
           scan: while (v + hh < dims[va]) { for (let k = 0; k < w; k++) if (mask[(u + k) * dims[va] + v + hh] !== val) break scan; hh++; }
           const shadeBase = SHADE[a];
-          const tile = CF.tileFor(val & 0xfff, a * 2);
-          const shade = (a % 2 === 0) ? shadeBase : shadeBase * 0.85;
-          pushQuad(a, ua, va, d, u, v, w, hh, tile, shade, tris);
+          let shade = (a % 2 === 0) ? shadeBase : shadeBase * 0.85; // existing +face shading (baselines)
+          if (sgn < 0) shade = (a === 1) ? 0.45 : shadeBase * 0.7; // #046 -faces: bottoms darkest, sides darker
+          const tile = CF.tileFor(val & 0xfff, a * 2 + (sgn > 0 ? 0 : 1)); // #046 per-face tile (nx/ny/nz)
+          pushQuad(a, ua, va, d, u, v, w, hh, tile, shade, tris, sgn);
           for (let uu = 0; uu < w; uu++) for (let vv = 0; vv < hh; vv++) mask[(u + uu) * dims[va] + v + vv] = 0;
           v += hh;
         }
       }
+      }
     }
-    function pushQuad(a, ua, va, d, u, v, w, hh, tile, shade, trisArr) {
+    function pushQuad(a, ua, va, d, u, v, w, hh, tile, shade, trisArr, sgn) {
+      const plane = sgn > 0 ? d + 1 : d; // #046: -faces sit on the cell's min boundary
       const meta = (window.__TEXMETA || {})[tile];
       let uvAt;
       if (meta) {
@@ -82,14 +86,14 @@ window.CF = window.CF || {};
         const tw = (meta.w - 2 * IN) / S / 16, th = (meta.h - 2 * IN) / S / 16;
         const u0 = (meta.x + IN) / S, v0 = (meta.y + IN) / S;
         // per-face UV orientation: texture-up (v0=PNG top) must follow world +Y on sides;
-        // uvAt(du,dv) tiles one tile-cell per block.
+        // uvAt(du,dv) tiles one tile-cell per block; -faces mirror u (MC samples each face independently).
         uvAt = (du, dv) => (a === 1 ? [u0 + tw * du, v0 + th * dv]
           : a === 0 ? [u0 + th * dv, v0 + th * (hh - du)]
-          : [u0 + tw * du, v0 + th * (hh - dv)]);
+          : (sgn > 0 ? [u0 + tw * du, v0 + th * (hh - dv)] : [u0 + tw * (w - du), v0 + th * (hh - dv)]));
       } else { stats.missingTiles.add(tile); uvAt = () => MAGENTA_UV.slice(0, 2); }
-      const P = (du, dv) => coord(a, ua, va, d + 1, u + du, v + dv);
+      const P = (du, dv) => coord(a, ua, va, plane, u + du, v + dv);
       // pack raw light nibbles (sky<<4|block) into BR; daylight factor applied in shader (#021)
-      const mid = coord(a, ua, va, d + 1, Math.min(dims[ua] - 1, u + (w >> 1)), Math.min(dims[va] - 1, v + (hh >> 1)));
+      const mid = coord(a, ua, va, plane, Math.min(dims[ua] - 1, u + (w >> 1)), Math.min(dims[va] - 1, v + (hh >> 1)));
       const packed = CF.world.lightAt(mid[0], mid[1], mid[2]);
       const bright = packed / 255;
       const corners = [P(0, 0), P(w, 0), P(w, hh), P(0, hh)];
@@ -105,25 +109,29 @@ window.CF = window.CF || {};
     const wpos = [], wcol = [];
     for (let a = 0; a < 3; a++) {
       const ua = (a + 1) % 3, va = (a + 2) % 3;
+      for (const sgn of [1, -1]) { // #046: side faces BOTH directions close the water box (rim gaps caused banding); NO -Y bottom (z-fights the floor, invisible underwater anyway - MC skips it too)
+      if (a === 1 && sgn < 0) continue;
       for (let d = 0; d < dims[a]; d++) {
         for (let u = 0; u < dims[ua]; u++) for (let v = 0; v < dims[va]; v++) {
           const A = coord(a, ua, va, d, u, v);
           const id = W.get(A[0], A[1], A[2]);
           const v2 = id && CF.BY_ID[id];
           if (!v2 || !v2.liquid) continue;
-          const B = A.slice(); B[a]++;
+          const B = A.slice(); B[a] += sgn;
           const bid = W.get(B[0], B[1], B[2]);
           if (bid) continue; // only against air (v1)
-          const tile = v2.tiles[a * 2];
+          const sideSgn = (a === 0 ? (sgn > 0 ? 0 : 1) : a === 1 ? 2 : (sgn > 0 ? 4 : 5)); // px,nx,py(2),pz,nz
+          const tile = v2.tiles[sideSgn];
           const meta = (window.__TEXMETA || {})[tile];
           if (!meta) stats.missingTiles.add(tile);
-          const P0 = coord(a, ua, va, d + 1, u, v), P1 = coord(a, ua, va, d + 1, u + 1, v);
-          const P2 = coord(a, ua, va, d + 1, u + 1, v + 1), P3 = coord(a, ua, va, d + 1, u, v + 1);
+          const plane = sgn > 0 ? d + 1 : d; // #046
+          const P0 = coord(a, ua, va, plane, u, v), P1 = coord(a, ua, va, plane, u + 1, v);
+          const P2 = coord(a, ua, va, plane, u + 1, v + 1), P3 = coord(a, ua, va, plane, u, v + 1);
           const packed = W.lightAt(B[0], B[1], B[2]);
           const br = packed / 255;
           const uvf = meta ? [(meta.x + 0.25) / 128, (meta.y + 0.25) / 128, (meta.x + 15.75) / 128, (meta.y + 15.75) / 128] : MAGENTA_UV;
           const c00 = [P0[0], P0[1], P0[2]], c10 = [P1[0], P1[1], P1[2]], c11 = [P2[0], P2[1], P2[2]], c01 = [P3[0], P3[1], P3[2]];
-          if (a === 1) for (const q of [c00, c10, c11, c01]) q[1] -= 0.12; // water surface slightly below bank (MC-like, avoids coplanar z-fight)
+          if (a === 1 && sgn > 0) for (const q of [c00, c10, c11, c01]) q[1] -= 0.12; // water surface slightly below bank (MC-like, avoids coplanar z-fight)
           const uvs = [[uvf[0], uvf[1]], [uvf[2], uvf[1]], [uvf[2], uvf[3]], [uvf[0], uvf[3]]];
           for (const oi of [0, 1, 2, 0, 2, 3]) {
             const q = [c00, c10, c11, c01][oi];
@@ -131,6 +139,7 @@ window.CF = window.CF || {};
             wcol.push(uvs[oi][0], uvs[oi][1], 0.95, br);
           }
         }
+      }
       }
     }
     return { pos: new Float32Array(pos), col: new Float32Array(col), wpos: new Float32Array(wpos), wcol: new Float32Array(wcol), tris: tris[0] };
@@ -421,5 +430,26 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
     CF.world.set(3, 40, 3, CF.IDOF['stone']);
     CF.renderTick(); CF.renderTick();
     CF.assert(r, 'render.dirty-fast', stats.rebuilds >= before + 1);
+    // #046: back (-X/-Z) faces must mesh - mesher used to emit only +axis faces, so a block viewed
+    // from the opposite corner was a hole. Deterministic sky platform (vegetation can never occlude).
+    {
+      const W = CF.world, px0 = 96, rx = 44, rz = 100;
+      W.ensureAround(rx, rz, 1);
+      for (let i = 0; i < 30 && W.stats().queue; i++) W.tick();
+      for (let x = rx - 4; x <= rx + 4; x++) for (let z = rz - 4; z <= rz + 4; z++) { W.set(x, px0, z, CF.IDOF['stone']); for (let y = px0 + 1; y <= px0 + 6; y++) W.set(x, y, z, 0); }
+      const drain = () => { for (let i = 0; i < 300 && W.dirty.size; i++) CF.renderTick(); };
+      W.ensureLight(rx >> 4, rz >> 4); for (let i = 0; i < 8; i++) W.tick();
+      for (let i = 0; i < 40; i++) CF.renderTick();
+      const shot = (id) => {
+        W.set(rx, px0 + 1, rz, id); drain();
+        CF.renderDraw({ pos: [rx - 1.4, px0 + 2.4, rz - 1.4], yaw: Math.atan2(1.9, 1.9), pitch: -0.32 });
+        const q = new Uint8Array(4); gl.readPixels((CF.canvas.width / 2) | 0, (CF.canvas.height / 2) | 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, q);
+        return [q[0], q[1], q[2], stats.tris];
+      };
+      const e0 = shot(0), e1 = shot(CF.IDOF['log']);
+      shot(0);
+      const d = Math.abs(e0[0] - e1[0]) + Math.abs(e0[1] - e1[1]) + Math.abs(e0[2] - e1[2]);
+      CF.assert(r, 'render.face-back(' + d + ',t0=' + e0[3] + ',t1=' + e1[3] + ',b=' + e1.slice(0, 3) + ')', d > 40);
+    }
   };
 })();

@@ -275,4 +275,36 @@
   if (h === '#test') runTests('all');
   else if (h.startsWith('#test=')) runTests(decodeURIComponent(h.slice(6)));
   else if (h.startsWith('#shot=')) runShot(h.slice(6));
+  CF.shotScenarios['mob-px'] = async () => { // #046 debug/evidence: EXACT mob.px-draw test setup, visible
+    CF.freeCam = true;
+    const W = CF.world, M = CF.mobs, rx = 44, rz = 100, py0 = 96;
+    W.ensureAround(rx, rz, 1);
+    for (let i = 0; i < 30 && W.stats().queue; i++) W.tick();
+    for (let x = rx - 4; x <= rx + 4; x++) for (let z = rz - 4; z <= rz + 4; z++) { W.set(x, py0, z, CF.IDOF['stone']); for (let y = py0 + 1; y <= py0 + 6; y++) W.set(x, y, z, 0); }
+    W.ensureLight(rx >> 4, rz >> 4); for (let i = 0; i < 8; i++) W.tick();
+    for (let i = 0; i < 400 && W.dirty.size; i++) CF.renderTick();
+    M.clear(); M.sched = false; const zc = M.spawn('zombie', rx + 0.5, py0 + 1, rz - 2.5);
+    for (let t = 0; t < 6; t++) M.step(zc);
+    CF.camera = { pos: [rx + 0.5, py0 + 2.5, rz + 0.5], yaw: Math.PI, pitch: Math.atan2((py0 + 1.9) - (py0 + 2.5), 3.0) };
+    CF.timeOffset = 6000;
+    document.title = 'MPX:' + encodeURIComponent(JSON.stringify({ z: zc.pos.map((v) => +v.toFixed(2)), tris: CF.rendererStats.tris, map: CF.rendererStats.mapped }));
+    CF.renderDraw(CF.camera);
+    await new Promise((res) => setTimeout(res, 300));
+  };
+  CF.shotScenarios['faces-corner'] = async () => { // #046: camera at the -X/-Z corner sees faces that were never meshed
+    CF.freeCam = true;
+    const W = CF.world;
+    W.ensureAround(10, 10, 1);
+    for (let i = 0; i < 20 && W.stats().queue; i++) W.tick();
+    const by = 70;
+    for (let x = 7; x <= 13; x++) for (let z = 7; z <= 13; z++) for (let y = by - 2; y < by + 8; y++) W.set(x, y, z, 0);
+    for (let x = 7; x <= 13; x++) for (let z = 7; z <= 13; z++) W.set(x, by - 1, z, CF.IDOF['stone']);
+    W.set(10, by, 10, CF.IDOF['log']); // bark sides + ring top/bottom
+    W.set(11, by, 10, CF.IDOF['grass']); // reference block
+    for (let i = 0; i < 400 && W.dirty.size; i++) CF.renderTick(); // drain rebuild budget (2/tick)
+    for (let i = 0; i < 10; i++) CF.renderTick();
+    CF.camera = { pos: [6.6, by + 1.4, 6.6], yaw: Math.atan2(10.5 - 6.6, 10.5 - 6.6), pitch: -0.25 };
+    CF.renderDraw(CF.camera);
+    await new Promise((res) => setTimeout(res, 200));
+  };
 })();

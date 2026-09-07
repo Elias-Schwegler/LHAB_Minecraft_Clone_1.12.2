@@ -148,7 +148,11 @@ window.CF = window.CF || {};
     let ny = y + m.vel[1] * dt;
     m.onGround = false;
     if (boxHits(hw, hh, x, ny, z)) {
-      if (m.vel[1] < 0) { m.onGround = true; ny = Math.floor(y - hh) + 1 + hh; }
+      if (m.vel[1] < 0) {
+        m.onGround = true;
+        ny = Math.floor(ny - hh) + 1 + hh; // #046: rest on the penetrated surface (stale-y snap ratcheted mobs +1 block/tick)
+        for (let g = 0; g < 8 && boxHits(hw, hh, x, ny, z); g++) ny += 1; // push up out of deep penetration
+      }
       else ny = Math.ceil(y + hh) - 1 - hh - 0.001;
       m.vel[1] = 0;
     }
@@ -1052,18 +1056,27 @@ window.CF = window.CF || {};
     // render: pixel in front of camera changes with a mob there; GL clean
     for (let i = 0; i < 60 && !CF.rendererStats.ready; i++) { CF.renderTick(); await new Promise((s) => setTimeout(s, 25)); }
     CF.timeOffset = 6000; CF.freeCam = true;
-    const rx = 44, rz = 44;
-    W.ensureAround(rx, rz, 2); settle(30);
-    for (let i = 0; i < 60; i++) CF.renderTick();
-    const rh = W.heightAt(rx, rz);
+    // deterministic sky platform (grass-sim vegetation elsewhere must never occlude this sightline)
+    const rx = 44, rz = 100, py0 = 96;
+    W.ensureAround(rx, rz, 1); settle(30);
+    for (let x = rx - 4; x <= rx + 4; x++) for (let z = rz - 4; z <= rz + 4; z++) { W.set(x, py0, z, ID['stone']); for (let y = py0 + 1; y <= py0 + 6; y++) W.set(x, y, z, 0); }
+    W.ensureLight(rx >> 4, rz >> 4); for (let i = 0; i < 8; i++) W.tick();
+    // drain render rebuild queue (2 chunks/tick budget + relight churn from the 486 sets;
+    // a fixed renderTick count raced the budget once the #046 two-sided mesher doubled load)
+    for (let i = 0; i < 400 && W.dirty.size; i++) CF.renderTick();
+    for (let i = 0; i < 10; i++) CF.renderTick();
+    const mzh = py0, rh = py0;
     const mz = rz - 2.5; // mob stands 2.5 blocks north (yaw=PI looks -Z)
-    const cam = { pos: [rx + 0.5, rh + 1.5, rz + 0.0], yaw: Math.PI, pitch: 0.15 };
-    const zc = M.spawn('zombie', rx + 0.5, W.heightAt(rx, Math.floor(mz)) + 1, mz);
+    const camy = py0 + 2.5;
+    const cam = { pos: [rx + 0.5, camy, rz + 0.5], yaw: Math.PI, pitch: Math.atan2((py0 + 1.9) - camy, 3.0) };
+    // capture EMPTY frame first, THEN spawn (was: mob present in both captures -> delta only
+    // nonzero by luck when a tree happened to hide it in e0; flaky)
     CF.renderDraw(cam); const e0 = CF.readCenter();
+    const zc = M.spawn('zombie', rx + 0.5, mzh + 1, mz);
     for (let t = 0; t < 6; t++) M.step(zc);
     CF.renderDraw(cam); const e1 = CF.readCenter();
     const delta = Math.abs(e0[0] - e1[0]) + Math.abs(e0[1] - e1[1]) + Math.abs(e0[2] - e1[2]);
-    CF.assert(r, 'mob.px-draw(d=' + delta + ',b=' + e1 + ')', delta > 12 && CF.rendererStats.mtris >= 24);
+    CF.assert(r, 'mob.px-draw(d=' + delta + ',n=' + M.list.length + ',z=' + zc.pos.map((v) => Math.round(v)) + ',cm=' + cam.pos.map((v) => Math.round(v)) + ',mt=' + CF.rendererStats.mtris + ',mzh=' + mzh + ',rh=' + rh + ',P=' + W.get(rx, py0, rz) + ',H=' + W.heightAt(rx, rz) + ',A=' + W.get(rx, py0 + 1, rz - 2) + ',q=' + W.dirty.size + ',map=' + CF.rendererStats.mapped + '/' + W.chunks.size + ',b=' + e1 + ')', delta > 12 && CF.rendererStats.mtris >= 24);
     CF.assert(r, 'mob.glErr(' + CF.rendererStats.glErr + ')', CF.rendererStats.glErr === 0);
     M.clear();
     CF.survival = surv0; CF.timeOffset = t0; CF.freeCam = false; M.sched = true;

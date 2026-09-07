@@ -68,13 +68,17 @@ window.CF = window.CF || {};
     let ny = y + player.vel[1] * dt;
     player.onGround = false;
     if (boxHits(x, ny, z)) {
-      if (player.vel[1] < 0) { player.onGround = true; ny = Math.floor(y - HH) + 1 + HH; }
+      if (player.vel[1] < 0) {
+        player.onGround = true;
+        ny = Math.floor(ny - HH) + 1 + HH; // #046: rest on the penetrated surface (stale-y snap ratcheted +1/tick = the reported bounce)
+        for (let g = 0; g < 8 && boxHits(x, ny, z); g++) ny += 1; // fast falls penetrate several cells - push up until free
+      }
       else ny = Math.ceil(y + HH) - 1 - HH - 0.001;
       player.vel[1] = 0;
     }
     y = ny;
-    // snap to exact ground: settle when tiny hop noise
-    if (player.onGround && Math.abs(player.vel[1]) < 0.01) y = Math.round((y - HH) * 1000) / 1000;
+    // #046: removed the old "hop noise" snap `y = Math.round((y - HH) * 1000) / 1000` -
+    // with a correct landing snap it overwrote CENTER y with feet-y, burying the player.
     player.pos = [x, y, z];
     if (y < -20) player.tp(8.5, CF.world.heightAt(8, 8) + 2, 8.5); // void rescue
 
