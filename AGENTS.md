@@ -3,10 +3,10 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
 
 ## Current state (2026-09-07, sprint 03 it18)
 - Tags: v0.0.0 scaffold → v0.1.0 sprint01+fixes → v0.2.0 SPRINT 02 CLOSED (audit #4 READY).
-- Sprint 03 ACTIVE: #033 #035 #032 #036 #037 #038 #042 #039 #040 #041 #046 #047 #043 DONE (#043 closed
+- Sprint 03 ACTIVE: #033 #035 #032 #036 #037 #038 #042 #039 #040 #041 #046 #047 #043 #034 DONE (#043 closed
   #031 + fixed P1 atlas icon-stride bug; README+GitHub origin+issue mirror done).
-  NEXT: #034 SPK-7 (nether scale - REQUIRED before any nether work), then #044/#045/#048 backlog,
-  audit#6 + sprint close + tag v0.3.0.
+  NEXT: #034 SPK-7 GO. Sprint issues COMPLETE -> #044/#045/#048 backlog,
+  CEREMONIES: audit#6 (sub-agent full), review/retro/METRICS, tag v0.3.0, then sprint 04 planning.
 - Gate: TEST GREEN 203 full / 191 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 20/399 (TNT/chest/bed functional:false -
   procedural tiles, not Blender; mechanics shipped+tested, not counted: honest)
   proof-bound (t1 20/125): 15 core blocks + torch + furnace + water + lava (#043 buckets).

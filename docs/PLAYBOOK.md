@@ -163,7 +163,8 @@ Engine/logic:
   an AC without its named evidence; vision-check every shot; parity counts ONLY via tools/parity.mjs.
 - GitHub (user 2026-09-07): origin = https://github.com/Elias-Schwegler/LHAB_Minecraft_Clone_1.12.2.git.
   Issues are authored LOCALLY in issues/NNN-slug.md (source of truth), then MIRRORED to GitHub issues
-  (gh issue create + close-with-comment for DONE ones); push main+tags at every merge cluster.
+  (spike/mirror-issues.mjs - IDEMPOTENT by title, re-run safe; DONE/VOID ones auto-closed); push
+  main+tags at every merge cluster. Never run a non-idempotent bulk creator twice (cost a dedupe pass).
 
 ## 6. Current architecture quickmap (details in code comments)
 registry.js (data+ids) → world.js (chunks/gen/light/fluids/decay) → render.js (3 passes) →

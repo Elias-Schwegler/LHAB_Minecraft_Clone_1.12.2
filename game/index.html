@@ -1270,6 +1270,7 @@ window.CF = window.CF || {};
   };
   const seed = ((location.search.match(/seed=(\d+)/) || [0, 1337])[1] | 0);
   CF.world = makeWorld(seed);
+  CF.makeWorld = makeWorld; // SPK-7 hook: second world instance (dimension experiment) - NOT yet used by the game
 })();
 
 // Harness asserts (#002)
