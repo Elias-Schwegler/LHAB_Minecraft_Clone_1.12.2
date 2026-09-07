@@ -304,6 +304,23 @@
     gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.deleteFramebuffer(fb);
     await new Promise((res) => setTimeout(res, 100));
   };
+  CF.shotScenarios['storage-wall'] = async () => { // #051: gold/iron/diamond/brick/clay row
+    CF.freeCam = true;
+    const W = CF.world, rx = 120, rz = 120;
+    W.ensureAround(rx, rz, 1);
+    for (let i = 0; i < 30 && W.stats().queue; i++) W.tick();
+    const h0 = Math.max(W.heightAt(rx, rz), 8);
+    for (let x = rx - 6; x <= rx + 6; x++) for (let z = rz - 6; z <= rz + 6; z++) {
+      for (let y = h0 + 1; y <= h0 + 12; y++) W.set(x, y, z, 0);
+      W.set(x, h0, z, CF.IDOF['stone']);
+    }
+    ['gold_block', 'iron_block', 'diamond_block', 'brick_block', 'clay'].forEach((n, i) => { W.set(rx - 2 + i, h0 + 1, rz, CF.IDOF[n]); });
+    for (let i = 0; i < 300 && W.dirty.size; i++) CF.renderTick();
+    for (let i = 0; i < 10; i++) CF.renderTick();
+    CF.camera = { pos: [rx + 0.5, h0 + 2.6, rz + 5.5], yaw: Math.PI + 0.1, pitch: -0.22 };
+    CF.renderDraw(CF.camera);
+    await new Promise((res) => setTimeout(res, 300));
+  };
   CF.shotScenarios['wool-wall'] = async () => { // #050: all 16 wool colors as a wall
     CF.freeCam = true;
     const W = CF.world, rx = 200, rz = 200;

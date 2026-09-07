@@ -1401,6 +1401,162 @@ window.CF.REGISTRY = /*REGISTRY-START*/{
     }
    }
   }
+ },
+ "gold_block": {
+  "id": 41,
+  "tier": 2,
+  "variants": {
+   "default": {
+    "functional": true,
+    "tiles": [
+     "gold_block",
+     "gold_block",
+     "gold_block",
+     "gold_block",
+     "gold_block",
+     "gold_block"
+    ],
+    "hardness": 5,
+    "drop": "gold_block",
+    "tool": "pickaxe",
+    "minTier": 1,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#051",
+     "tests": [
+      "registry.storage",
+      "items.storage-9x1",
+      "interact.place"
+     ]
+    }
+   }
+  }
+ },
+ "iron_block": {
+  "id": 42,
+  "tier": 2,
+  "variants": {
+   "default": {
+    "functional": true,
+    "tiles": [
+     "iron_block",
+     "iron_block",
+     "iron_block",
+     "iron_block",
+     "iron_block",
+     "iron_block"
+    ],
+    "hardness": 5,
+    "drop": "iron_block",
+    "tool": "pickaxe",
+    "minTier": 1,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#051",
+     "tests": [
+      "registry.storage",
+      "items.storage-9x1",
+      "interact.place"
+     ]
+    }
+   }
+  }
+ },
+ "diamond_block": {
+  "id": 57,
+  "tier": 2,
+  "variants": {
+   "default": {
+    "functional": true,
+    "tiles": [
+     "diamond_block",
+     "diamond_block",
+     "diamond_block",
+     "diamond_block",
+     "diamond_block",
+     "diamond_block"
+    ],
+    "hardness": 5,
+    "drop": "diamond_block",
+    "tool": "pickaxe",
+    "minTier": 1,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#051",
+     "tests": [
+      "registry.storage",
+      "items.storage-9x1",
+      "interact.place"
+     ]
+    }
+   }
+  }
+ },
+ "brick_block": {
+  "id": 45,
+  "tier": 2,
+  "variants": {
+   "default": {
+    "functional": true,
+    "tiles": [
+     "brick_block",
+     "brick_block",
+     "brick_block",
+     "brick_block",
+     "brick_block",
+     "brick_block"
+    ],
+    "hardness": 2,
+    "drop": "brick_block",
+    "tool": "pickaxe",
+    "minTier": 1,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#051",
+     "tests": [
+      "registry.storage",
+      "items.storage-9x1",
+      "interact.place"
+     ]
+    }
+   }
+  }
+ },
+ "clay": {
+  "id": 82,
+  "tier": 1,
+  "variants": {
+   "default": {
+    "functional": true,
+    "tiles": [
+     "clay_block",
+     "clay_block",
+     "clay_block",
+     "clay_block",
+     "clay_block",
+     "clay_block"
+    ],
+    "hardness": 0.6,
+    "drop": "clay_ball",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#051",
+     "tests": [
+      "registry.storage",
+      "interact.clay-drop4",
+      "items.smelt"
+     ]
+    },
+    "dropN": 4
+   }
+  }
  }
 }/*REGISTRY-END*/;
 
@@ -1439,6 +1595,11 @@ window.CF.REGISTRY = /*REGISTRY-START*/{
     CF.assert(r, 'registry.tiles-exist', allTiles);
     CF.assert(r, 'registry.tiles-6-faces', allSix);
     CF.assert(r, 'registry.planks-oak', !!CF.REGISTRY.planks.variants.oak);
+    CF.assert(r, 'registry.storage', (() => {
+      const meta = window.__TEXMETA || {};
+      return ['gold_block', 'iron_block', 'diamond_block', 'brick_block', 'clay'].every((n) =>
+        CF.REGISTRY[n] && CF.REGISTRY[n].variants.default.tiles.every((t) => meta[t]) && /^blender:/.test(meta[CF.REGISTRY[n].variants.default.tiles[0]].src || ''));
+    })());
     CF.assert(r, 'registry.wool-spectrum', (() => {
       const meta = window.__TEXMETA || {};
       const cols = ['white', 'orange', 'magenta', 'light_blue', 'yellow', 'lime', 'pink', 'gray', 'light_gray', 'cyan', 'purple', 'blue', 'brown', 'green', 'red', 'black'];

@@ -74,7 +74,7 @@ window.CF = window.CF || {};
         const lr = Math.random();
         dropName = lr < 0.05 ? (v.variant === 'oak' ? 'sapling' : 'sapling:' + v.variant) : lr < 0.055 && v.variant === 'oak' ? 'apple' : null; // #049 species saplings; apples oak-only (1.12)
       }
-      const drops = tierOk && dropName ? [{ name: dropName, n: 1, x: m.x + 0.5, y: m.y + 0.5, z: m.z + 0.5 }] : [];
+      const drops = tierOk && dropName ? [{ name: dropName, n: v.dropN || 1, x: m.x + 0.5, y: m.y + 0.5, z: m.z + 0.5 }] : [];
       if (v.name === 'furnace' && CF.furnaceBreak) CF.furnaceBreak(m.x, m.y, m.z); // #032: contents to player
       if (v.name === 'chest' && CF.chestBreak) CF.chestBreak(m.x, m.y, m.z); // #040: contents to player
       if (v.name === 'bed' && CF.bedBreak) CF.bedBreak(m.x, m.y, m.z); // #041: both halves
@@ -191,6 +191,18 @@ window.CF = window.CF || {};
     }
     CF.assert(r, 'interact.leaves-drop(' + sap + '/' + leafTot + ')', leafTot === 600 && sap > 12 && sap < 55);
 
+    // #051: clay block yields 4 clay balls (1.12)
+    {
+      const h = CF.world.heightAt(74, 74) + 1;
+      CF.world.set(74, h, 74, IDOF['clay']);
+      const before = CF.countItem('clay_ball');
+      CF.drops.length = 0;
+      CF.mineStart({ x: 74, y: h, z: 74 });
+      let broke = null, ticks = 0;
+      while (ticks < 200 && !(broke && broke.broke)) { broke = CF.mineTick(0.05); ticks++; }
+      CF.assert(r, 'interact.clay-drop4(' + (CF.countItem('clay_ball') - before) + ')', broke && broke.broke && CF.countItem('clay_ball') - before === 4);
+      CF.drops.length = 0; // NOTE: no inv.fill here - the place/bedrock tests below depend on the hotbar
+    }
     // #050: colored wool keeps its color in the drop
     {
       const h = CF.world.heightAt(72, 72) + 1;

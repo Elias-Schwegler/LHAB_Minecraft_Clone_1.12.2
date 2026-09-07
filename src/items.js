@@ -29,7 +29,8 @@ window.CF = window.CF || {};
     raw_beef: { food: 3 }, steak: { food: 8 },
     mutton: { food: 2 }, cooked_mutton: { food: 6 },
     raw_chicken: { food: 2, poison: 0.3 }, cooked_chicken: { food: 6 },
-    wool: {}, // sheep drop; colour variants -> #044 (only white registered)
+    wool: {}, // superseded by the wool BLOCK family (#050) - bare item kept for sheep drop compat
+    clay_ball: {}, brick: {}, // #051 chain items (icons -> #048)
   };
   for (const [mat, info] of Object.entries(TOOLS))
     for (const shape of ['pickaxe', 'axe', 'shovel', 'sword'])
@@ -104,6 +105,14 @@ window.CF = window.CF || {};
     P(['gsg', 'sgs', 'gsg'], { g: 'gunpowder', s: 'sand' }, 'tnt', 1),
     P(['i', 'f'], { i: 'iron_ingot', f: 'flint' }, 'flint_and_steel', 1),
     P(['i i', ' i '], { i: 'iron_ingot' }, 'bucket', 1), // #043 (1.12 V pattern, 3 ingots)
+    // #051 storage compression/uncraft + brick
+    P(['iii', 'iii', 'iii'], { i: 'iron_ingot' }, 'iron_block', 1),
+    P(['ggg', 'ggg', 'ggg'], { i: 'gold_ingot', g: 'gold_ingot' }, 'gold_block', 1),
+    P(['ddd', 'ddd', 'ddd'], { i: 'diamond', d: 'diamond' }, 'diamond_block', 1),
+    P(['bb', 'bb'], { b: 'brick' }, 'brick_block', 1),
+    { shapeless: { iron_block: 1 }, out: { name: 'iron_ingot', n: 9 } },
+    { shapeless: { gold_block: 1 }, out: { name: 'gold_ingot', n: 9 } },
+    { shapeless: { diamond_block: 1 }, out: { name: 'diamond', n: 9 } },
   ];
   const baseTools = CF.RECIPES.filter((x) => x.rows && !x.key);
   for (const mat of ['wood', 'stone', 'iron', 'diamond'])
@@ -169,7 +178,7 @@ window.CF = window.CF || {};
 
   // ---- furnace block entities + smelting (200t/item, coal fuel 1600t)
   CF.blockEntities = {};
-  const SMELT = { iron_ore: 'iron_ingot', gold_ore: 'gold_ingot', sand: 'glass' };
+  const SMELT = { iron_ore: 'iron_ingot', gold_ore: 'gold_ingot', sand: 'glass', clay_ball: 'brick' }; // #051
   CF.FUEL = { coal: 1600, planks: 300, log: 300, stick: 100 };
   CF.furnacePlace = (x, y, z) => { CF.blockEntities[x + ',' + y + ',' + z] = { type: 'furnace', input: null, fuel: null, out: null, burn: 0, cook: 0 }; };
   // #040 chest: 27-slot container block entity (+ tiles drawn procedurally by render at load)
@@ -315,6 +324,14 @@ window.CF = window.CF || {};
     CF.give('dirt', 70);
     CF.assert(r, 'items.stack', CF.countItem('dirt') === 70 && CF.inv[0].count === 64 && CF.inv[1].count === 6);
     CF.assert(r, 'items.consume', CF.consume('dirt', 65) && CF.countItem('dirt') === 5 && !CF.consume('dirt', 6));
+    CF.inv.fill(null);
+    for (let i = 0; i < 9; i++) CF.inv[i] = { name: 'iron_ingot', count: 1 };
+    CF.craftOnce([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    const packed = CF.countItem('iron_block');
+    CF.inv.fill(null); CF.inv[0] = { name: 'iron_block', count: 1 };
+    CF.craftOnce([0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (i === 0 ? 0 : 30)));
+    const unpacked = CF.countItem('iron_ingot');
+    CF.assert(r, 'items.storage-9x1(' + packed + ',' + unpacked + ')', packed === 1 && unpacked === 9);
     // ---- #043 buckets (1.12 semantics: source-only pickup, source placement, stack 1)
     {
       const W = CF.world, bx = 220, bz = 220;
