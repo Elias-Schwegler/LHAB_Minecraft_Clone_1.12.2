@@ -36,6 +36,7 @@ window.CF = window.CF || {};
 
   function tick(dt = 0.05) {
     if (!CF.world) return;
+    player.prevPos = player.pos.slice(); // #047: interpolation source for rAF rendering
     readInput();
     const i = player.input;
     const speed = (i.sprint && (!CF.canSprint || CF.canSprint())) ? SPRINT : i.sneak ? SNEAK : WALK;

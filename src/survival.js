@@ -12,7 +12,11 @@ window.CF = window.CF || {};
   hud.id = 'surv';
   hud.style.cssText = 'position:fixed;bottom:56px;left:50%;transform:translateX(-50%);display:none;gap:0;z-index:21;font:13px monospace';
   hud.innerHTML = '<div id="hearts" style="display:flex;gap:1px"></div><div id="food" style="display:flex;gap:1px;margin-left:60%"></div>';
-  (document.body ? Promise.resolve() : new Promise((r) => document.addEventListener('DOMContentLoaded', r))).then(() => document.body.appendChild(hud));
+  // #047: append synchronously when body already exists (scripts run at </body>) - the old
+  // Promise.resolve().then() deferred one microtask so getElementById('hearts') could miss it
+  // when a test suite ran before the flush (latent since #026, hit by the bedsuite standalone).
+  if (document.body) document.body.appendChild(hud);
+  else document.addEventListener('DOMContentLoaded', () => document.body.appendChild(hud));
 
   const HEART = '#c03028', EMPTY = '#3a3a3a', FOODC = '#c88038', DRY = '#2e2e2e';
   function pip(el, n, max, colorFull, colorEmpty, half) {
@@ -30,8 +34,9 @@ window.CF = window.CF || {};
     const on = CF.survival;
     hud.style.display = on ? 'flex' : 'none';
     if (!on) return;
-    pip(document.getElementById('hearts'), Math.max(0, Math.ceil(S.hp)), 10, HEART, EMPTY, true);
-    pip(document.getElementById('food'), Math.max(0, Math.ceil(S.food)), 10, FOODC, DRY, false);
+    const hc = document.getElementById('hearts'), fc = document.getElementById('food');
+    if (hc) pip(hc, Math.max(0, Math.ceil(S.hp)), 10, HEART, EMPTY, true);
+    if (fc) pip(fc, Math.max(0, Math.ceil(S.food)), 10, FOODC, DRY, false);
   }
   CF.survRefresh = hudRefresh;
 

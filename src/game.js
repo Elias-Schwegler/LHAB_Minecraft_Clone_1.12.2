@@ -41,12 +41,19 @@ window.CF = window.CF || {};
       CF.onTick && CF.onTick();
       if (CF.renderDraw) CF.renderDraw(CF.camera || { pos: [8, CF.world ? CF.world.heightAt(0, 0) + 26 : 90, 8], yaw: 0.7, pitch: -0.9 });
       CF.simMs = performance.now() - t0;
+      CF.lastSimAt = performance.now(); // #047: rAF interpolates camera between 20Hz sim ticks
       CF.ticks++;
     }, 50);
     CF.stopGameLoop = () => { clearInterval(loopId); CF.stopDraw = true; };
     function frame() {
       if (CF.stopDraw) return;
       if (CF.renderDraw) {
+        // #047 smooth camera: lerp the player's eye position from prevPos->pos by elapsed tick fraction
+        if (CF.player && !CF.freeCam && !CF.sleeping && CF.player.prevPos) {
+          const P = CF.player, a = Math.min(1, (performance.now() - (CF.lastSimAt || performance.now())) / 50);
+          const l = (i) => P.prevPos[i] + (P.pos[i] - P.prevPos[i]) * a;
+          CF.camera = { pos: [l(0), l(1) - 0.9 + 1.62, l(2)], yaw: P.yaw, pitch: P.pitch };
+        }
         CF.renderDraw(CF.camera || { pos: [8, CF.world ? CF.world.heightAt(0, 0) + 26 : 90, 8], yaw: 0.7, pitch: -0.9 });
       } else {
         gl.clearColor(0.6, 0.75, 1.0, 1); gl.clear(gl.COLOR_BUFFER_BIT);

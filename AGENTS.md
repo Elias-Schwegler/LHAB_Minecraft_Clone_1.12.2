@@ -3,11 +3,11 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
 
 ## Current state (2026-09-07, sprint 03 it17)
 - Tags: v0.0.0 scaffold → v0.1.0 sprint01+fixes → v0.2.0 SPRINT 02 CLOSED (audit #4 READY).
-- Sprint 03 ACTIVE: #033 #035 #032 #036 #037 #038 #042 #039 #040 #041 #046 DONE. NEXT: #047 (crosshair+
-  camera interpolation - code DONE in tree, verify+merge), README+GitHub remote+issue mirror,
-  #043 buckets (tile repaint+banding verified PASS), #034 SPK-7, then #044/#045 backlog, audit#6 + close 03.
+- Sprint 03 ACTIVE: #033 #035 #032 #036 #037 #038 #042 #039 #040 #041 #046 #047 DONE. NEXT: README+GitHub
+  remote+issue mirror, #043 buckets (tile repaint+banding verified PASS), #034 SPK-7, then #044/#045 backlog,
+  audit#6 + close 03.
   SPK-7 (nether scale) before any nether work.
-- Gate: TEST GREEN 193 full / 182 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 18/399 (TNT/chest/bed functional:false -
+- Gate: TEST GREEN 195 full / 184 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 18/399 (TNT/chest/bed functional:false -
   procedural tiles, not Blender; mechanics shipped+tested, not counted: honest)
   proof-bound (t1 18/125): 15 core blocks + torch + furnace; water/lava NOT counted until buckets (#031).
 - Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy TWO-SIDED faces+AO-less shaded+light+fog),
@@ -23,6 +23,9 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #047 game-feel: crosshair #xh (mix-blend difference, hidden in GUIs) + rAF camera
+  interpolation (prevPos lerp) + ui.crosshair/ui.stand-rock-still asserts (195 full/184 quick); HUD append
+  made synchronous; the "bounce" root fix itself shipped under #046
 - 2055be6 #046 two-sided faces: mesher -axis passes (solids+liquid sides, UV-mirror, shade 0.7/0.45) +
   landing-snap RATCHET fix (penetrated-pos + push-up; player bounce was center/feet round line) +
   W.dirty-drain pixel-test rule + render.face-back + faces-corner/mob-px shots vision PASS + quick-timeout 240s;
