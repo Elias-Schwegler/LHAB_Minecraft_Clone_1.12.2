@@ -23,6 +23,9 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- 1dbbc8e #034 SPK-7 GO: dual makeWorld instances measured pure (49ch/50ms gen, 5ms/100 idle ticks both
+  alive, 96KB/chunk, mesh-all swap 1300ms, 195 CF.world refs all dynamic -> swap = reassign + renderReset);
+  shipped only the CF.makeWorld export; nether FEAT design recorded for sprint 04+ (persist v2 dims map!)
 - #043 fluids+buckets: 1.12 buckets (7 asserts, stack-1, source-only fetch, place=source, self-refuse),
   water5/lava30 spread delay + mover-resolves-contact + lava-light-seeding fix, live --cfatlas painted
   icons, P1: gen.py icon stride (items baked OVER blocks all sprint 02) -> atlas regenerated collision-
