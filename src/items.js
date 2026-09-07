@@ -16,8 +16,12 @@ window.CF = window.CF || {};
     rotten_flesh: { food: 4, poison: true }, // 1.12: +4 food, 80% poison II 4s (poison effect lands with #036 combat)
     sapling: { tile: 'item_sapling' },
     flint: { tile: 'item_flint' },
-    shears: { tile: 'item_shears', tool: { type: 'shears', tier: 0, speed: 1 } },
-    flint_and_steel: {}, // #042 igniter (durability ignored in Tier-1)
+    shears: { tile: 'item_shears', tool: { type: 'shears', tier: 0, speed: 1 }, stack: 1 },
+    flint_and_steel: { stack: 1 }, // #042 igniter (durability ignored in Tier-1)
+    // #043 buckets (1.12: stack 1; fetch liquid SOURCES only; placing creates a new source)
+    bucket: { tile: 'item_bucket', stack: 1 },
+    water_bucket: { tile: 'item_water_bucket', stack: 1 },
+    lava_bucket: { tile: 'item_lava_bucket', stack: 1 },
     // mob drops + passive products (#037/#038). No atlas tiles yet -> blank icons (tracked #044); counts/logic tested.
     bone: {}, arrow: {}, gunpowder: {}, string: {}, feather: {}, leather: {}, ink_sac: {},
     egg: {}, wheat: {}, carrot: { food: 3 }, potato: { food: 1 }, wheat_seeds: {},
@@ -29,7 +33,7 @@ window.CF = window.CF || {};
   };
   for (const [mat, info] of Object.entries(TOOLS))
     for (const shape of ['pickaxe', 'axe', 'shovel', 'sword'])
-      CF.ITEMS[mat + '_' + shape] = { tile: 'item_' + mat + '_' + shape, tool: { type: shape, tier: info.tier, speed: info.speed } };
+      CF.ITEMS[mat + '_' + shape] = { tile: 'item_' + mat + '_' + shape, tool: { type: shape, tier: info.tier, speed: info.speed }, stack: 1 };
 
   CF.itemDef = (name) => {
     if (CF.ITEMS[name]) return CF.ITEMS[name];
@@ -41,12 +45,13 @@ window.CF = window.CF || {};
   // ---- inventory (36 slots: 0-8 hotbar)
   CF.inv = new Array(36).fill(null);
   CF.give = (name, n = 1) => {
+    const max = (CF.itemDef(name) || {}).stack || STACK; // 1.12: tools/buckets = 1 (others 64)
     let left = n;
     for (let i = 0; i < 36 && left > 0; i++) {
       const s = CF.inv[i];
-      if (s && s.name === name && s.count < STACK) { const add = Math.min(STACK - s.count, left); s.count += add; left -= add; }
+      if (s && s.name === name && s.count < max) { const add = Math.min(max - s.count, left); s.count += add; left -= add; }
     }
-    for (let i = 0; i < 36 && left > 0; i++) if (!CF.inv[i]) { const add = Math.min(STACK, left); CF.inv[i] = { name, count: add }; left -= add; }
+    for (let i = 0; i < 36 && left > 0; i++) if (!CF.inv[i]) { const add = Math.min(max, left); CF.inv[i] = { name, count: add }; left -= add; }
     return left; // leftover (inv full)
   };
   CF.countItem = (name) => CF.inv.reduce((s, it) => s + (it && it.name === name ? it.count : 0), 0);
@@ -97,6 +102,7 @@ window.CF = window.CF || {};
     // #042 TNT (1.12: 5 gunpowder + 4 sand) + flint & steel (1.12: iron ingot + flint)
     P(['gsg', 'sgs', 'gsg'], { g: 'gunpowder', s: 'sand' }, 'tnt', 1),
     P(['i', 'f'], { i: 'iron_ingot', f: 'flint' }, 'flint_and_steel', 1),
+    P(['i i', ' i '], { i: 'iron_ingot' }, 'bucket', 1), // #043 (1.12 V pattern, 3 ingots)
   ];
   const baseTools = CF.RECIPES.filter((x) => x.rows && !x.key);
   for (const mat of ['wood', 'stone', 'iron', 'diamond'])
@@ -167,8 +173,8 @@ window.CF = window.CF || {};
   CF.furnacePlace = (x, y, z) => { CF.blockEntities[x + ',' + y + ',' + z] = { type: 'furnace', input: null, fuel: null, out: null, burn: 0, cook: 0 }; };
   // #040 chest: 27-slot container block entity (+ tiles drawn procedurally by render at load)
   const meta = (window.__TEXMETA = window.__TEXMETA || {});
-  if (!meta.chest_side) meta.chest_side = { x: 64, y: 48, w: 16, h: 16, src: 'generated:items.js' };
-  if (!meta.chest_top) meta.chest_top = { x: 80, y: 48, w: 16, h: 16, src: 'generated:items.js' };
+  if (!meta.chest_side) meta.chest_side = { x: 64, y: 96, w: 16, h: 16, src: 'generated:items.js' };
+  if (!meta.chest_top) meta.chest_top = { x: 80, y: 96, w: 16, h: 16, src: 'generated:items.js' };
   CF.chestPlace = (x, y, z) => { CF.blockEntities[x + ',' + y + ',' + z] = { type: 'chest', slots: new Array(27).fill(null) }; };
   CF.chestBreak = (x, y, z) => {
     const k = x + ',' + y + ',' + z, c = CF.blockEntities[k];
@@ -180,6 +186,39 @@ window.CF = window.CF || {};
     return n;
   };
   CF.containerBreak = (name, x, y, z) => { if (name === 'furnace' && CF.furnaceBreak) CF.furnaceBreak(x, y, z); if (name === 'chest' && CF.chestBreak) CF.chestBreak(x, y, z); };
+  // #043 bucket tiles (procedural, painted by render.js in free atlas row y=64)
+  if (!meta.item_bucket) {
+    meta.item_bucket = { x: 0, y: 112, w: 16, h: 16, src: 'generated:items.js' };
+    meta.item_water_bucket = { x: 16, y: 112, w: 16, h: 16, src: 'generated:items.js' };
+    meta.item_lava_bucket = { x: 32, y: 112, w: 16, h: 16, src: 'generated:items.js' };
+  }
+  CF.useBucket = (hit) => { // RMB: empty bucket + liquid source -> fill (source removed, MC-accurate); filled + air face-adjacent -> place new source
+    if (!hit || !CF.world) return false;
+    const W = CF.world, held = CF.held && CF.held();
+    if (!held) return false;
+    const swapHeld = (to) => { // stack-1 items: consume the held unit, give 'to' (same slot frees up first)
+      const s = CF.inv[CF.sel];
+      if (!s || s.name !== held) return false;
+      s.count--; if (!s.count) CF.inv[CF.sel] = null;
+      CF.give(to, 1);
+      return true;
+    };
+    if (held === 'bucket') {
+      const id = W.get(hit.x, hit.y, hit.z), v = id && CF.BY_ID[id];
+      if (!v || !v.liquid || W.flatAt(hit.x, hit.y, hit.z) !== 0) return false; // 1.12: source blocks only (flow is immovable by bucket)
+      W.set(hit.x, hit.y, hit.z, 0);
+      return swapHeld(v.name === 'lava' ? 'lava_bucket' : 'water_bucket');
+    }
+    if (held === 'water_bucket' || held === 'lava_bucket') {
+      const t = [hit.x + hit.face[0], hit.y + hit.face[1], hit.z + hit.face[2]];
+      if (W.get(t[0], t[1], t[2])) return false; // air only (MC replaceable-block placement -> Tier-1 simplification)
+      if (CF.cellHitsPlayer && CF.cellHitsPlayer(t[0], t[1], t[2])) return false; // never place fluid into yourself
+      W.set(t[0], t[1], t[2], CF.IDOF[held === 'water_bucket' ? 'water' : 'lava']);
+      if (W.flatSet) W.flatSet(t[0], t[1], t[2], 0); // level 0 = source
+      return swapHeld('bucket');
+    }
+    return false;
+  };
   // #032: breaking a furnace returns its contents to the player (no item entities in Tier-1)
   CF.furnaceBreak = (x, y, z) => {
     const k = x + ',' + y + ',' + z, f = CF.blockEntities[k];
@@ -275,5 +314,62 @@ window.CF = window.CF || {};
     CF.give('dirt', 70);
     CF.assert(r, 'items.stack', CF.countItem('dirt') === 70 && CF.inv[0].count === 64 && CF.inv[1].count === 6);
     CF.assert(r, 'items.consume', CF.consume('dirt', 65) && CF.countItem('dirt') === 5 && !CF.consume('dirt', 6));
+    // ---- #043 buckets (1.12 semantics: source-only pickup, source placement, stack 1)
+    {
+      const W = CF.world, bx = 220, bz = 220;
+      CF.inv.fill(null);
+      for (let i = 0; i < 3; i++) CF.inv[i] = { name: 'iron_ingot', count: 1 }; // V needs 3 SEPARATE ingots in 3x3 cells
+      CF.craftOnce([0, 30, 1, 30, 2, 30, 30, 30, 30]); // row-major grid: irons at cells 0,2,4
+      CF.assert(r, 'items.bucket-craft(' + CF.countItem('bucket') + ',' + CF.countItem('iron_ingot') + ')', CF.countItem('bucket') === 1 && CF.countItem('iron_ingot') === 0);
+      W.ensureAround(bx, bz, 1);
+      for (let i = 0; i < 40 && W.stats().queue; i++) W.tick();
+      const bh = Math.max(W.heightAt(bx, bz), 8);
+      for (let x = bx - 3; x <= bx + 3; x++) for (let z = bz - 3; z <= bz + 3; z++) {
+        for (let y = bh + 1; y <= bh + 4; y++) W.set(x, y, z, 0);
+        W.set(x, bh, z, CF.IDOF['stone']);
+      }
+      W.set(bx, bh + 1, bz, CF.IDOF['water']); // fresh liquid = level 0 = source
+      CF.inv.fill(null); CF.inv[0] = { name: 'bucket', count: 1 }; CF.sel = 0;
+      const got = CF.useBucket({ x: bx, y: bh + 1, z: bz, face: [0, 1, 0] });
+      CF.assert(r, 'items.bucket-fill(' + got + ',w=' + W.get(bx, bh + 1, bz) + ',b=' + CF.countItem('bucket') + ',wb=' + CF.countItem('water_bucket') + ')',
+        got && W.get(bx, bh + 1, bz) === 0 && CF.countItem('water_bucket') === 1 && CF.countItem('bucket') === 0);
+      // flowing water (level>0) is NOT bucketable in 1.12
+      W.set(bx, bh + 1, bz, CF.IDOF['water']); W.flatSet(bx, bh + 1, bz, 4);
+      CF.inv[0] = { name: 'bucket', count: 1 };
+      const noFlow = CF.useBucket({ x: bx, y: bh + 1, z: bz, face: [0, 1, 0] });
+      CF.assert(r, 'items.bucket-no-flow(' + noFlow + ',w=' + W.get(bx, bh + 1, bz) + ')', noFlow === false && W.get(bx, bh + 1, bz) === CF.IDOF['water']);
+      W.set(bx, bh + 1, bz, 0);
+      // place stored water as a fresh source
+      CF.inv.fill(null); CF.inv[0] = { name: 'water_bucket', count: 1 };
+      const placed = CF.useBucket({ x: bx + 2, y: bh, z: bz, face: [0, 1, 0] });
+      CF.assert(r, 'items.bucket-place(' + placed + ',w=' + W.get(bx + 2, bh + 1, bz) + ',lv=' + W.flatAt(bx + 2, bh + 1, bz) + ',b=' + CF.countItem('bucket') + ')',
+        placed && W.get(bx + 2, bh + 1, bz) === CF.IDOF['water'] && W.flatAt(bx + 2, bh + 1, bz) === 0 && CF.countItem('bucket') === 1 && CF.countItem('water_bucket') === 0);
+      // lava: source bucket + placed lava glows (block light 15) - dry column (z-3): the water from the
+      // place test crested flow along row bz and would obsidian-ify the lava (which would be MC-correct!)
+      W.set(bx, bh + 1, bz - 3, CF.IDOF['lava']);
+      CF.inv.fill(null); CF.inv[0] = { name: 'bucket', count: 1 };
+      const lavaGot = CF.useBucket({ x: bx, y: bh + 1, z: bz - 3, face: [0, 1, 0] });
+      CF.inv[0] = { name: 'lava_bucket', count: 1 };
+      const lavaPlaced = CF.useBucket({ x: bx, y: bh, z: bz - 3, face: [0, 1, 0] });
+      W.ensureLight(bx >> 4, bz >> 4);
+      for (let i = 0; i < 20; i++) W.tick();
+      const lglow = W.lightAt(bx, bh + 1, bz - 2) & 15;
+      const lself = W.lightAt(bx, bh + 1, bz - 3) & 15;
+      CF.assert(r, 'items.bucket-lava(' + lavaGot + ',' + lavaPlaced + ',glow=' + lglow + '/' + lself + ',l=' + W.get(bx, bh + 1, bz - 3) + ')',
+        lavaGot && lavaPlaced && W.get(bx, bh + 1, bz - 3) === CF.IDOF['lava'] && lglow >= 14);
+      // stack 1: three water buckets never merge
+      CF.inv.fill(null); CF.give('water_bucket', 3);
+      const maxStack = CF.inv.reduce((m, s) => Math.max(m, s && s.name === 'water_bucket' ? s.count : 0), 0);
+      CF.assert(r, 'items.bucket-stack1(mx=' + maxStack + ',n=' + CF.inv.filter((s) => s).length + ')', maxStack === 1 && CF.inv.filter((s) => s).length === 3);
+      // placement into the player's own cell is refused (MC) - run in a CLEAN column (z+3): the placed
+      // water source above already crested lv3 flow toward bx while these ticks ran
+      CF.inv.fill(null); CF.inv[0] = { name: 'water_bucket', count: 1 }; CF.sel = 0;
+      CF.player.tp(bx + 0.5, bh + 1, bz + 3.5); CF.player.onGround = false; // tp keeps stale onGround (PLAYBOOK trap)
+      const refused = CF.useBucket({ x: bx, y: bh, z: bz + 3, face: [0, 1, 0] }); // target cell = feet cell
+      CF.assert(r, 'items.bucket-self-place(' + refused + ',w=' + W.get(bx, bh + 1, bz + 3) + ')', refused === false && W.get(bx, bh + 1, bz + 3) === 0);
+      CF.player.tp(8.5, CF.world.heightAt(8, 8) + 2, 8.5);
+      CF.inv.fill(null);
+      for (let x = bx - 4; x <= bx + 5; x++) for (const zz of [bz, bz + 3]) W.set(x, bh + 1, zz, 0); // wipe test fluid + any spread
+    }
   };
 })();

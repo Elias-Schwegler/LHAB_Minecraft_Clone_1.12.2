@@ -109,6 +109,20 @@ window.CF = window.CF || {};
       if ((nowDef && nowDef.liquid) || (prevDef && prevDef.liquid)) {
         if (nowDef && nowDef.liquid) setFlat(x, y, z, 0);
         q(x, y, z);
+        if (nowDef && nowDef.liquid) {
+          fReady.set(x + ',' + y + ',' + z, fTick + FLUID_DELAY[nowDef.liquid]); // fresh source acts after its own delay (may have been queued as empty neighbor earlier)
+          // #043 MC semantics: the MOVER resolves liquid-liquid contact (water->source=obsidian,
+          // water->flow=cobble, lava->any=stone); a static neighbor must not preempt it.
+          for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const nb = get(x + dx, y, z + dz); const nbd = nb && CF.BY_ID[nb];
+            if (nbd && nbd.liquid && nbd.liquid !== nowDef.liquid) {
+              const otherLv = flatAt(x + dx, y, z + dz);
+              const rep = nowDef.liquid === 'water' ? (otherLv === 0 ? IDOF['obsidian'] : IDOF['cobblestone']) : IDOF['stone'];
+              set(x + dx, y, z + dz, rep);
+              setFlat(x + dx, y, z + dz, 0);
+            }
+          }
+        }
         for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) q(x + dx, y, z + dz);
         q(x, y + 1, z);
       }
@@ -175,7 +189,14 @@ window.CF = window.CF || {};
         for (let lx = 0; lx < CX; lx++) for (let lz = 0; lz < CZ; lz++) {
           for (let y = 1; y < CH; y++) {
             const l = c.light[(y * CZ + lz) * CX + lx];
-            if (l) ring.push([c.cx * 16 + lx, y, c.cz * 16 + lz, l]);
+            if (!l) continue;
+            // #043 perf: same coverage rule as the useful scan - open-column sky and emitter light are
+            // fully re-derived by the fresh passes; only under-cover bleed and stale block light matter.
+            const s = l >> 4, b = l & 15;
+            const above = y + 1 < CH ? c.arr[((y + 1) * CZ + lz) * CX + lx] : 0;
+            const covered = above && !(CF.BY_ID[above] && CF.BY_ID[above].liquid);
+            if (!(b > 1 || ((s > 1 || b > 1) && covered))) continue;
+            ring.push([c.cx * 16 + lx, y, c.cz * 16 + lz, l]);
           }
         }
       }
@@ -196,6 +217,8 @@ window.CF = window.CF || {};
               const lv = CF.BY_ID[id] ? CF.BY_ID[id].light : 0;
               if (lv) { c.light[(y * CZ + lz) * CX + lx] = lv; pushQ(c.cx * 16 + lx, y, c.cz * 16 + lz, 0, lv); }
               sky = 0;
+            } else if (id && liq && CF.BY_ID[id].light) { // #043 TEMP-PROBE-A: liquid light source (lava) only; water passes light unchanged
+              c.light[(y * CZ + lz) * CX + lx] = CF.BY_ID[id].light; pushQ(c.cx * 16 + lx, y, c.cz * 16 + lz, 0, CF.BY_ID[id].light);
             } else if (sky) {
               c.light[(y * CZ + lz) * CX + lx] |= sky << 4;
               if (liq) sky -= 1; // liquids attenuate vertical skylight slightly
@@ -210,11 +233,13 @@ window.CF = window.CF || {};
           if (!l) continue;
           const s = l >> 4, b = l & 15;
           const wx = c.cx * 16 + lx, wz = c.cz * 16 + lz;
-          let useful = false;
-          for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
-            const nb = lightAt(wx + dx, y + dy, wz + dz);
-            if ((s > 0 && (dy !== 0 ? s : s - 1) > (nb >> 4)) || (b > 1 && b - 1 > (nb & 15))) { useful = true; break; }
-          }
+          // #043 perf: an old value only re-seeds information the fresh passes lack: open columns are
+          // re-seeded top-down, in-region emitters rescan from block data, and perimeter light arrives via
+          // the ring snapshot. What is NOT re-derived is light that previously BLED under cover - so push
+          // exactly those (solid-above test, one array read; the old 6x lightAt() per cell was ~5M calls).
+          const above = y + 1 < CH ? c.arr[((y + 1) * CZ + lz) * CX + lx] : 0;
+          const covered = above && !(CF.BY_ID[above] && CF.BY_ID[above].liquid);
+          const useful = (s > 1 || b > 1) && covered;
           if (useful) pushQ(wx, y, wz, s, b);
         }
       }
@@ -230,7 +255,7 @@ window.CF = window.CF || {};
           if (!c2.light) c2.light = new Uint8Array(CX * CH * CZ);
           const cell = lightCell(c2, nx, ny, nz);
           if (c2.arr[cell] && !(CF.BY_ID[c2.arr[cell]] && CF.BY_ID[c2.arr[cell]].liquid)) continue; // opaque stops; liquids pass
-          const ns = s ? (dy !== 0 ? s : s - 1) : 0; // vertical skylight: no decay
+          const ns = s === 15 ? 15 : s ? (dy !== 0 ? s : s - 1) : 0; // MC rule: FULL 15 skylight NEVER decays (any dir); else vertical free-fall keeps level, horizontal -1 (fixes #031 banding: pool rows were getting sky 14 under canopy gaps)
           const nb = b ? b - 1 : 0;
           if (!ns && !nb) continue;
           const cur = c2.light[cell];
@@ -264,6 +289,10 @@ window.CF = window.CF || {};
       });
     }
     // ---- fluids (#022): level per cell (0=source, 1..7=flow), queue + tick budget.
+    // #043 per-liquid spread delay (1.12 block ticks: water 5, lava 30 - lava creeps, water gushes)
+    const FLUID_DELAY = { water: 5, lava: 30 };
+    const fReady = new Map(); // cell key -> earliest tick it may act again
+    let fTick = 0;
     const fluidQueue = new Set();
     function flatIdx(x, y, z) { const lx = ((x % CX) + CX) % CX, lz = ((z % CZ) + CZ) % CZ; return (y * CZ + lz) * CX + lx; }
     function flatAt(x, y, z) { const c = chunkAt(x, z); return c && c.flat ? c.flat[flatIdx(x, y, z)] : 0; }
@@ -272,7 +301,16 @@ window.CF = window.CF || {};
       if (!c.flat) c.flat = new Uint8Array(CX * CH * CZ);
       c.flat[flatIdx(x, y, z)] = v;
     }
-    function q(x, y, z) { if (fluidQueue.size < 4096) fluidQueue.add(x + ',' + y + ',' + z); }
+    function q(x, y, z) {
+      if (fluidQueue.size >= 4096) return;
+      const k = x + ',' + y + ',' + z;
+      if (!fReady.has(k)) {
+        const id = get(x, y, z); const def = id && CF.BY_ID[id];
+        const d = def && def.liquid === 'water' ? FLUID_DELAY.water : def && def.liquid === 'lava' ? FLUID_DELAY.lava : 0;
+        fReady.set(k, fTick + d);
+      }
+      fluidQueue.add(k);
+    }
     const OBS = IDOF['obsidian'], COBB = IDOF['cobblestone'], STONE = IDOF['stone'];
     function fluidStep(x, y, z) {
       const id = get(x, y, z); const def = id && CF.BY_ID[id];
@@ -300,6 +338,7 @@ window.CF = window.CF || {};
           const nlv = lv + 1;
           if (nlv <= maxLv) { set(x + dx, y, z + dz, id); setFlat(x + dx, y, z + dz, nlv); q(x + dx, y, z + dz); }
         } else if (bd && bd.liquid && bd.liquid !== def.liquid) {
+          if (lv >= maxLv) continue; // #043 immobile cell (full level): contact is resolved by the MOVER (in set() or by a flowing step) - MC order-of-events fidelity
           const otherLv = flatAt(x + dx, y, z + dz);
           const rep = isW ? (otherLv === 0 ? OBS : COBB) : STONE;
           set(x + dx, y, z + dz, rep); setFlat(x + dx, y, z + dz, 0);
@@ -310,22 +349,31 @@ window.CF = window.CF || {};
       const t0 = performance.now();
       let n = 40;
       for (const k of fluidQueue) {
-        if (n-- <= 0 || performance.now() - t0 > 15) break;
+        if (performance.now() - t0 > 15) break;
+        const rdy = fReady.get(k);
+        if (rdy !== undefined && rdy > fTick) continue; // #043 water 5 / lava 30 tick spread delay
+        if (n-- <= 0) break; // budget only counts ACTUAL steps (unready cells cost just a map lookup)
         fluidQueue.delete(k);
+        fReady.delete(k);
         const [x, y, z] = k.split(',').map(Number);
         fluidStep(x, y, z);
       }
+      if (fReady.size > 8192) for (const [k, v] of fReady) if (v <= fTick) fReady.delete(k); // mined cells orphan keys
+      fTick++;
       fluidStat.ms = performance.now() - t0;
+      fluidStat.f = fTick; // #043 debug: fluid scheduler clock
       return fluidQueue.size;
     }
     const fluidStat = { ms: 0 };
 
     function tick() {
+      const _t = { a: performance.now() }; // #043 TEMP-PROBE phase timing
       let budget = 2;
       while (budget-- > 0 && genQueue.length) {
         const k = genQueue.shift();
         if (!chunks.has(k)) { const [cx, cz] = k.split(',').map(Number); generate(cx, cz); }
       }
+      _t.b = performance.now();
       let lb = 2;
       for (const k of lightQueue) {
         if (lb-- <= 0) break;
@@ -333,8 +381,12 @@ window.CF = window.CF || {};
         const [cx, cz] = k.split(',').map(Number);
         relight(cx, cz);
       }
+      _t.c = performance.now();
       fluidTick();
+      _t.d = performance.now();
       randomTicks();
+      _t.e = performance.now();
+      fluidStat.phases = [Math.round(_t.b - _t.a), Math.round(_t.c - _t.b), Math.round(_t.d - _t.c), Math.round(_t.e - _t.d), lightQueue.size, genQueue.length];
     }
     // 1.12 random block ticks: grass spread + sand/gravel gravity (issue #014, audit F4)
     let rtA = (seed * 31 + 7) | 0;
@@ -552,10 +604,10 @@ window.CF = window.CF || {};
       for (let y = oh + 1; y <= oh + 6; y++) W2.set(x, y, z, 0);
       W2.set(x, oh, z, ID['stone']);
     }
-    W2.set(ox, oh + 1, oz, ID['water']); // water placed first: its flow resolves before lava's
-    W2.set(ox + 1, oh + 1, oz, ID['lava']);
+    W2.set(ox, oh + 1, oz, ID['water']);
+    W2.set(ox + 2, oh + 1, oz, ID['lava']); // #043: not adjacent - WATER must flow into the lava source (mover resolves) for obsidian (MC: two static adjacent sources do NOT react)
     for (let i = 0; i < 60; i++) W2.tick();
-    CF.assert(r, 'fluids.obsidian(' + W2.get(ox + 1, oh + 1, oz) + '/' + ID['obsidian'] + ')', W2.get(ox + 1, oh + 1, oz) === ID['obsidian']);
+    CF.assert(r, 'fluids.obsidian(' + W2.get(ox + 2, oh + 1, oz) + '/' + ID['obsidian'] + ')', W2.get(ox + 2, oh + 1, oz) === ID['obsidian']);
     // water -> flowing lava = cobblestone; lava -> water = stone
     const px = 180, pz = 180;
     W2.ensureAround(px, pz, 2);
@@ -566,7 +618,7 @@ window.CF = window.CF || {};
       W2.set(x, ph, z, ID['stone']);
     }
     W2.set(px + 5, ph + 1, pz, ID['lava']); // flowing lava spreads toward px
-    for (let i = 0; i < 20; i++) W2.tick();
+    for (let i = 0; i < 70; i++) W2.tick(); // #043 lava creeps at 30t/level: give it a lv1-2 front before water arrives
     W2.set(px - 5, ph + 1, pz, ID['water']); // water front meets lava front
     for (let i = 0; i < 150; i++) W2.tick();
     let solidified = 0;
@@ -579,8 +631,23 @@ window.CF = window.CF || {};
     W2.set(px - 5, ph + 2, pz + 6, ID['water']);
     W2.flatSet(px - 5, ph + 2, pz + 6, 7); // max level: cannot spread, just sits
     W2.set(px - 3, ph + 2, pz + 6, ID['lava']);
-    for (let i = 0; i < 60; i++) W2.tick();
-    CF.assert(r, 'fluids.stone-lava-into-water(' + W2.get(px - 5, ph + 2, pz + 6) + ')', W2.get(px - 5, ph + 2, pz + 6) === ID['stone']);
+    for (let i = 0; i < 130; i++) W2.tick(); // #043: lava acts every 30 ticks - 3 steps before it touches the lv7 cell
+    CF.assert(r, 'fluids.stone-lava-into-water(' + W2.get(px - 5, ph + 2, pz + 6) + ',src=' + W2.get(px - 3, ph + 2, pz + 6) + ',gap=' + W2.get(px - 4, ph + 2, pz + 6) + ',ft=' + W2.fluidStat.f + ')', W2.get(px - 5, ph + 2, pz + 6) === ID['stone']);
+    // #043 AC: 1.12 spread delay - water gushes within ~2 ticks/level, lava creeps (30t/level)
+    const lx = 200, lz = 200;
+    W2.ensureAround(lx, lz, 1);
+    for (let i = 0; i < 20 && W2.stats().queue; i++) W2.tick();
+    const lh = W2.heightAt(lx, lz);
+    for (let x = lx - 3; x <= lx + 3; x++) for (let z = lz - 3; z <= lz + 3; z++) {
+      for (let y = lh + 1; y <= lh + 4; y++) W2.set(x, y, z, 0);
+      W2.set(x, lh, z, ID['stone']);
+    }
+    W2.set(lx, lh + 1, lz, ID['lava']);
+    for (let i = 0; i < 20; i++) W2.tick();
+    const lavaEarly = W2.get(lx + 1, lh + 1, lz);
+    for (let i = 0; i < 45; i++) W2.tick();
+    const lavaLate = (W2.get(lx + 1, lh + 1, lz) || W2.get(lx - 1, lh + 1, lz) || W2.get(lx, lh + 1, lz + 1) || W2.get(lx, lh + 1, lz - 1));
+    CF.assert(r, 'fluids.lava-slow(e0=' + lavaEarly + ',lt=' + lavaLate + ')', lavaEarly !== ID['lava'] && lavaLate === ID['lava']);
     CF.assert(r, 'fluids.budget', W2.fluidStat.ms < 30);
   };
 })();

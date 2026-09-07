@@ -1,5 +1,5 @@
 # Issue: 031 - Water surface banding + lava brightness + buckets
-- Type: FIX | Status: READY | Epic: E6 | Sprint: 02/03 | Depends: #022
+- Type: FIX | Status: DONE (closed via #046+#043) | Epic: E6 | Sprint: 02/03 | Depends: #022
 
 ## Spec
 (a) WATER BANDING: flowing pool renders alternating dark rows across the surface (see qa/2026-09-04/fluid-pool.png).
@@ -14,3 +14,12 @@ this is the 'break' equivalent to flip water/lava functional:true (+2 blocks par
 - [ ] AC1 shot: pool surface visually coherent (no alternating black rows) - vision PASS
 - [ ] AC2 lava sheet + in-scene: bright orange
 - [ ] AC3 harness: bucket pickup/place round-trip; water/lava become functional w/ proof
+
+## Evidence (close 2026-09-07, via #046 + #043)
+(a) Banding had THREE stacked causes, all now fixed and shot-verified: missing -axis faces (#046),
+    half-stride atlas making the Blender water tile look half-empty (#043 P1 - real tile regenerated),
+    and liquid-pass depth write (#043 depthMask(true)); plus sky-15 no-decay (#046/#031 canopy rows).
+    qa/2026-09-07/fluid-pool.png: uniform surface - vision PASS.
+(b) Lava: real Blender tile now + emissive render rule (level-lava full bright) + block light 15 actually
+    SEEDS (#043 relight liquid fix). qa/2026-09-07/fluid-lava.png + bucket-demo cobble ring - vision PASS.
+(c) Buckets: #043 items.bucket-* asserts x7; water/lava functional:true proof-bound; parity 18 -> 20/399.

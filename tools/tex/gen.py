@@ -357,7 +357,7 @@ def build_icons(names, atlas, tiles, start_idx):
         px = px.reshape(S, S, 4)[::-1]
         bpy.data.images.remove(img)
         idx = start_idx + i
-        tx, ty = (idx % GRID) * S, (idx // GRID) * GRID
+        tx, ty = (idx % GRID) * S, (idx // GRID) * S
         atlas[ty:ty+S, tx:tx+S] = px
         tiles[name] = {"x": tx, "y": ty, "w": S, "h": S, "src": "blender:gen.py:icons"}
         os.remove(sc.render.filepath)

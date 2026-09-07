@@ -128,7 +128,7 @@ window.CF = window.CF || {};
           const P0 = coord(a, ua, va, plane, u, v), P1 = coord(a, ua, va, plane, u + 1, v);
           const P2 = coord(a, ua, va, plane, u + 1, v + 1), P3 = coord(a, ua, va, plane, u, v + 1);
           const packed = W.lightAt(B[0], B[1], B[2]);
-          const br = packed / 255;
+          const br = v2.name === 'lava' ? 1 : packed / 255; // #043 lava self-luminous (eff=1 -> full bright, MC-like emissive)
           const uvf = meta ? [(meta.x + 0.25) / 128, (meta.y + 0.25) / 128, (meta.x + 15.75) / 128, (meta.y + 15.75) / 128] : MAGENTA_UV;
           const c00 = [P0[0], P0[1], P0[2]], c10 = [P1[0], P1[1], P1[2]], c11 = [P2[0], P2[1], P2[2]], c01 = [P3[0], P3[1], P3[2]];
           if (a === 1 && sgn > 0) for (const q of [c00, c10, c11, c01]) q[1] -= 0.12; // water surface slightly below bank (MC-like, avoids coplanar z-fight)
@@ -193,21 +193,40 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
       px.data[(127 * 128 + 127) * 4 + 0] = 255; px.data[(127 * 128 + 127) * 4 + 1] = 0;
       px.data[(127 * 128 + 127) * 4 + 2] = 255; px.data[(127 * 128 + 127) * 4 + 3] = 255;
       ctx.putImageData(px, 0, 0);
-      // #042 TNT tiles drawn procedurally into free atlas cells (no Blender, zero-download; block
-      // stays functional:false so parity is untouched). tnt_side at (32,48), tnt_top at (48,48).
+      // #042/#040/#041/#043 procedurally painted tiles in FREE atlas cells (zero-download rule; these
+      // blocks stay functional:false so parity is untouched). NOTE (#043 P1 fix): until the gen.py row-
+      // stride fix these cells collided with real item icons; free row layout now = y96 (from x32) + y112.
       const cell = (ox, oy, fn) => { for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { const c = fn(x, y); ctx.fillStyle = c; ctx.fillRect(ox + x, oy + y, 1, 1); } };
-      cell(32, 48, (x, y) => (y >= 6 && y <= 9) ? (x % 4 < 2 ? '#3a2018' : '#d8d2c0') : (y < 3 || y > 12 ? '#a83028' : '#c84030')); // red body, dark band, "TNT" hint
-      cell(48, 48, (x, y) => (x > 6 && x < 9 && y > 6 && y < 9) ? '#e8d040' : (x > 5 && x < 10 && y > 7 && y < 9 ? '#3a3a3a' : ((x % 2) ^ (y % 2) ? '#6a6a6a' : '#4a4a4a'))); // grey gunpowder top + fuse
-      // #040 chest tiles (free cells): lid seam + latch
-      cell(64, 48, (x, y) => (y === 4 || y === 5) ? '#6a4a22' : (x > 6 && x < 9 && y > 5 && y < 9) ? '#d8d2c0' : (y > 12 ? '#5a3c1a' : ((x + y) % 7 === 0 ? '#7a5528' : '#8a6230')));
-      cell(80, 48, (x, y) => (y > 6 && y < 9) ? '#6a4a22' : ((x + y) % 6 === 0 ? '#7a5528' : '#96703a'));
-      // #041 bed tiles: red blanket + white pillow (head side of top), wooden frame edge
-      cell(96, 48, (x, y) => (y < 3 || y > 12) ? '#6a4a22' : (x < 3 ? '#6a4a22' : '#c03830'));
-      cell(112, 48, (x, y) => (y < 2 || y > 13) ? '#6a4a22' : (y < 5 ? '#e8e4da' : '#c03830'));
+      cell(32, 96, (x, y) => (y >= 6 && y <= 9) ? (x % 4 < 2 ? '#3a2018' : '#d8d2c0') : (y < 3 || y > 12 ? '#a83028' : '#c84030')); // tnt_side: red body, dark band, "TNT" hint
+      cell(48, 96, (x, y) => (x > 6 && x < 9 && y > 6 && y < 9) ? '#e8d040' : (x > 5 && x < 10 && y > 7 && y < 9 ? '#3a3a3a' : ((x % 2) ^ (y % 2) ? '#6a6a6a' : '#4a4a4a'))); // tnt_top: grey gunpowder + fuse
+      // #040 chest tiles: lid seam + latch
+      cell(64, 96, (x, y) => (y === 4 || y === 5) ? '#6a4a22' : (x > 6 && x < 9 && y > 5 && y < 9) ? '#d8d2c0' : (y > 12 ? '#5a3c1a' : ((x + y) % 7 === 0 ? '#7a5528' : '#8a6230')));
+      cell(80, 96, (x, y) => (y > 6 && y < 9) ? '#6a4a22' : ((x + y) % 6 === 0 ? '#7a5528' : '#96703a'));
+      // #041 bed tiles: red blanket + white pillow (head), wooden frame edge
+      cell(96, 96, (x, y) => (y < 3 || y > 12) ? '#6a4a22' : (x < 3 ? '#6a4a22' : '#c03830'));
+      cell(112, 96, (x, y) => (y < 2 || y > 13) ? '#6a4a22' : (y < 5 ? '#e8e4da' : '#c03830'));
+      const T43 = 'rgba(0,0,0,0)';
+      const bucket = (fill) => (x, y) => { // #043 MC-style bucket sprites (empty/water/lava) on free row y=112
+        if (y === 5 && x >= 3 && x <= 12) return '#d8d8d8'; // rim
+        if (y === 4 && (x === 3 || x === 12)) return '#c0c0c0';
+        if (y >= 6 && y <= 13 && x >= 3 && x <= 12) {
+          if (fill && y >= 7 && y <= 9 && x >= 4 && x <= 11) return fill === 'lava' ? (y % 2 ? '#e86818' : '#f8c858') : (y % 2 ? '#3f76e4' : '#4a84f0');
+          if (x <= 4 || x >= 11) return '#8a8a8a'; // side shading (MC buckets taper lighter->darker)
+          return y >= 10 && !fill ? '#b4b4b4' : '#c6c6c6';
+        }
+        return T43;
+      };
+      cell(0, 112, bucket(null)); cell(16, 112, bucket('water')); cell(32, 112, bucket('lava'));
       CF.__tntCellsDrawn = true;
       gl.bindTexture(gl.TEXTURE_2D, tex);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cv);
       texReady = true;
+      // #043: hand the UI the PAINTED atlas (bucket/tnt/chest/bed/water cells) - hotbar icons then match GL
+      try {
+        const url = cv.toDataURL();
+        window.__ATLAS_B64 = url.slice(url.indexOf(',') + 1);
+        document.documentElement.style.setProperty('--cfatlas', 'url(' + url + ')');
+      } catch (e) { /* tainted canvas impossible (same-origin data URL), keep static icons if so */ }
     };
     if (window.__ATLAS_B64) img.src = 'data:image/png;base64,' + window.__ATLAS_B64;
     // #035 solid-color palette for mob boxes (16x1, texture unit 1). Generated in-code: zero assets,
@@ -368,7 +387,7 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
     // translucent liquid pass (no depth write) (#022) - premultiplied blending
     gl.enable(gl.BLEND);
     gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-    gl.depthMask(false);
+    gl.depthMask(true); // #043: WRITE depth so a nearer liquid face occludes farther ones -> no double-blend banding (was depthMask(false))
     let wtris = 0;
     for (const [, e] of meshMap) {
       if (!e.wn) continue;
@@ -437,9 +456,8 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
       W.ensureAround(rx, rz, 1);
       for (let i = 0; i < 30 && W.stats().queue; i++) W.tick();
       for (let x = rx - 4; x <= rx + 4; x++) for (let z = rz - 4; z <= rz + 4; z++) { W.set(x, px0, z, CF.IDOF['stone']); for (let y = px0 + 1; y <= px0 + 6; y++) W.set(x, y, z, 0); }
-      const drain = () => { for (let i = 0; i < 300 && W.dirty.size; i++) CF.renderTick(); };
       W.ensureLight(rx >> 4, rz >> 4); for (let i = 0; i < 8; i++) W.tick();
-      for (let i = 0; i < 40; i++) CF.renderTick();
+      const drain = () => { for (let i = 0; i < 300 && W.dirty.size; i++) CF.renderTick(); };
       const shot = (id) => {
         W.set(rx, px0 + 1, rz, id); drain();
         CF.renderDraw({ pos: [rx - 1.4, px0 + 2.4, rz - 1.4], yaw: Math.atan2(1.9, 1.9), pitch: -0.32 });

@@ -55,12 +55,13 @@ window.CF = window.CF || {};
   document.head ? document.head.appendChild(style) : document.addEventListener('DOMContentLoaded', () => document.head.appendChild(style));
 
   const ICON_URL = window.__ATLAS_B64 ? 'url(data:image/png;base64,' + window.__ATLAS_B64 + ')' : 'none';
+  style.textContent += ':root{--cfatlas:' + ICON_URL + '}'; // #043: live var - render.js repaints procedural tiles (bucket/TNT/chest/bed/water) then swaps it, so item icons match what GL shows
   function iconCss(tile) {
     const meta = (window.__TEXMETA || {})[tile];
     if (!meta) return { backgroundImage: 'none' };
     const S = ICON_SCALE;
     return {
-      backgroundImage: ICON_URL,
+      backgroundImage: 'var(--cfatlas)',
       backgroundSize: 128 * S + 'px ' + 128 * S + 'px',
       backgroundPosition: '-' + meta.x * S + 'px -' + meta.y * S + 'px',
     };
@@ -320,7 +321,11 @@ window.CF = window.CF || {};
     CF.assert(r, 'ui.hotbar', !!document.getElementById('hud') && document.querySelectorAll('#hud .slot').length === 9);
     CF.assert(r, 'ui.icon-live', (() => {
       const ic = document.querySelector('#hud .slot .icon');
-      return ic && ic.style.backgroundImage.includes('data:image/png');
+      const raw = ic && ic.style.backgroundImage;
+      // #043: icons use var(--cfatlas) (live-swapped after render.js repaints procedural tiles) -
+      // inline style holds the var() token; the computed value must resolve to the embedded PNG.
+      const resolved = ic ? getComputedStyle(ic).backgroundImage : '';
+      return raw === 'var(--cfatlas)' && resolved.includes('data:image/png');
     })());
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit3' }));
     CF.assert(r, 'ui.sel', CF.sel === 2 && document.querySelectorAll('#hud .slot')[2].classList.contains('sel'));
