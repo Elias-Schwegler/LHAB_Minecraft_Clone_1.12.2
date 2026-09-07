@@ -72,7 +72,7 @@ window.CF = window.CF || {};
       if (v.name === 'gravel' && dropName && Math.random() < 0.1) dropName = 'flint'; // 1.12: 10% flint
       if (v.name === 'leaves') { // 1.12: oak leaves 5% sapling, 0.5% apple, else nothing (#019)
         const lr = Math.random();
-        dropName = lr < 0.05 ? 'sapling' : lr < 0.055 ? 'apple' : null;
+        dropName = lr < 0.05 ? (v.variant === 'oak' ? 'sapling' : 'sapling:' + v.variant) : lr < 0.055 && v.variant === 'oak' ? 'apple' : null; // #049 species saplings; apples oak-only (1.12)
       }
       const drops = tierOk && dropName ? [{ name: dropName, n: 1, x: m.x + 0.5, y: m.y + 0.5, z: m.z + 0.5 }] : [];
       if (v.name === 'furnace' && CF.furnaceBreak) CF.furnaceBreak(m.x, m.y, m.z); // #032: contents to player
@@ -190,7 +190,19 @@ window.CF = window.CF || {};
       }
     }
     CF.assert(r, 'interact.leaves-drop(' + sap + '/' + leafTot + ')', leafTot === 600 && sap > 12 && sap < 55);
-    CF.world.set(hit.x, h + 1, hit.z, 0);
+
+    // #049: birch log keeps its species in the drop table
+    {
+      const h = CF.world.heightAt(70, 70) + 1;
+      CF.world.set(70, h, 70, IDOF['log:birch']);
+      CF.drops.length = 0;
+      CF.mineStart({ x: 70, y: h, z: 70 });
+      let broke = null, ticks = 0;
+      while (ticks < 200 && !(broke && broke.broke)) { broke = CF.mineTick(0.05); ticks++; }
+      CF.assert(r, 'interact.drop-birch(' + (broke && broke.drops.map((d) => d.name).join()) + ')',
+        broke && broke.broke && broke.drops.length === 1 && broke.drops[0].name === 'log:birch');
+      CF.drops.length = 0;
+    }    CF.world.set(hit.x, h + 1, hit.z, 0);
     // bedrock unbreakable
     CF.assert(r, 'interact.bedrock', !isFinite(CF.breakTime(IDOF['bedrock'])));
     // place: aim ~2 blocks ahead (not own column!), place selected hotbar block

@@ -20,7 +20,7 @@
         if (window.__ATLAS_B64) {
           const img = new Image();
           const ok = await new Promise((res) => { img.onload = () => res(true); img.onerror = () => res(false); img.src = 'data:image/png;base64,' + window.__ATLAS_B64; });
-          CF.assert(r, 'atlas.decoded', ok && img.width === 128 && img.height === 128);
+          CF.assert(r, 'atlas.decoded', ok && img.width === (window.__ATLAS_SIZE || 128) && img.height === (window.__ATLAS_SIZE || 128));
         }
         if (typeof CF.registryTests === 'function') await CF.registryTests(r);
       } },
@@ -100,11 +100,12 @@
   CF.shotScenarios['block'] = async () => {
     CF.freeCam = true;
     const name = (location.search.match(/block=([a-z0-9_]+)/) || [])[1] || 'stone';
+    const vk = (location.search.match(/variant=([a-z0-9_]+)/) || [])[1]; // #049: variant-aware sheets
     const W = CF.world;
     W.ensureAround(10, 10, 2);
     for (let i = 0; i < 20 && W.stats().queue; i++) W.tick();
     const reg = CF.REGISTRY[name];
-    const key = Object.keys(reg.variants)[0];
+    const key = vk && reg.variants[vk] ? vk : Object.keys(reg.variants)[0];
     const id = reg.variants[key].id;
     document.title = 'BS:1-' + name;
     const by = 70;
@@ -290,6 +291,36 @@
   if (h === '#test') runTests('all');
   else if (h.startsWith('#test=')) runTests(decodeURIComponent(h.slice(6)));
   else if (h.startsWith('#shot=')) runShot(h.slice(6));
+  CF.shotScenarios['tile-dump'] = async () => { // #049 debug: sample GL atlas texture pixels
+    CF.freeCam = true;
+    const gl = CF.gl, A = window.__ATLAS_SIZE;
+    for (let i = 0; i < 30 && !CF.rendererStats.ready; i++) CF.renderTick();
+    const fb = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, window.__ATLAS_TEX, 0);
+    const px = (x, y) => Array.from(window.__ATLAS_CANVAS.getContext('2d').getImageData(x, y, 1, 1).data);
+    const mw = window.__TEXMETA.water, mg = window.__TEXMETA.glass;
+    document.title = 'TD:' + JSON.stringify({ water: px(mw.x + 8, mw.y + 8), glassC: px(mg.x + 8, mg.y + 8), glassRim: px(mg.x + 1, mg.y + 1), dbgq: window.__DBGQ || null });
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.deleteFramebuffer(fb);
+    await new Promise((res) => setTimeout(res, 100));
+  };
+  CF.shotScenarios['water-min'] = async () => { // #049 debug: single water source, bare surroundings, top view
+    CF.freeCam = true;
+    const W = CF.world, rx = 300, rz = 300;
+    W.ensureAround(rx, rz, 2);
+    for (let i = 0; i < 40 && W.stats().queue; i++) W.tick();
+    const h0 = Math.max(W.heightAt(rx, rz), 8);
+    for (let x = rx - 4; x <= rx + 4; x++) for (let z = rz - 4; z <= rz + 4; z++) {
+      for (let y = h0 + 1; y <= h0 + 10; y++) W.set(x, y, z, 0);
+      W.set(x, h0, z, CF.IDOF['stone']);
+    }
+    W.set(rx, h0 + 1, rz, CF.IDOF['water']);
+    for (let i = 0; i < 300 && W.dirty.size; i++) CF.renderTick();
+    for (let i = 0; i < 10; i++) CF.renderTick();
+    CF.camera = { pos: [rx + 0.5, h0 + 8, rz + 0.6], yaw: Math.PI, pitch: -1.2 };
+    CF.renderDraw(CF.camera);
+    await new Promise((res) => setTimeout(res, 300));
+  };
   CF.shotScenarios['bucket-demo'] = async () => { // #043: bucket icons in hotbar + source pools, seen from the corner
     CF.freeCam = true;
     const W = CF.world, rx = 44, rz = 160, py = 64;
@@ -297,19 +328,24 @@
     for (let i = 0; i < 40 && W.stats().queue; i++) W.tick();
     const h0 = Math.max(W.heightAt(rx, rz), 8);
     for (let x = rx - 6; x <= rx + 6; x++) for (let z = rz - 6; z <= rz + 6; z++) {
-      for (let y = h0 + 1; y <= h0 + 6; y++) W.set(x, y, z, 0);
+      for (let y = h0 + 1; y <= h0 + 12; y++) W.set(x, y, z, 0); // #049: deep enough for neighboring hilltops (was +6 - pads filled with uncut terrain)
       W.set(x, h0, z, CF.IDOF['stone']);
     }
-    for (let x = rx - 3; x <= rx - 1; x++) for (let z = rz - 2; z <= rz; z++) { W.set(x, h0 + 1, z, CF.IDOF['water']); W.flatSet(x, h0 + 1, z, 0); }
-    for (let x = rx + 1; x <= rx + 3; x++) for (let z = rz - 2; z <= rz; z++) { W.set(x, h0 + 1, z, CF.IDOF['lava']); W.flatSet(x, h0 + 1, z, 0); }
+    const noW = location.search.includes('nowater'); // #049 elimination probe
+    for (let x = rx - 3; x <= rx - 1; x++) for (let z = rz - 2; z <= rz; z++) { if (!noW) W.set(x, h0 + 1, z, CF.IDOF['water']); }
+    for (let x = rx + 3; x <= rx + 5; x++) for (let z = rz - 2; z <= rz; z++) { W.set(x, h0 + 1, z, CF.IDOF['lava']); W.flatSet(x, h0 + 1, z, 0); } // #049: wider gap - virtual 400ms ~= 60 sim ticks made water eat the lava (correct MC, wrong demo)
+    for (let x = rx - 5; x <= rx + 5; x++) for (const dz of [-4, 2]) for (let dy = 1; dy <= 2; dy++) W.set(x, h0 + dy, rz + dz, CF.IDOF['stone']); // #049 basins: 2-tall walls so pools stay pool-shaped for the camera
+    for (let z = rz - 4; z <= rz + 2; z++) for (const dx of [-5, 5]) for (let dy = 1; dy <= 2; dy++) W.set(rx + dx, h0 + dy, z, CF.IDOF['stone']);
     CF.mobTick = () => {}; CF.survival = false;
     CF.inv.fill(null);
     CF.inv[0] = { name: 'bucket', count: 1 }; CF.inv[1] = { name: 'water_bucket', count: 1 }; CF.inv[2] = { name: 'lava_bucket', count: 1 };
     CF.timeOffset = 600;
     CF.camera = { pos: [rx + 9, h0 + 7, rz + 9], yaw: Math.atan2(-9, -9), pitch: -0.5 };
+    if (location.search.includes('topview')) CF.camera = { pos: [rx - 2.5, h0 + 7, rz - 1.5], yaw: 0.001, pitch: -1.5 }; // #049 debug
     for (let i = 0; i < 200 && W.dirty.size; i++) CF.renderTick();
     CF.renderDraw(CF.camera);
-    await new Promise((res) => setTimeout(res, 400));
+    { const q = new Uint8Array(4); CF.gl.readPixels((CF.canvas.width * 0.5) | 0, (CF.canvas.height * 0.42) | 0, 1, 1, CF.gl.RGBA, CF.gl.UNSIGNED_BYTE, q); const w1 = W.get(rx - 2, h0 + 1, rz - 1); document.title = 'BD:' + JSON.stringify({ px: [q[0], q[1], q[2]], cell: w1, lv: W.flatAt(rx - 2, h0 + 1, rz - 1), liq: CF.BY_ID[w1] && CF.BY_ID[w1].liquid, wtris: CF.rendererStats.wtris, dbgq: window.__DBGQ || null }); }
+    await new Promise((res) => setTimeout(res, 120));
   };
   CF.shotScenarios['mob-px'] = async () => { // #046 debug/evidence: EXACT mob.px-draw test setup, visible
     CF.freeCam = true;

@@ -9,7 +9,8 @@ window.CF = window.CF || {};
   const stats = { meshes: 0, tris: 0, rebuilds: 0, glErr: 0, missingTiles: new Set() };
   CF.rendererStats = stats;
   const SHADE = { 0: 0.8, 1: 1.0, 2: 0.6 }; // +x,+y,+z faces; opposite = slightly darker
-  const MAGENTA_UV = [127.25 / 128, 127.25 / 128, 127.75 / 128, 127.75 / 128];
+  const ASZ = (window.__ATLAS_SIZE = 192); // #049: atlas GRID 8->12; NOT named A - buildMesh uses `const A = coord(...)` per cell!
+  const MAGENTA_UV = [(ASZ - 0.75) / ASZ, (ASZ - 0.75) / ASZ, (ASZ - 0.25) / ASZ, (ASZ - 0.25) / ASZ];
 
   function buildMesh(cx, cz) {
     const W = CF.world;
@@ -31,12 +32,13 @@ window.CF = window.CF || {};
           if (!meta) stats.missingTiles.add(tile);
           const wx = cx * 16 + x, wz = cz * 16 + z;
           const br = (W.lightAt(wx, y, wz) || 14 << 0) / 255;
-          const uvf = meta ? [(meta.x + 0.25) / 128, (meta.y + 0.25) / 128, (meta.x + 15.75) / 128, (meta.y + 15.75) / 128] : MAGENTA_UV;
+          const uvf = meta ? [(meta.x + 0.25) / ASZ, (meta.y + 0.25) / ASZ, (meta.x + 15.75) / ASZ, (meta.y + 15.75) / ASZ] : MAGENTA_UV;
           const quad = (d) => {
             const ax = 0.35, az = 0.35 * d;
-            const A = [x + 0.5 - ax, y, z + 0.5 - az], B = [x + 0.5 + ax, y, z + 0.5 + az];
-            const C = [B[0], y + 1, B[2]], D = [A[0], y + 1, A[2]];
-            const uvs = [[uvf[0], uvf[1]], [uvf[2], uvf[1]], [uvf[2], uvf[3]], [uvf[0], uvf[3]]];
+          const A = [x + 0.5 - ax, y, z + 0.5 - az], B = [x + 0.5 + ax, y, z + 0.5 + az];
+          const C = [B[0], y + 1, B[2]], D = [A[0], y + 1, A[2]];
+          // #049 fix: bottom vertices sample the PNG BOTTOM rows (was flipped -> torch flame grew downward since #024!)
+          const uvs = [[uvf[0], uvf[3]], [uvf[2], uvf[3]], [uvf[2], uvf[1]], [uvf[0], uvf[1]]];
             for (const oi of [0, 1, 2, 0, 2, 3]) {
               const P4 = [A, B, C, D][oi];
               pos.push(P4[0], P4[1], P4[2]);
@@ -54,7 +56,8 @@ window.CF = window.CF || {};
           if (!cur) continue;
           if (CF.BY_ID[cur] && (CF.BY_ID[cur].cross || CF.BY_ID[cur].liquid)) continue; // drawn separately
           const B = A.slice(); B[a] += sgn;
-          if (W.get(B[0], B[1], B[2])) continue;
+          const nid = W.get(B[0], B[1], B[2]);
+          if (nid && CF.solidAt(nid)) continue; // #049: face visible when neighbour is air OR non-solid (torch/sapling) - was culling on any id = black holes under crosses
           // merge buckets split by id AND light quartile so greedy quads respect lighting (#020)
           const packed = W.lightAt(B[0], B[1], B[2]);
           const lv = Math.max(packed >> 4, packed & 15);
@@ -82,7 +85,7 @@ window.CF = window.CF || {};
       const meta = (window.__TEXMETA || {})[tile];
       let uvAt;
       if (meta) {
-        const S = 128, IN = 0.25;
+        const S = ASZ, IN = 0.25;
         const tw = (meta.w - 2 * IN) / S / 16, th = (meta.h - 2 * IN) / S / 16;
         const u0 = (meta.x + IN) / S, v0 = (meta.y + IN) / S;
         // per-face UV orientation: texture-up (v0=PNG top) must follow world +Y on sides;
@@ -129,7 +132,12 @@ window.CF = window.CF || {};
           const P2 = coord(a, ua, va, plane, u + 1, v + 1), P3 = coord(a, ua, va, plane, u, v + 1);
           const packed = W.lightAt(B[0], B[1], B[2]);
           const br = v2.name === 'lava' ? 1 : packed / 255; // #043 lava self-luminous (eff=1 -> full bright, MC-like emissive)
-          const uvf = meta ? [(meta.x + 0.25) / 128, (meta.y + 0.25) / 128, (meta.x + 15.75) / 128, (meta.y + 15.75) / 128] : MAGENTA_UV;
+          const uvf = meta ? [(meta.x + 0.25) / ASZ, (meta.y + 0.25) / ASZ, (meta.x + 15.75) / ASZ, (meta.y + 15.75) / ASZ] : MAGENTA_UV;
+          if (!window.__DBGQ && a === 1 && sgn > 0) { // #049 debug: first liquid top-quad uv vs canvas truth
+            const cx = (((uvf[0] + uvf[2]) / 2) * ASZ) | 0, cy = (((uvf[1] + uvf[3]) / 2) * ASZ) | 0;
+            const dd = window.__ATLAS_CTX.getImageData(cx, cy, 1, 1).data;
+            window.__DBGQ = { tile, uvf: uvf.map((n) => +n.toFixed(4)), canvasAtUv: [dd[0], dd[1], dd[2], dd[3]], worldCell: [A, ua, va, d, u, v] };
+          }
           const c00 = [P0[0], P0[1], P0[2]], c10 = [P1[0], P1[1], P1[2]], c11 = [P2[0], P2[1], P2[2]], c01 = [P3[0], P3[1], P3[2]];
           if (a === 1 && sgn > 0) for (const q of [c00, c10, c11, c01]) q[1] -= 0.12; // water surface slightly below bank (MC-like, avoids coplanar z-fight)
           const uvs = [[uvf[0], uvf[1]], [uvf[2], uvf[1]], [uvf[2], uvf[3]], [uvf[0], uvf[3]]];
@@ -155,7 +163,8 @@ precision mediump float;
  in vec2 uv; in float sh; in float dist; in highp float br;
  uniform sampler2D T; uniform vec3 FOG; uniform float uDay;
  out vec4 OC;
-void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
+void main(){ vec4 t = texture(T, uv); float cut = 1.0 - smoothstep(0.30, 0.62, t.a); if (cut > 0.5) discard; // #049: numpy-baked cross/glass cells use true alpha 0; Cycles tiles (water .85) survive; 2xMSAA ~50% coverage at quad edges survives too
+  float f = clamp((dist-40.)/50., 0., 1.);
  float q = floor(br*255.0+0.5);
  float skyN = floor(q/16.0)/15.0, blkN = mod(q,16.0)/15.0;
  float eff = max(skyN*uDay, blkN);
@@ -186,25 +195,25 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 0, 255, 255]));
     const img = new Image();
     img.onload = () => {
-      const cv = document.createElement('canvas'); cv.width = 128; cv.height = 128;
+      const cv = document.createElement('canvas'); cv.width = ASZ; cv.height = ASZ;
       const ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled = false;
       ctx.drawImage(img, 0, 0);
-      const px = ctx.getImageData(0, 0, 128, 128);
-      px.data[(127 * 128 + 127) * 4 + 0] = 255; px.data[(127 * 128 + 127) * 4 + 1] = 0;
-      px.data[(127 * 128 + 127) * 4 + 2] = 255; px.data[(127 * 128 + 127) * 4 + 3] = 255;
+      const px = ctx.getImageData(0, 0, ASZ, ASZ);
+      px.data[((ASZ - 1) * ASZ + (ASZ - 1)) * 4 + 0] = 255; px.data[((ASZ - 1) * ASZ + (ASZ - 1)) * 4 + 1] = 0;
+      px.data[((ASZ - 1) * ASZ + (ASZ - 1)) * 4 + 2] = 255; px.data[((ASZ - 1) * ASZ + (ASZ - 1)) * 4 + 3] = 255;
       ctx.putImageData(px, 0, 0);
       // #042/#040/#041/#043 procedurally painted tiles in FREE atlas cells (zero-download rule; these
       // blocks stay functional:false so parity is untouched). NOTE (#043 P1 fix): until the gen.py row-
       // stride fix these cells collided with real item icons; free row layout now = y96 (from x32) + y112.
       const cell = (ox, oy, fn) => { for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { const c = fn(x, y); ctx.fillStyle = c; ctx.fillRect(ox + x, oy + y, 1, 1); } };
-      cell(32, 96, (x, y) => (y >= 6 && y <= 9) ? (x % 4 < 2 ? '#3a2018' : '#d8d2c0') : (y < 3 || y > 12 ? '#a83028' : '#c84030')); // tnt_side: red body, dark band, "TNT" hint
-      cell(48, 96, (x, y) => (x > 6 && x < 9 && y > 6 && y < 9) ? '#e8d040' : (x > 5 && x < 10 && y > 7 && y < 9 ? '#3a3a3a' : ((x % 2) ^ (y % 2) ? '#6a6a6a' : '#4a4a4a'))); // tnt_top: grey gunpowder + fuse
+      cell(16, 96, (x, y) => (y >= 6 && y <= 9) ? (x % 4 < 2 ? '#3a2018' : '#d8d2c0') : (y < 3 || y > 12 ? '#a83028' : '#c84030')); // tnt_side: red body, dark band, "TNT" hint
+      cell(32, 96, (x, y) => (x > 6 && x < 9 && y > 6 && y < 9) ? '#e8d040' : (x > 5 && x < 10 && y > 7 && y < 9 ? '#3a3a3a' : ((x % 2) ^ (y % 2) ? '#6a6a6a' : '#4a4a4a'))); // tnt_top: grey gunpowder + fuse
       // #040 chest tiles: lid seam + latch
-      cell(64, 96, (x, y) => (y === 4 || y === 5) ? '#6a4a22' : (x > 6 && x < 9 && y > 5 && y < 9) ? '#d8d2c0' : (y > 12 ? '#5a3c1a' : ((x + y) % 7 === 0 ? '#7a5528' : '#8a6230')));
-      cell(80, 96, (x, y) => (y > 6 && y < 9) ? '#6a4a22' : ((x + y) % 6 === 0 ? '#7a5528' : '#96703a'));
+      cell(48, 96, (x, y) => (y === 4 || y === 5) ? '#6a4a22' : (x > 6 && x < 9 && y > 5 && y < 9) ? '#d8d2c0' : (y > 12 ? '#5a3c1a' : ((x + y) % 7 === 0 ? '#7a5528' : '#8a6230')));
+      cell(64, 96, (x, y) => (y > 6 && y < 9) ? '#6a4a22' : ((x + y) % 6 === 0 ? '#7a5528' : '#96703a'));
       // #041 bed tiles: red blanket + white pillow (head), wooden frame edge
-      cell(96, 96, (x, y) => (y < 3 || y > 12) ? '#6a4a22' : (x < 3 ? '#6a4a22' : '#c03830'));
-      cell(112, 96, (x, y) => (y < 2 || y > 13) ? '#6a4a22' : (y < 5 ? '#e8e4da' : '#c03830'));
+      cell(80, 96, (x, y) => (y < 3 || y > 12) ? '#6a4a22' : (x < 3 ? '#6a4a22' : '#c03830'));
+      cell(96, 96, (x, y) => (y < 2 || y > 13) ? '#6a4a22' : (y < 5 ? '#e8e4da' : '#c03830'));
       const T43 = 'rgba(0,0,0,0)';
       const bucket = (fill) => (x, y) => { // #043 MC-style bucket sprites (empty/water/lava) on free row y=112
         if (y === 5 && x >= 3 && x <= 12) return '#d8d8d8'; // rim
@@ -216,10 +225,28 @@ void main(){ vec4 t = texture(T, uv); float f = clamp((dist-40.)/50., 0., 1.);
         }
         return T43;
       };
-      cell(0, 112, bucket(null)); cell(16, 112, bucket('water')); cell(32, 112, bucket('lava'));
+      cell(16, 112, bucket(null)); cell(32, 112, bucket('water')); cell(48, 112, bucket('lava'));
+      // #049: Cycles PNG bakes flattened tile ALPHA to 255 (glass center & water translucency lost).
+      // Restore it here in-canvas (same pipeline, still zero-download): glass hollow frame, water see-through.
+      const alphaCell = (name, fn) => {
+        const tt = (window.__TEXMETA || {})[name]; if (!tt) return;
+        const d = ctx.getImageData(tt.x, tt.y, 16, 16);
+        for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { const a = fn(x, y); if (a !== null) d.data[(y * 16 + x) * 4 + 3] = a; }
+        ctx.putImageData(d, tt.x, tt.y);
+      };
+      alphaCell('glass', (x, y) => (x > 1 && x < 14 && y > 1 && y < 14 ? 0 : null));
+      { // water: see-through + MC-bright (Cycles baked it dark navy, flattened alpha)
+        const tt = (window.__TEXMETA || {}).water;
+        if (tt) {
+          const d = ctx.getImageData(tt.x, tt.y, 16, 16);
+          for (let i = 0; i < d.data.length; i += 4) { d.data[i] = Math.min(255, d.data[i] + 42); d.data[i + 1] = Math.min(255, d.data[i + 1] + 56); d.data[i + 2] = Math.min(255, d.data[i + 2] + 88); d.data[i + 3] = 170; }
+          ctx.putImageData(d, tt.x, tt.y);
+        }
+      }
       CF.__tntCellsDrawn = true;
       gl.bindTexture(gl.TEXTURE_2D, tex);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cv);
+      window.__ATLAS_TEX = tex; window.__ATLAS_CANVAS = cv; window.__ATLAS_CTX = ctx; // #049 debug hooks (tile-dump scenario)
       texReady = true;
       // #043: hand the UI the PAINTED atlas (bucket/tnt/chest/bed/water cells) - hotbar icons then match GL
       try {

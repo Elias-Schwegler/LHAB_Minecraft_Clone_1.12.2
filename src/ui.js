@@ -62,7 +62,7 @@ window.CF = window.CF || {};
     const S = ICON_SCALE;
     return {
       backgroundImage: 'var(--cfatlas)',
-      backgroundSize: 128 * S + 'px ' + 128 * S + 'px',
+      backgroundSize: (window.__ATLAS_SIZE || 128) * S + 'px ' + (window.__ATLAS_SIZE || 128) * S + 'px',
       backgroundPosition: '-' + meta.x * S + 'px -' + meta.y * S + 'px',
     };
   }

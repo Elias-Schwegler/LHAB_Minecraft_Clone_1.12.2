@@ -8,7 +8,7 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = HERE
 SIZE = 16
-GRID = 8  # 8x8 tile grid
+GRID = 12  # 12x12 tile grid (192px) - #049 pushed past 64 cells (species + saplings + room for paints)
 
 def srgb2lin(c):
     return tuple((v/12.92 if v <= 0.04045 else ((v+0.055)/1.055)**2.4) for v in c)
@@ -210,6 +210,65 @@ def gen_tiles():
         nt.links.new(ramp(nt, voronoi(nt, 3.5), [hexc("#1e4a12"), hexc("#e8ffe0")]), holes.inputs[7])
         nt.links.new(holes.outputs[2], em.inputs["Color"])
     add("leaves_oak", leaves)
+    # ---- #049 wood species II: birch + jungle (parameterized oak builders, 1.12 palettes) ----
+    def planks_c(c1, c2, mort):
+        def f(m, nt, em):
+            b = nt.nodes.new("ShaderNodeTexBrick")
+            b.inputs["Scale"].default_value = 2.0
+            b.inputs["Mortar Size"].default_value = 0.035
+            b.inputs["Color1"].default_value = hexc(c1)
+            b.inputs["Color2"].default_value = hexc(c2)
+            b.inputs["Mortar"].default_value = hexc(mort)
+            w = wave(nt, 14.0, 0.0)
+            grain = ramp(nt, w, [hexc(c2), hexc(c1)])
+            mx = nt.nodes.new("ShaderNodeMix"); mx.data_type = 'RGBA'; mx.blend_type = 'MULTIPLY'; mx.inputs["Factor"].default_value = 0.4
+            nt.links.new(b.outputs["Color"], mx.inputs[6]); nt.links.new(grain, mx.inputs[7])
+            nt.links.new(mx.outputs[2], em.inputs["Color"])
+        return f
+    add("planks_birch", planks_c("#c4b89a", "#b3a483", "#77715f"))
+    add("planks_jungle", planks_c("#b7a166", "#a28d55", "#6f5f3a"))
+    def log_side_c(pal, ring):
+        def f(m, nt, em):
+            w = wave(nt, 6.0, math.radians(90))
+            bark = ramp(nt, w, [hexc(x) for x in pal])
+            if ring:
+                n2 = noise(nt, 3.0)
+                gt = nt.nodes.new("ShaderNodeMath"); gt.operation = 'GREATER_THAN'; gt.inputs[1].default_value = 0.75
+                nt.links.new(n2, gt.inputs[0])
+                mx = nt.nodes.new("ShaderNodeMix"); mx.data_type = 'RGBA'; mx.blend_type = 'MIX'; mx.inputs["Factor"].default_value = 0.0
+                nt.links.new(bark, mx.inputs[6]); nt.links.new(ramp(nt, gt.outputs[0], [hexc(ring), hexc(ring)]), mx.inputs[7])
+                nt.links.new(mx.outputs[2], em.inputs["Color"])
+            else:
+                nt.links.new(bark, em.inputs["Color"])
+        return f
+    add("log_side_birch", log_side_c(["#c4c0ac", "#d8d4c2", "#a09c8c"], "#6e6a58"))  # near-white bark, dark spots
+    add("log_side_jungle", log_side_c(["#584330", "#6b5238", "#483624"], "#3a2c1c"))  # dark streaky
+    def log_top_c(ring_a, ring_b):
+        def f(m, nt, em):
+            tc = nt.nodes.new("ShaderNodeTexCoord")
+            sub = nt.nodes.new("ShaderNodeVectorMath"); sub.operation = 'SUBTRACT'; sub.inputs[1].default_value = (0.5, 0.5, 0.5)
+            nt.links.new(tc.outputs["Generated"], sub.inputs[0])
+            ln = nt.nodes.new("ShaderNodeVectorMath"); ln.operation = 'LENGTH'
+            nt.links.new(sub.outputs[0], ln.inputs[0])
+            muln = nt.nodes.new("ShaderNodeMath"); muln.operation = 'MULTIPLY'; muln.inputs[1].default_value = 28.0
+            nt.links.new(ln.outputs["Value"], muln.inputs[0])
+            sn = nt.nodes.new("ShaderNodeMath"); sn.operation = 'SINE'
+            nt.links.new(muln.outputs[0], sn.inputs[0])
+            nt.links.new(ramp(nt, sn.outputs[0], [hexc(ring_a), hexc(ring_b)]), em.inputs["Color"])
+        return f
+    add("log_top_birch", log_top_c("#c8b078", "#7a5c2e"))
+    add("log_top_jungle", log_top_c("#b98f52", "#6a4522"))
+    def leaves_c(g1, g2, g3, dk):
+        def f(m, nt, em):
+            nv = noise(nt, 9.0)
+            base = ramp(nt, nv, [hexc(g1), hexc(g2), hexc(g3)])
+            holes = nt.nodes.new("ShaderNodeMix"); holes.data_type = 'RGBA'; holes.blend_type = 'MULTIPLY'; holes.inputs["Factor"].default_value = 0.55
+            nt.links.new(base, holes.inputs[6])
+            nt.links.new(ramp(nt, voronoi(nt, 3.5), [hexc(dk), hexc("#e8ffe0")]), holes.inputs[7])
+            nt.links.new(holes.outputs[2], em.inputs["Color"])
+        return f
+    add("leaves_birch", leaves_c("#4a8a30", "#5aa03a", "#3f7f28", "#254f14"))   # slightly yellower green
+    add("leaves_jungle", leaves_c("#2f6b1c", "#3f8426", "#2a6018", "#16380c"))  # deep dark green
     add("snow", lambda m, nt, em: nt.links.new(
         ramp(nt, noise(nt, 10.0), [hexc("#e8f0f8"), hexc("#ffffff")]), em.inputs["Color"]))
     def glowstone(m, nt, em):
@@ -280,6 +339,10 @@ ICONS = {
     "item_flint":        ([(4,7,8,6),(6,5,5,3),(7,4,3,2)], "#26262c"),
     "item_stick_dark":   ([(7,9,3,3),(9,6,3,3),(10,4,3,3)], "#5b3a1c"),
     "tile_torch":        ([(6,4,4,12)], "#6b4a2c"),
+    # #049 sapling BLOCK tiles (cross-model, transparent px) - brown stem added in icon_quads
+    "sapling_oak":       ([(4,3,8,3),(5,5,7,2),(6,1,5,2)], "#3a7d22"),
+    "sapling_birch":     ([(4,3,8,3),(5,5,7,2),(6,1,5,2)], "#5aa03a"),
+    "sapling_jungle":    ([(3,2,10,4),(5,5,8,2),(6,1,5,2)], "#2f6b1c"),
 }
 TOOL_SHAPES = {
     "pickaxe": [(4,2,8,2),(3,2,2,3),(11,2,2,3)],
@@ -307,6 +370,8 @@ def icon_quads(name):
             out += [(6,6,4,2,"#a8f0ec")]
         if name == "tile_torch":
             out += [(5,0,6,5,"#f8d858"),(7,1,3,3,"#fff8c0")]
+        if name.startswith("sapling_"):
+            out += [(7,7,2,4,"#5b3a1c"),(7,11,2,3,"#4a2f16")]  # stem below the crown
         return out
     for mat, mc in TOOL_MATS.items():
         for shape, srects in TOOL_SHAPES.items():
@@ -321,46 +386,24 @@ def icon_quads(name):
     return None
 
 def build_icons(names, atlas, tiles, start_idx):
-    """Render flat rect-composed icons via ortho emission quads."""
-    sc = bpy.context.scene
+    """#049: flat pixel-rect icons composited DIRECTLY into the atlas numpy (was a Cycles
+    per-icon render pass, which lost transparency: backgrounds baked as opaque dark pixels and
+    cross-model tiles drew black boxes in-game). Rect colors are sRGB hex -> byte values, matching
+    what the Cycles+PNG pipeline produced for lit pixels; alpha=1 on rects, 0 elsewhere."""
     S = SIZE
     for i, name in enumerate(names):
         rects = icon_quads(name)
         if rects is None:
             raise SystemExit("no icon def for " + name)
-        # fresh mesh per icon
-        for ob in [o for o in sc.collection.objects if o.type == 'MESH']:
-            bpy.data.objects.remove(ob, do_unlink=True)
-        for (x, y, w, h, col) in rects:
-            me = bpy.data.meshes.new("r")
-            ob = bpy.data.objects.new("r", me)
-            sc.collection.objects.link(ob)
-            bm = bmesh.new()
-            bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=0.5)
-            bm.to_mesh(me); bm.free()
-            ob.scale = (w / 16.0, h / 16.0, 1)
-            ob.location = ((x + w / 2.0) / 16.0 - 0.5, 0.5 - (y + h / 2.0) / 16.0, 0)
-            mt = bpy.data.materials.new("ic")
-            mt.use_nodes = True
-            nt2 = mt.node_tree
-            for nd in list(nt2.nodes): nt2.nodes.remove(nd)
-            out2 = nt2.nodes.new("ShaderNodeOutputMaterial")
-            em2 = nt2.nodes.new("ShaderNodeEmission")
-            em2.inputs["Color"].default_value = hexc(col)
-            nt2.links.new(em2.outputs["Emission"], out2.inputs["Surface"])
-            me.materials.append(mt)
-        sc.render.filepath = os.path.join(OUT, "_t_%s.png" % name)
-        bpy.ops.render.render(write_still=True)
-        img = bpy.data.images.load(sc.render.filepath, check_existing=False)
-        px = np.empty(len(img.pixels), dtype=np.float32)
-        img.pixels.foreach_get(px)
-        px = px.reshape(S, S, 4)[::-1]
-        bpy.data.images.remove(img)
         idx = start_idx + i
         tx, ty = (idx % GRID) * S, (idx // GRID) * S
-        atlas[ty:ty+S, tx:tx+S] = px
+        for (x, y, w, h, col) in rects:
+            r, g, b = (int(col[1:3], 16), int(col[3:5], 16), int(col[5:7], 16))
+            for yy in range(y, y + h):
+                for xx in range(x, x + w):
+                    if 0 <= xx < S and 0 <= yy < S:
+                        atlas[ty + yy, tx + xx] = (r / 255.0, g / 255.0, b / 255.0, 1.0)
         tiles[name] = {"x": tx, "y": ty, "w": S, "h": S, "src": "blender:gen.py:icons"}
-        os.remove(sc.render.filepath)
     return start_idx + len(names)
 
 
