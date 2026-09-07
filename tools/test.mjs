@@ -10,7 +10,9 @@ let spec = 'all';
 if (args.includes('--quick')) spec = 'quick';
 const sArg = args.find((a) => a.startsWith('--suites='));
 if (sArg) spec = sArg.slice(9);
-const timeout = spec === 'all' ? 240000 : 120000;
+// #046 note: wall time is dominated by synchronous buildMesh (two-sided mesher ~2x); in-page sim time
+// is NOT a proxy. Safety kill raised to 240s for every spec (quick was hitting the old 120s).
+const timeout = 240000;
 // virtual budget only needs to cover timer waits (sync test code runs instantly); keep tight to cut wall time
 const budget = spec === 'all' ? 16000 : 8000;
 

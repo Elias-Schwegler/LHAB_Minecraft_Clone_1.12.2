@@ -1,16 +1,17 @@
 # AGENTS.md — project STATE memory (1-minute grounding)
 Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each session) · Spec: docs/REFERENCE.md
 
-## Current state (2026-09-06, sprint 03 it16)
+## Current state (2026-09-07, sprint 03 it17)
 - Tags: v0.0.0 scaffold → v0.1.0 sprint01+fixes → v0.2.0 SPRINT 02 CLOSED (audit #4 READY).
-- Sprint 03 ACTIVE: #033 #035 #032 #036 #037 #038 #042 #039 #040 #041 DONE (SPRINT EXIT MET: night dangerous
-  + sleep through it). NEXT: #043 fluids polish+buckets(#031), #034 SPK-7, then #044/#045 backlog,
-  audit#6 + close 03. SPK-7 (nether scale) before any nether work.
-- Gate: TEST GREEN 192 asserts full / 181 quick, 0 errors. Parity: 18/399 (TNT/chest/bed functional:false -
+- Sprint 03 ACTIVE: #033 #035 #032 #036 #037 #038 #042 #039 #040 #041 #046 DONE. NEXT: #047 (crosshair+
+  camera interpolation - code DONE in tree, verify+merge), README+GitHub remote+issue mirror,
+  #043 buckets (tile repaint+banding verified PASS), #034 SPK-7, then #044/#045 backlog, audit#6 + close 03.
+  SPK-7 (nether scale) before any nether work.
+- Gate: TEST GREEN 193 full / 182 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 18/399 (TNT/chest/bed functional:false -
   procedural tiles, not Blender; mechanics shipped+tested, not counted: honest)
   proof-bound (t1 18/125): 15 core blocks + torch + furnace; water/lava NOT counted until buckets (#031).
-- Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy+AO-less shaded+light+fog),
-  break/place/drops/tiers+crafting+smelting, items/inventory/UI, physics, day/night, block+sky light,
+- Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy TWO-SIDED faces+AO-less shaded+light+fog),
+  break/place/drops/tiers+crafting+smelting, items/inventory/UI, physics(snap-ratchet fixed #046), day/night, block+sky light,
   fluids v1, survival stats+HUD, save/load, F3 v2, torch per-face, MOB CORE v1 (entity physics, light<=7
   night/cave spawning survival-gated, sun burn, player-kill loot; mobs render as palette-lit boxes),
   MOB AI v1 (heap-A* chase + 1.12 melee + player 1.9 charge-meter combat, knockback, entity-over-mining),

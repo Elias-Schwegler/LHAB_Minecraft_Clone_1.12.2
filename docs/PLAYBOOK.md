@@ -11,6 +11,8 @@ Operational manual for the Cubeforge loop. Update this file when a process learn
 6. Gate on the BRANCH (see §2 commands), capture outputs verbatim.
 7. Run scenario shot(s) for the issue's visual AC; VIEW the PNG with the Read tool; write a
    vision verdict per AC (PASS/FAIL + what was seen) — this text goes into the issue Evidence.
+   HARD LIMIT (user 2026-09-07): never analyze more than ~30 images in one go and NEVER more than
+   ONE video - the agent loop crashes otherwise. More artifacts -> multiple batches.
 8. Close issue: Status DONE + `## Evidence (close)` section with gate numbers, screenshot paths,
    vision verdicts, honest caveats/carve-outs (file a FIX issue for any broken remainder — never [x] it).
 9. Update in the SAME commit: AGENTS.md (state + architecture map), docs/PARITY.md (block/mechanic rows
@@ -24,8 +26,9 @@ node tools/build.mjs                      # src/* (+atlas b64) -> game/index.htm
 node --check src/mobs.js                  # after big edits: build is CONCAT-ONLY, a duplicate const in a
                                           # shared function scope parses per-file but kills the whole bundle
                                           # at runtime (boot hangs, no TESTRESULT). --check each edited src/*.js.
-node tools/test.mjs                       # full gate: 15 suites, ~96s, expect "TEST GREEN" (166 asserts as of #038)
-node tools/test.mjs --quick               # dev loop ~32s (skips slow: grass/time/fluids)
+node tools/test.mjs                       # full gate: 15 suites, expect "TEST GREEN" (193 asserts as of #046)
+node tools/test.mjs --quick               # dev loop (skips slow: grass/time/fluids); ~144s WALL since #046
+                                          # (two-sided mesher ~2x buildMesh; in-page SIM time lies - wall is real)
 node tools/test.mjs --suites=world,light  # surgical
 node tools/shot.mjs <scenario> [seed=N]   # qa/YYYY-MM-DD/<scenario>.png — then VIEW it (Read tool)
 node tools/parity.mjs                     # honest count: functional flag + proof.tests in BUILT file
@@ -34,8 +37,8 @@ node tools/blockshots.mjs                 # (re)generate qa/blocks/*.png evidenc
 node tools/tex/gen.mjs                    # Blender -> atlas.png(128px/8x8 grid, 49+ tiles) + atlas.json manifest
 node spike/<name>.mjs                     # scratch scripts live in spike/ (gitignored-ish scratch zone)
 ```
-- test.mjs timeouts: all=240s, others=120s; virtual budgets 16000/8000. If a suite awaits timers,
-  budget must exceed total virtual wait (sync loops cost virtual 0ms but real seconds).
+- test.mjs timeouts: 240s for EVERY spec since #046 (quick hit the old 120s wall - meshing is real CPU,
+  virtual-time budget only covers timer waits). Budgets all=16000/quick=8000 virtual ms.
 - runBrowser quirks: `--user-data-dir` fresh temp per run (no cache); dump-dom reads
   document.title; Edge prints noisy elevation/auth junk on stderr — ignore.
 
@@ -109,9 +112,24 @@ Engine/logic:
   per-issue merges, `git stash pop` after the first merge. Verify each partial state builds+tests GREEN alone.
 - PS unicode: -replace on content containing -> / em-dash often MISSES (encoding); use the Edit tool for
   files with non-ASCII, or verify with the grep tool after (never trust console rendering).
+- Pixel asserts/shots that BUILD world then read pixels: mesh rebuild budget is only 2 chunks per renderTick
+  and every set()/relight re-fills W.dirty - a FIXED `for renderTick()` RACES it (symptom: chunk renders as
+  sky/nothing, delta 0). Drain: `for (i<400 && W.dirty.size) CF.renderTick();` (learned 3x during #046:
+  face-back, mob.px-draw, faces-corner).
+- Landing snap must use the PENETRATED pos: `ny = Math.floor(ny - h/2) + 1 + h/2` — with the pre-move `y` the
+  rest point ratchets +1 block per falling tick (player "bounce" complaint, mobs floating 2 blocks up).
+  Fast falls penetrate several cells at once -> also `while (boxHits(...ny...) && g++<8) ny += 1` push-up.
+- pos[1] is box CENTER (feet = y - HH) for player AND mobs: `Math.round(y - HH)`-style "settle" lines that
+  ASSIGN back into y turn center into feet -> half-buried entity, all horizontal sweeps collide (move=0.0).
+  Diagnostic that cracked it: boxHits(x0,y0,z0)=true at REST + dy0=1.00 (should be 0.9=HH) in the assert label.
+- Two-sided greedy meshing doubles buildMesh CPU (test wall time ~2x; gate numbers in §2). Never conclude
+  "suite hangs" from in-page sim time - measure real wall.
 - Registry edits: go through the JSON between /*REGISTRY-START|END*/ markers (strict JSON, 1-space indent);
   new blocks need id/tier/variants.default{functional:false until proof, tiles×6, hardness, drop,
   tool/minTier, solid, light, flags} + a proof:{issue,tests:[...]} naming asserts that EXIST in the build.
+- Vision-QA sessions die with "At most 32 image(s) may be provided in one prompt" (llama.cpp counts ALL
+  images in re-sent history). Fixed by global plugin `~/.config/opencode/plugins/image-cap.js`: prunes
+  oldest screenshots from the outgoing prompt (keeps last 24, env OPENCODE_IMAGE_KEEP); no /compact needed.
 
 ## 5. Scrum/audit cadence
 - Issues: issues/NNN-slug.md from _TEMPLATE; number continues globally; states DRAFT→READY→
@@ -125,6 +143,9 @@ Engine/logic:
   docs/audits/YYYY-MM-DD[-x].md; commit docs+issues only; return <200 words. Fix P1s SAME iteration.
 - Honesty rules (DoD-grade): never claim counts/asserts without running them this session; never [x]
   an AC without its named evidence; vision-check every shot; parity counts ONLY via tools/parity.mjs.
+- GitHub (user 2026-09-07): origin = https://github.com/Elias-Schwegler/LHAB_Minecraft_Clone_1.12.2.git.
+  Issues are authored LOCALLY in issues/NNN-slug.md (source of truth), then MIRRORED to GitHub issues
+  (gh issue create + close-with-comment for DONE ones); push main+tags at every merge cluster.
 
 ## 6. Current architecture quickmap (details in code comments)
 registry.js (data+ids) → world.js (chunks/gen/light/fluids/decay) → render.js (3 passes) →
