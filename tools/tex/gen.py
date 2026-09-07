@@ -269,6 +269,19 @@ def gen_tiles():
         return f
     add("leaves_birch", leaves_c("#4a8a30", "#5aa03a", "#3f7f28", "#254f14"))   # slightly yellower green
     add("leaves_jungle", leaves_c("#2f6b1c", "#3f8426", "#2a6018", "#16380c"))  # deep dark green
+    # ---- #050 wool spectrum: 16 MC 1.12 colors, soft noise on base tone ----
+    def hexsh(h, f):
+        return "#%02x%02x%02x" % (min(255, int(int(h[1:3], 16) * f)), min(255, int(int(h[3:5], 16) * f)), min(255, int(int(h[5:7], 16) * f)))
+    WOOL = {"white": "#c7c7c7", "orange": "#d87d23", "magenta": "#b24ab2", "light_blue": "#3abada",
+            "yellow": "#9ba022", "lime": "#5fa123", "pink": "#bd6498", "gray": "#4f5053",
+            "light_gray": "#88878d", "cyan": "#307092", "purple": "#7a3898", "blue": "#3538a0",
+            "brown": "#633d21", "green": "#4f7a24", "red": "#9b2d26", "black": "#1c1b1e"}
+    def wool(hx):
+        def f(m, nt, em):
+            nt.links.new(ramp(nt, noise(nt, 11.0), [hexc(hexsh(hx, 0.86)), hexc(hx), hexc(hexsh(hx, 1.12))]), em.inputs["Color"])
+        return f
+    for wk, wv in WOOL.items():
+        add("wool_" + wk, wool(wv))
     add("snow", lambda m, nt, em: nt.links.new(
         ramp(nt, noise(nt, 10.0), [hexc("#e8f0f8"), hexc("#ffffff")]), em.inputs["Color"]))
     def glowstone(m, nt, em):

@@ -995,6 +995,412 @@ window.CF.REGISTRY = /*REGISTRY-START*/{
     }
    }
   }
+ },
+ "wool": {
+  "id": 35,
+  "tier": 1,
+  "variants": {
+   "white": {
+    "functional": true,
+    "tiles": [
+     "wool_white",
+     "wool_white",
+     "wool_white",
+     "wool_white",
+     "wool_white",
+     "wool_white"
+    ],
+    "hardness": 0.8,
+    "drop": "wool",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#050",
+     "tests": [
+      "registry.wool-spectrum",
+      "interact.drop-wool-red",
+      "interact.place"
+     ]
+    }
+   },
+   "orange": {
+    "functional": true,
+    "tiles": [
+     "wool_orange",
+     "wool_orange",
+     "wool_orange",
+     "wool_orange",
+     "wool_orange",
+     "wool_orange"
+    ],
+    "hardness": 0.8,
+    "drop": "wool:orange",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#050",
+     "tests": [
+      "registry.wool-spectrum",
+      "interact.drop-wool-red",
+      "interact.place"
+     ]
+    }
+   },
+   "magenta": {
+    "functional": true,
+    "tiles": [
+     "wool_magenta",
+     "wool_magenta",
+     "wool_magenta",
+     "wool_magenta",
+     "wool_magenta",
+     "wool_magenta"
+    ],
+    "hardness": 0.8,
+    "drop": "wool:magenta",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#050",
+     "tests": [
+      "registry.wool-spectrum",
+      "interact.drop-wool-red",
+      "interact.place"
+     ]
+    }
+   },
+   "light_blue": {
+    "functional": true,
+    "tiles": [
+     "wool_light_blue",
+     "wool_light_blue",
+     "wool_light_blue",
+     "wool_light_blue",
+     "wool_light_blue",
+     "wool_light_blue"
+    ],
+    "hardness": 0.8,
+    "drop": "wool:light_blue",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#050",
+     "tests": [
+      "registry.wool-spectrum",
+      "interact.drop-wool-red",
+      "interact.place"
+     ]
+    }
+   },
+   "yellow": {
+    "functional": true,
+    "tiles": [
+     "wool_yellow",
+     "wool_yellow",
+     "wool_yellow",
+     "wool_yellow",
+     "wool_yellow",
+     "wool_yellow"
+    ],
+    "hardness": 0.8,
+    "drop": "wool:yellow",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#050",
+     "tests": [
+      "registry.wool-spectrum",
+      "interact.drop-wool-red",
+      "interact.place"
+     ]
+    }
+   },
+   "lime": {
+    "functional": true,
+    "tiles": [
+     "wool_lime",
+     "wool_lime",
+     "wool_lime",
+     "wool_lime",
+     "wool_lime",
+     "wool_lime"
+    ],
+    "hardness": 0.8,
+    "drop": "wool:lime",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#050",
+     "tests": [
+      "registry.wool-spectrum",
+      "interact.drop-wool-red",
+      "interact.place"
+     ]
+    }
+   },
+   "pink": {
+    "functional": true,
+    "tiles": [
+     "wool_pink",
+     "wool_pink",
+     "wool_pink",
+     "wool_pink",
+     "wool_pink",
+     "wool_pink"
+    ],
+    "hardness": 0.8,
+    "drop": "wool:pink",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#050",
+     "tests": [
+      "registry.wool-spectrum",
+      "interact.drop-wool-red",
+      "interact.place"
+     ]
+    }
+   },
+   "gray": {
+    "functional": true,
+    "tiles": [
+     "wool_gray",
+     "wool_gray",
+     "wool_gray",
+     "wool_gray",
+     "wool_gray",
+     "wool_gray"
+    ],
+    "hardness": 0.8,
+    "drop": "wool:gray",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#050",
+     "tests": [
+      "registry.wool-spectrum",
+      "interact.drop-wool-red",
+      "interact.place"
+     ]
+    }
+   },
+   "light_gray": {
+    "functional": true,
+    "tiles": [
+     "wool_light_gray",
+     "wool_light_gray",
+     "wool_light_gray",
+     "wool_light_gray",
+     "wool_light_gray",
+     "wool_light_gray"
+    ],
+    "hardness": 0.8,
+    "drop": "wool:light_gray",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#050",
+     "tests": [
+      "registry.wool-spectrum",
+      "interact.drop-wool-red",
+      "interact.place"
+     ]
+    }
+   },
+   "cyan": {
+    "functional": true,
+    "tiles": [
+     "wool_cyan",
+     "wool_cyan",
+     "wool_cyan",
+     "wool_cyan",
+     "wool_cyan",
+     "wool_cyan"
+    ],
+    "hardness": 0.8,
+    "drop": "wool:cyan",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#050",
+     "tests": [
+      "registry.wool-spectrum",
+      "interact.drop-wool-red",
+      "interact.place"
+     ]
+    }
+   },
+   "purple": {
+    "functional": true,
+    "tiles": [
+     "wool_purple",
+     "wool_purple",
+     "wool_purple",
+     "wool_purple",
+     "wool_purple",
+     "wool_purple"
+    ],
+    "hardness": 0.8,
+    "drop": "wool:purple",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#050",
+     "tests": [
+      "registry.wool-spectrum",
+      "interact.drop-wool-red",
+      "interact.place"
+     ]
+    }
+   },
+   "blue": {
+    "functional": true,
+    "tiles": [
+     "wool_blue",
+     "wool_blue",
+     "wool_blue",
+     "wool_blue",
+     "wool_blue",
+     "wool_blue"
+    ],
+    "hardness": 0.8,
+    "drop": "wool:blue",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#050",
+     "tests": [
+      "registry.wool-spectrum",
+      "interact.drop-wool-red",
+      "interact.place"
+     ]
+    }
+   },
+   "brown": {
+    "functional": true,
+    "tiles": [
+     "wool_brown",
+     "wool_brown",
+     "wool_brown",
+     "wool_brown",
+     "wool_brown",
+     "wool_brown"
+    ],
+    "hardness": 0.8,
+    "drop": "wool:brown",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#050",
+     "tests": [
+      "registry.wool-spectrum",
+      "interact.drop-wool-red",
+      "interact.place"
+     ]
+    }
+   },
+   "green": {
+    "functional": true,
+    "tiles": [
+     "wool_green",
+     "wool_green",
+     "wool_green",
+     "wool_green",
+     "wool_green",
+     "wool_green"
+    ],
+    "hardness": 0.8,
+    "drop": "wool:green",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#050",
+     "tests": [
+      "registry.wool-spectrum",
+      "interact.drop-wool-red",
+      "interact.place"
+     ]
+    }
+   },
+   "red": {
+    "functional": true,
+    "tiles": [
+     "wool_red",
+     "wool_red",
+     "wool_red",
+     "wool_red",
+     "wool_red",
+     "wool_red"
+    ],
+    "hardness": 0.8,
+    "drop": "wool:red",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#050",
+     "tests": [
+      "registry.wool-spectrum",
+      "interact.drop-wool-red",
+      "interact.place"
+     ]
+    }
+   },
+   "black": {
+    "functional": true,
+    "tiles": [
+     "wool_black",
+     "wool_black",
+     "wool_black",
+     "wool_black",
+     "wool_black",
+     "wool_black"
+    ],
+    "hardness": 0.8,
+    "drop": "wool:black",
+    "tool": null,
+    "minTier": 0,
+    "solid": true,
+    "light": 0,
+    "proof": {
+     "issue": "#050",
+     "tests": [
+      "registry.wool-spectrum",
+      "interact.drop-wool-red",
+      "interact.place"
+     ]
+    }
+   }
+  }
  }
 }/*REGISTRY-END*/;
 
@@ -1033,6 +1439,11 @@ window.CF.REGISTRY = /*REGISTRY-START*/{
     CF.assert(r, 'registry.tiles-exist', allTiles);
     CF.assert(r, 'registry.tiles-6-faces', allSix);
     CF.assert(r, 'registry.planks-oak', !!CF.REGISTRY.planks.variants.oak);
+    CF.assert(r, 'registry.wool-spectrum', (() => {
+      const meta = window.__TEXMETA || {};
+      const cols = ['white', 'orange', 'magenta', 'light_blue', 'yellow', 'lime', 'pink', 'gray', 'light_gray', 'cyan', 'purple', 'blue', 'brown', 'green', 'red', 'black'];
+      return cols.every((c) => CF.REGISTRY.wool.variants[c] && CF.IDOF['wool:' + c] && meta['wool_' + c]) && CF.IDOF['wool'] === CF.REGISTRY.wool.variants.white.id;
+    })());
     CF.assert(r, 'registry.species-variants', (() => {
       const meta = window.__TEXMETA || {};
       const want = { planks: ['birch', 'jungle'], log: ['birch', 'jungle'], leaves: ['birch', 'jungle'], sapling: ['oak', 'birch', 'jungle'] };

@@ -304,6 +304,27 @@
     gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.deleteFramebuffer(fb);
     await new Promise((res) => setTimeout(res, 100));
   };
+  CF.shotScenarios['wool-wall'] = async () => { // #050: all 16 wool colors as a wall
+    CF.freeCam = true;
+    const W = CF.world, rx = 200, rz = 200;
+    W.ensureAround(rx, rz, 1);
+    for (let i = 0; i < 30 && W.stats().queue; i++) W.tick();
+    const h0 = Math.max(W.heightAt(rx, rz), 8);
+    for (let x = rx - 6; x <= rx + 6; x++) for (let z = rz - 6; z <= rz + 6; z++) {
+      for (let y = h0 + 1; y <= h0 + 12; y++) W.set(x, y, z, 0);
+      W.set(x, h0, z, CF.IDOF['stone']);
+    }
+    const cols = ['white', 'orange', 'magenta', 'light_blue', 'yellow', 'lime', 'pink', 'gray', 'light_gray', 'cyan', 'purple', 'blue', 'brown', 'green', 'red', 'black'];
+    cols.forEach((c, i) => {
+      const x = rx - 3 + (i % 4), y = h0 + 1 + ((i / 4) | 0), z = rz - 3;
+      W.set(x, y, z, CF.IDOF['wool:' + c]);
+    });
+    for (let i = 0; i < 300 && W.dirty.size; i++) CF.renderTick();
+    for (let i = 0; i < 10; i++) CF.renderTick();
+    CF.camera = { pos: [rx - 1, h0 + 3.2, rz + 3.5], yaw: Math.atan2(rx - 1.5 - (rx - 1), rz - 3 - (rz + 3.5)), pitch: -0.05 };
+    CF.renderDraw(CF.camera);
+    await new Promise((res) => setTimeout(res, 300));
+  };
   CF.shotScenarios['water-min'] = async () => { // #049 debug: single water source, bare surroundings, top view
     CF.freeCam = true;
     const W = CF.world, rx = 300, rz = 300;

@@ -191,6 +191,18 @@ window.CF = window.CF || {};
     }
     CF.assert(r, 'interact.leaves-drop(' + sap + '/' + leafTot + ')', leafTot === 600 && sap > 12 && sap < 55);
 
+    // #050: colored wool keeps its color in the drop
+    {
+      const h = CF.world.heightAt(72, 72) + 1;
+      CF.world.set(72, h, 72, IDOF['wool:red']);
+      CF.drops.length = 0;
+      CF.mineStart({ x: 72, y: h, z: 72 });
+      let broke = null, ticks = 0;
+      while (ticks < 200 && !(broke && broke.broke)) { broke = CF.mineTick(0.05); ticks++; }
+      CF.assert(r, 'interact.drop-wool-red(' + (broke && broke.drops.map((d) => d.name).join()) + ')',
+        broke && broke.broke && broke.drops.length === 1 && broke.drops[0].name === 'wool:red');
+      CF.drops.length = 0;
+    }
     // #049: birch log keeps its species in the drop table
     {
       const h = CF.world.heightAt(70, 70) + 1;
