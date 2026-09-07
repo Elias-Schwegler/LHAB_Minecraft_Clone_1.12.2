@@ -87,6 +87,7 @@ Engine/logic:
 - PowerShell: `&&` invalid (use `;` + `if ($?)`), quoted JS via -e gets mangled (& and quotes!) —
   WRITE A spike/*.mjs SCRIPT instead of inline node -e with tricky chars; a PS line with ANY parse
   error executes NONE of its commands (silent skipped steps happened twice: addfluids/addblocks).
+- PROCESS: the no-WIP-on-main rule was broken at it21 (#051 landed as direct commits 90a1fe3 after the #050 merge - late-session branch amnesia). Mitigation adopted: the gate block itself now starts with git checkout -q -b when a new issue begins - branch BEFORE the first src edit, not before the commit.
 - Literal strings in tool params can get masked in transit (`cf-save-1` became `'***'` once;
   `n` backticks corrupted AGENTS) — verify critical strings by reading the file back.
 - PNG byte-identity across builds that change pixels = investigate, but also: size equality ≠

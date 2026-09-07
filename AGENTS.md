@@ -1,16 +1,14 @@
 # AGENTS.md — project STATE memory (1-minute grounding)
 Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each session) · Spec: docs/REFERENCE.md
 
-## Current state (2026-09-07, SPRINT 03 CLOSED - planning sprint 04)
+## Current state (2026-09-07, SPRINT 04 ACTIVE - it21)
 - Tags: v0.0.0 scaffold → v0.1.0 sprint01+fixes → v0.2.0 sprint02 closed -> v0.3.0 SPRINT 03 CLOSED (audit #6 READY-WITH-NOTES, 7 P3 fixed same-close).
-- Sprint 03 ACTIVE: #033 #035 #032 #036 #037 #038 #042 #039 #040 #041 #046 #047 #043 #034 ALL DONE (#043 closed
+- Sprint 03 CLOSED: #033 #035 #032 #036 #037 #038 #042 #039 #040 #041 #046 #047 #043 #034 ALL DONE (#043 closed
   #031 + fixed P1 atlas icon-stride bug; README+GitHub origin+issue mirror done).
   SPRINT 04 PLANNED+ACTIVE (docs/sprints/04.md, issues 049-059 mirrored): nether/dimension FEAT (SPK-7 GO design!), #044 mob polish, #045 3x3 GUI,
   #048 fidelity (+F7 black patch), spider/enderman, redstone SPK (Tier-2 gate), infinite-streaming verify, recipe book.
-  Sprint 04 ACTIVE: #049 DONE (+9 variants = 29/399; atlas GRID12 regen; 4 latent render bugs fixed -
-  NaN liquid UVs via const-A shadowing, flipped torch since #024, cross-under holes, Cycles alpha flatten).
-  NEXT: #050 wool, #051 storage, #052 slabs, #053 stairs, #054 farming, #055+#056 NETHER, #057 redstone SPK,
-   #058 streaming, #059 recipe book; backlog #044/#045/#048. Audit #7 at close. - Gate: main HEAD=v0.3.0-era docs; TEST GREEN 209 full / 193 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 29/399 (TNT/chest/bed functional:false -
+    #049 #050 #051 DONE (wood+saplings 29/399, wool 45/399, storage+clay 50/399=12.5%). NEXT: #052 slabs, #053 stairs, #054 farming, #055+#056 NETHER, #057 redstone SPK,
+    #058 streaming, #059 recipe book; backlog #044/#045/#048 (+vines issue from mossy cut). Audit #7 at close. - Gate: TEST GREEN 214 full / 198 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 50/399 (TNT/chest/bed functional:false -
   procedural tiles, not Blender; mechanics shipped+tested, not counted: honest)
   proof-bound (t1 20/125): 15 core+torch+glowstone+furnace + water+lava (#043 buckets).
 - Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy TWO-SIDED faces+AO-less shaded+light+fog),
@@ -26,6 +24,14 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- GIT DEBT: #051 direct-commit on main (90a1fe3) - rule restored from #052; see PLAYBOOK process line.
+- #049 wood II: birch/jungle (log/planks/leaves) + sapling blocks w/ deterministic growSapling API + name-based
+  decay + 20pct birch gen; atlas GRID12 192px + numpy icon pass (Cycles flattened icon alpha = black boxes);
+  fixed 4 latent bugs: NaN liquid UVs (const A shadowed by coord A - water rendered green since #043!),
+  torch flip since #024, faces culled under non-solid neighbors, water/glass alpha restore; 209/193, 29/399
+- #050 wool: 16 colors (ramp tiles; catalog needs labels[] for families!) wool-wall vision PASS; 211/195, 45/399
+- #051 storage: gold/iron/diamond/brick/clay + 9<->1 recipes + clay_ball smelt + dropN (clay x4) +
+  storage-wall vision PASS; interact tests must NOT inv.fill before place-test; 214/198, 50/399; mossy->vines
 - #043 fluids+buckets: 1.12 buckets (7 asserts, stack-1, source-only fetch, place=source, self-refuse),
   water5/lava30 spread delay + mover-resolves-contact + lava-light-seeding fix, live --cfatlas painted
   icons, P1: gen.py icon stride (items baked OVER blocks all sprint 02) -> atlas regenerated collision-
