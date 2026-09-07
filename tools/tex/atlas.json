@@ -34,506 +34,583 @@
   "h": 16,
   "src": "blender:gen.py"
  },
- "planks_oak": {
+ "slab_stone_top": {
   "x": 80,
+  "y": 0,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "slab_stone_bottom": {
+  "x": 96,
+  "y": 0,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "slab_stone_side": {
+  "x": 112,
+  "y": 0,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "slab_cobblestone_top": {
+  "x": 128,
+  "y": 0,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "slab_cobblestone_bottom": {
+  "x": 144,
+  "y": 0,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "slab_cobblestone_side": {
+  "x": 160,
+  "y": 0,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "planks_oak": {
+  "x": 176,
   "y": 0,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "log_side_oak": {
-  "x": 96,
-  "y": 0,
+  "x": 0,
+  "y": 16,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "log_top_oak": {
-  "x": 112,
-  "y": 0,
+  "x": 16,
+  "y": 16,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "sand": {
-  "x": 128,
-  "y": 0,
+  "x": 32,
+  "y": 16,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "gravel": {
-  "x": 144,
-  "y": 0,
+  "x": 48,
+  "y": 16,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "bedrock": {
-  "x": 160,
-  "y": 0,
+  "x": 64,
+  "y": 16,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "coal_ore": {
-  "x": 176,
-  "y": 0,
+  "x": 80,
+  "y": 16,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "iron_ore": {
-  "x": 0,
+  "x": 96,
   "y": 16,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "gold_ore": {
-  "x": 16,
+  "x": 112,
   "y": 16,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "diamond_ore": {
-  "x": 32,
+  "x": 128,
   "y": 16,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "water": {
-  "x": 48,
+  "x": 144,
   "y": 16,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "lava": {
-  "x": 64,
+  "x": 160,
   "y": 16,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "glass": {
-  "x": 80,
+  "x": 176,
   "y": 16,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "leaves_oak": {
-  "x": 96,
-  "y": 16,
+  "x": 0,
+  "y": 32,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "planks_birch": {
-  "x": 112,
-  "y": 16,
+  "x": 16,
+  "y": 32,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "planks_jungle": {
-  "x": 128,
-  "y": 16,
+  "x": 32,
+  "y": 32,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "log_side_birch": {
-  "x": 144,
-  "y": 16,
+  "x": 48,
+  "y": 32,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "log_side_jungle": {
-  "x": 160,
-  "y": 16,
+  "x": 64,
+  "y": 32,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "log_top_birch": {
-  "x": 176,
-  "y": 16,
+  "x": 80,
+  "y": 32,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "log_top_jungle": {
-  "x": 0,
+  "x": 96,
   "y": 32,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "leaves_birch": {
-  "x": 16,
+  "x": 112,
   "y": 32,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "leaves_jungle": {
-  "x": 32,
+  "x": 128,
   "y": 32,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "wool_white": {
-  "x": 48,
+  "x": 144,
   "y": 32,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "wool_orange": {
-  "x": 64,
+  "x": 160,
   "y": 32,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "wool_magenta": {
-  "x": 80,
+  "x": 176,
   "y": 32,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "wool_light_blue": {
-  "x": 96,
-  "y": 32,
+  "x": 0,
+  "y": 48,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "wool_yellow": {
-  "x": 112,
-  "y": 32,
+  "x": 16,
+  "y": 48,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "wool_lime": {
-  "x": 128,
-  "y": 32,
+  "x": 32,
+  "y": 48,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "wool_pink": {
-  "x": 144,
-  "y": 32,
+  "x": 48,
+  "y": 48,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "wool_gray": {
-  "x": 160,
-  "y": 32,
+  "x": 64,
+  "y": 48,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "wool_light_gray": {
-  "x": 176,
-  "y": 32,
+  "x": 80,
+  "y": 48,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "wool_cyan": {
-  "x": 0,
+  "x": 96,
   "y": 48,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "wool_purple": {
-  "x": 16,
+  "x": 112,
   "y": 48,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "wool_blue": {
-  "x": 32,
+  "x": 128,
   "y": 48,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "wool_brown": {
-  "x": 48,
+  "x": 144,
   "y": 48,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "wool_green": {
-  "x": 64,
+  "x": 160,
   "y": 48,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "wool_red": {
-  "x": 80,
+  "x": 176,
   "y": 48,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "wool_black": {
-  "x": 96,
-  "y": 48,
+  "x": 0,
+  "y": 64,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "gold_block": {
+  "x": 16,
+  "y": 64,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "iron_block": {
+  "x": 32,
+  "y": 64,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "diamond_block": {
+  "x": 48,
+  "y": 64,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "clay_block": {
+  "x": 64,
+  "y": 64,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py"
+ },
+ "brick_block": {
+  "x": 80,
+  "y": 64,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "snow": {
-  "x": 112,
-  "y": 48,
+  "x": 96,
+  "y": 64,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "glowstone": {
-  "x": 128,
-  "y": 48,
+  "x": 112,
+  "y": 64,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "obsidian": {
-  "x": 144,
-  "y": 48,
+  "x": 128,
+  "y": 64,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "furnace": {
-  "x": 160,
-  "y": 48,
+  "x": 144,
+  "y": 64,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "crafting_table": {
-  "x": 176,
-  "y": 48,
+  "x": 160,
+  "y": 64,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py"
  },
  "item_stick": {
-  "x": 0,
+  "x": 176,
   "y": 64,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "item_coal": {
-  "x": 16,
-  "y": 64,
+  "x": 0,
+  "y": 80,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "item_iron_ingot": {
-  "x": 32,
-  "y": 64,
+  "x": 16,
+  "y": 80,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "item_gold_ingot": {
-  "x": 48,
-  "y": 64,
+  "x": 32,
+  "y": 80,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "item_diamond": {
-  "x": 64,
-  "y": 64,
+  "x": 48,
+  "y": 80,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "item_apple": {
-  "x": 80,
-  "y": 64,
+  "x": 64,
+  "y": 80,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "item_sapling": {
-  "x": 96,
-  "y": 64,
+  "x": 80,
+  "y": 80,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "item_flint": {
-  "x": 112,
-  "y": 64,
+  "x": 96,
+  "y": 80,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "tile_torch": {
-  "x": 128,
-  "y": 64,
+  "x": 112,
+  "y": 80,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "sapling_oak": {
-  "x": 144,
-  "y": 64,
+  "x": 128,
+  "y": 80,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "sapling_birch": {
-  "x": 160,
-  "y": 64,
+  "x": 144,
+  "y": 80,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "sapling_jungle": {
-  "x": 176,
-  "y": 64,
+  "x": 160,
+  "y": 80,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "item_wood_pickaxe": {
-  "x": 0,
+  "x": 176,
   "y": 80,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "item_wood_axe": {
-  "x": 16,
-  "y": 80,
-  "w": 16,
-  "h": 16,
-  "src": "blender:gen.py:icons"
- },
- "item_wood_shovel": {
-  "x": 32,
-  "y": 80,
-  "w": 16,
-  "h": 16,
-  "src": "blender:gen.py:icons"
- },
- "item_wood_sword": {
-  "x": 48,
-  "y": 80,
-  "w": 16,
-  "h": 16,
-  "src": "blender:gen.py:icons"
- },
- "item_stone_pickaxe": {
-  "x": 64,
-  "y": 80,
-  "w": 16,
-  "h": 16,
-  "src": "blender:gen.py:icons"
- },
- "item_stone_axe": {
-  "x": 80,
-  "y": 80,
-  "w": 16,
-  "h": 16,
-  "src": "blender:gen.py:icons"
- },
- "item_stone_shovel": {
-  "x": 96,
-  "y": 80,
-  "w": 16,
-  "h": 16,
-  "src": "blender:gen.py:icons"
- },
- "item_stone_sword": {
-  "x": 112,
-  "y": 80,
-  "w": 16,
-  "h": 16,
-  "src": "blender:gen.py:icons"
- },
- "item_iron_pickaxe": {
-  "x": 128,
-  "y": 80,
-  "w": 16,
-  "h": 16,
-  "src": "blender:gen.py:icons"
- },
- "item_iron_axe": {
-  "x": 144,
-  "y": 80,
-  "w": 16,
-  "h": 16,
-  "src": "blender:gen.py:icons"
- },
- "item_iron_shovel": {
-  "x": 160,
-  "y": 80,
-  "w": 16,
-  "h": 16,
-  "src": "blender:gen.py:icons"
- },
- "item_iron_sword": {
-  "x": 176,
-  "y": 80,
-  "w": 16,
-  "h": 16,
-  "src": "blender:gen.py:icons"
- },
- "item_diamond_pickaxe": {
   "x": 0,
   "y": 96,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
- "item_diamond_axe": {
+ "item_wood_shovel": {
   "x": 16,
   "y": 96,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
- "item_diamond_shovel": {
+ "item_wood_sword": {
   "x": 32,
   "y": 96,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
- "item_diamond_sword": {
+ "item_stone_pickaxe": {
   "x": 48,
   "y": 96,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
- "item_shears": {
+ "item_stone_axe": {
   "x": 64,
   "y": 96,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py:icons"
+ },
+ "item_stone_shovel": {
+  "x": 80,
+  "y": 96,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py:icons"
+ },
+ "item_stone_sword": {
+  "x": 96,
+  "y": 96,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py:icons"
+ },
+ "item_iron_pickaxe": {
+  "x": 112,
+  "y": 96,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py:icons"
+ },
+ "item_iron_axe": {
+  "x": 128,
+  "y": 96,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py:icons"
+ },
+ "item_iron_shovel": {
+  "x": 144,
+  "y": 96,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py:icons"
+ },
+ "item_iron_sword": {
+  "x": 160,
+  "y": 96,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py:icons"
+ },
+ "item_diamond_pickaxe": {
+  "x": 176,
+  "y": 96,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py:icons"
+ },
+ "item_diamond_axe": {
+  "x": 0,
+  "y": 112,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py:icons"
+ },
+ "item_diamond_shovel": {
+  "x": 16,
+  "y": 112,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py:icons"
+ },
+ "item_diamond_sword": {
+  "x": 32,
+  "y": 112,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py:icons"
+ },
+ "item_shears": {
+  "x": 48,
+  "y": 112,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"

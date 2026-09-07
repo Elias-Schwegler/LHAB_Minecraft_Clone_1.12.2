@@ -97,8 +97,9 @@ def gen_tiles():
     add("grass_side", grass_side)
     add("dirt", lambda m, nt, em: nt.links.new(
         ramp(nt, noise(nt, 9.0), [hexc("#6b4a2c"), hexc("#8a6a42"), hexc("#5b3f26")]), em.inputs["Color"]))
-    add("stone", lambda m, nt, em: nt.links.new(
-        ramp(nt, noise(nt, 5.0), [hexc("#7e7e82"), hexc("#9a9aa0"), hexc("#6e6e74")]), em.inputs["Color"]))
+    def stone(m, nt, em):
+        nt.links.new(ramp(nt, noise(nt, 5.0), [hexc("#7e7e82"), hexc("#9a9aa0"), hexc("#6e6e74")]), em.inputs["Color"])
+    add("stone", stone)
     def cobble(m, nt, em):
         b = nt.nodes.new("ShaderNodeTexBrick")
         b.inputs["Scale"].default_value = 2.5
@@ -111,6 +112,25 @@ def gen_tiles():
         nt.links.new(ramp(nt, voronoi(nt, 3.0), [hexc("#606066"), hexc("#ffffff")]), mx.inputs[7])
         nt.links.new(mx.outputs[2], em.inputs["Color"])
     add("cobblestone", cobble)
+    # ---- #052 slab materials: builder,mat-fn -> slab_<mat>_{top,bottom,side} ----
+    def slab_variant(suffix, matfn, scale_y, shift):
+        def f(m, nt, em):
+            matfn(m, nt, em)
+            tc = nt.nodes.new("ShaderNodeTexCoord")
+            mapn = nt.nodes.new("ShaderNodeMapping")
+            mapn.inputs["Scale"].default_value = (1.0, scale_y, 1.0)
+            mapn.inputs["Location"].default_value = (0.0, shift, 0.0)
+            nt.links.new(tc.outputs["Generated"], mapn.inputs["Vector"])
+            for nd in nt.nodes:
+                if nd.type == 'TEX_NOISE' or nd.type == 'TEX_BRICK' or nd.type == 'TEX_VORONOI':
+                    for l in list(nd.inputs['Vector'].links):
+                        nt.links.remove(l)
+                    nt.links.new(mapn.outputs["Vector"], nd.inputs["Vector"])
+        return f
+    for smat, sfn in [("stone", stone), ("cobblestone", cobble)]:
+        add("slab_" + smat + "_top", sfn)
+        add("slab_" + smat + "_bottom", slab_variant("bottom", sfn, 1.0, 0.5))
+        add("slab_" + smat + "_side", slab_variant("side", sfn, 0.5, 0.0))
     def planks(m, nt, em):
         b = nt.nodes.new("ShaderNodeTexBrick")
         b.inputs["Scale"].default_value = 2.0
@@ -282,6 +302,20 @@ def gen_tiles():
         return f
     for wk, wv in WOOL.items():
         add("wool_" + wk, wool(wv))
+    # ---- #051 storage + clay chain ----
+    add("gold_block", lambda m, nt, em: nt.links.new(ramp(nt, noise(nt, 6.0), [hexc("#d8a828"), hexc("#f8d858"), hexc("#c89018")]), em.inputs["Color"]))
+    add("iron_block", lambda m, nt, em: nt.links.new(ramp(nt, noise(nt, 6.0), [hexc("#c0c0c0"), hexc("#e8e8e8"), hexc("#a8a8ac")]), em.inputs["Color"]))
+    add("diamond_block", lambda m, nt, em: nt.links.new(ramp(nt, noise(nt, 6.0), [hexc("#40b8b0"), hexc("#7cf0e8"), hexc("#30a0a8")]), em.inputs["Color"]))
+    add("clay_block", lambda m, nt, em: nt.links.new(ramp(nt, noise(nt, 8.0), [hexc("#d6d6da"), hexc("#e6e6ea"), hexc("#c6c6cc")]), em.inputs["Color"]))
+    def brick_block(m, nt, em):
+        b = nt.nodes.new("ShaderNodeTexBrick")
+        b.inputs["Scale"].default_value = 2.0
+        b.inputs["Mortar Size"].default_value = 0.03
+        b.inputs["Color1"].default_value = hexc("#9c5242")
+        b.inputs["Color2"].default_value = hexc("#8a4638")
+        b.inputs["Mortar"].default_value = hexc("#b8a89a")
+        nt.links.new(b.outputs["Color"], em.inputs["Color"])
+    add("brick_block", brick_block)
     add("snow", lambda m, nt, em: nt.links.new(
         ramp(nt, noise(nt, 10.0), [hexc("#e8f0f8"), hexc("#ffffff")]), em.inputs["Color"]))
     def glowstone(m, nt, em):
