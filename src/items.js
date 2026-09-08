@@ -114,6 +114,10 @@ window.CF = window.CF || {};
     P(['ccc'], { c: 'cobblestone' }, 'stone_slab:cobblestone', 6),
     P(['sss'], { s: 'stone' }, 'stone_slab:stone', 6),
     P(['ppp'], { p: 'planks' }, 'wooden_slab:oak', 6),
+    // #053 stairs: 1+2+3 staircase pattern -> 6 (1.12: oak 53, stone_stairs=COBBLE 67, brick 108)
+    P(['p  ', 'pp ', 'ppp'], { p: 'planks' }, 'oak_stairs', 6),
+    P(['c  ', 'cc ', 'ccc'], { c: 'cobblestone' }, 'stone_stairs', 6),
+    P(['b  ', 'bb ', 'bbb'], { b: 'brick_block' }, 'brick_stairs', 6),
     { shapeless: { iron_block: 1 }, out: { name: 'iron_ingot', n: 9 } },
     { shapeless: { gold_block: 1 }, out: { name: 'gold_ingot', n: 9 } },
     { shapeless: { diamond_block: 1 }, out: { name: 'diamond', n: 9 } },
@@ -297,6 +301,10 @@ window.CF = window.CF || {};
     CF.inv.fill(null); put(20, 'iron_ingot', 1); put(21, 'iron_ingot', 1); put(22, 'iron_ingot', 1); put(24, 'stick', 1); put(27, 'stick', 1);
     res = CF.craftOnce([20, 21, 22, 23, 24, 25, 26, 27, 28]);
     CF.assert(r, 'items.iron-pickaxe(' + CF.countItem('iron_pickaxe') + ',' + (res && res.name) + ')', CF.countItem('iron_pickaxe') === 1 && res && res.name === 'iron_pickaxe');
+    // #053 stairs: 1+2+3 staircase pattern -> 6 oak stairs
+    CF.inv.fill(null); for (const s of [20, 23, 24, 26, 27, 28]) put(s, 'planks', 1);
+    res = CF.craftOnce([20, 21, 22, 23, 24, 25, 26, 27, 28]);
+    CF.assert(r, 'items.stairs-craft(' + CF.countItem('oak_stairs') + ',' + (res && res.name) + ')', CF.countItem('oak_stairs') === 6 && res && res.name === 'oak_stairs' && CF.countItem('planks') === 0);
     // tool speeds per model: stone w/ wood pick = 1.125s, w/ hand = 7.5s, iron ore w/ stone pick harvests
     const stoneV = CF.REGISTRY.stone.variants.default;
     CF.assert(r, 'items.speed-stone-wood(' + CF.breakTimeFor(stoneV, 'wood_pickaxe') + ')',

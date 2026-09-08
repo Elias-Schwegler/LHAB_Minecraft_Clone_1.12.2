@@ -339,6 +339,36 @@
     }
     await new Promise((res) => setTimeout(res, 300));
   };
+  CF.shotScenarios['stair-run'] = async () => { // #053: ascending run + all 4 facings + upside-down + slab combo
+    CF.freeCam = true;
+    const W = CF.world, rx = 164, rz = 164; // keep inside one chunk pair for clean culling view
+    W.ensureAround(rx, rz, 1);
+    for (let i = 0; i < 30 && W.stats().queue; i++) W.tick();
+    const g0 = Math.max(W.heightAt(rx, rz), 8);
+    for (let x = rx - 6; x <= rx + 6; x++) for (let z = rz - 6; z <= rz + 6; z++) {
+      for (let y = g0; y < g0 + 12; y++) W.set(x, y, z, 0); // carve tall so no tree occludes
+      W.set(x, g0 - 1, z, CF.IDOF['stone']);
+    }
+    for (let i = 0; i < 4; i++) { // ascending oak run toward +X, rise every 2, low edge to -Z
+      const yy = g0 + (i >> 1);
+      W.set(rx - 1 + i, yy, rz + 2, CF.IDOF['oak_stairs']); W.flatSet(rx - 1 + i, yy, rz + 2, 0); // facing +X
+    }
+    W.set(rx + 3, g0 + 2, rz + 2, CF.IDOF['stone']); // landing
+    for (let i = 0; i < 4; i++) { // all 4 facings E W S N (cobble stone_stairs) front row
+      W.set(rx - 2 + i, g0, rz - 3, CF.IDOF['stone_stairs']); W.flatSet(rx - 2 + i, g0, rz - 3, i);
+    }
+    W.set(rx - 2, g0 + 3, rz + 0, CF.IDOF['stone']); // ceiling block (bricks top buried under it = 1.12 upside-down mount)
+    W.set(rx - 2, g0 + 2, rz + 0, CF.IDOF['brick_stairs']); W.flatSet(rx - 2, g0 + 2, rz + 0, 4); // upside-down brick
+    // separate slab beside the far end of the ascending run (multi-box mix, doesn't cover a facing)
+    W.set(rx + 4, g0 + 2, rz + 3, CF.IDOF['stone_slab:stone']);
+    W.ensureLight(rx >> 4, rz >> 4);
+    for (let i = 0; i < 10; i++) W.tick();
+    for (let i = 0; i < 400 && W.dirty.size; i++) CF.renderTick();
+    CF.camera = { pos: [rx - 4.5, g0 + 3.6, rz - 7.5], yaw: Math.atan2(4.5, 9.5), pitch: -0.3 }; // look down at tops, not the shadowed undersides
+    CF.renderDraw(CF.camera);
+    document.title = 'SR:' + JSON.stringify({ g0, tris: CF.rendererStats.tris, miss: [...CF.rendererStats.missingTiles || []] });
+    await new Promise((res) => setTimeout(res, 300));
+  };
   CF.shotScenarios['storage-wall'] = async () => { // #051: gold/iron/diamond/brick/clay row
     CF.freeCam = true;
     const W = CF.world, rx = 120, rz = 120;

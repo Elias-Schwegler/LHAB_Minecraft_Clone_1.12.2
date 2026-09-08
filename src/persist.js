@@ -38,6 +38,8 @@ window.CF = window.CF || {};
       if (r) w.edited.add(Math.floor(x / 16) + ',' + Math.floor(z / 16));
       return r;
     };
+    const origF = w.flatSet; // #053: model meta (slab/stairs/torch/bed bits) also marks a chunk edited
+    if (origF) w.flatSet = function (x, y, z, fm) { origF(x, y, z, fm); w.edited.add(Math.floor(x / 16) + ',' + Math.floor(z / 16)); };
   }
 
   function saveNow() {
@@ -59,6 +61,11 @@ window.CF = window.CF || {};
       const enc = rleEncode(c.arr);
       save.chunks[k] = b64e(enc);
       bytes += save.chunks[k].length;
+      if (c.flat) { // #053: flat model-meta bits (slab/stairs/torch/bed) ride along (RLE = tiny)
+        let any = false;
+        for (let i = 0; i < c.flat.length && !any; i++) if (c.flat[i]) any = true;
+        if (any) { if (!save.flats) save.flats = {}; save.flats[k] = b64e(rleEncode(c.flat)); }
+      }
     }
     let warn = null;
     for (;;) {
@@ -92,6 +99,7 @@ window.CF = window.CF || {};
       CF.world.generate(cx, cz);
       const c = CF.world.chunks.get(k);
       if (c) { c.arr.set(rleDecode(b64d(b), c.arr.length)); CF.world.edited.add(k); CF.world.dirty.add(k); }
+      if (c && save.flats && save.flats[k]) { if (!c.flat) c.flat = new Uint8Array(16 * 128 * 16); c.flat.set(rleDecode(b64d(save.flats[k]), c.flat.length)); CF.world.dirty.add(k); } // #053 meta bits (lazy flat!)
     }
     if (save.player && CF.player) {
       CF.player.tp(...save.player.pos);
@@ -130,6 +138,7 @@ window.CF = window.CF || {};
     for (let i = 0; i < 20 && W.stats().queue; i++) W.tick();
     const tx = 8, tz = 8, th = W.heightAt(tx, tz);
     for (let y = th + 1; y <= th + 5; y++) W.set(tx, y, tz, CF.IDOF['cobblestone']);
+    W.set(tx, th + 6, tz, CF.IDOF['stone_stairs']); W.flatSet(tx, th + 6, tz, 2); // #053: meta bits must survive the roundtrip too
     CF.player.tp(8.5, th + 1, 8.5); CF.player.yaw = 1.23; CF.player.pitch = -0.33;
     for (let i = 0; i < 40; i++) W.tick(); // spread/gravity churn
     const info = saveNow();
@@ -141,6 +150,8 @@ window.CF = window.CF || {};
     let tower = 0;
     for (let y = th + 1; y <= th + 5; y++) if (CF.world.get(tx, y, tz) === CF.IDOF['cobblestone']) tower++;
     CF.assert(r, 'save.edits(' + tower + ')', tower === 5);
+    CF.assert(r, 'save.flat(' + CF.world.get(tx, th + 6, tz) + '/' + (CF.world.flatAt ? CF.world.flatAt(tx, th + 6, tz) : 'NA') + ')',
+      CF.world.get(tx, th + 6, tz) === CF.IDOF['stone_stairs'] && CF.world.flatAt(tx, th + 6, tz) === 2);
     CF.assert(r, 'save.seed', CF.world.seed === W.seed);
     CF.assert(r, 'save.player', Math.abs(CF.player.yaw - 1.23) < 1e-6 && Math.abs(CF.player.pos[1] - (th + 1)) < 0.01);
     // corrupt save -> clean fallback

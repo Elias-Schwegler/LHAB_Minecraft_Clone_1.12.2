@@ -1679,18 +1679,144 @@ window.CF.REGISTRY = /*REGISTRY-START*/{
     "minTier": 0,
     "solid": true,
     "light": 0,
-    "proof": {
-     "issue": "#052",
-     "tests": [
-      "registry.slab-model",
-      "physics.slab-stand",
-      "interact.slab-place-upgrade"
-     ]
+     "proof": {
+      "issue": "#052",
+      "tests": [
+       "registry.slab-model",
+       "physics.slab-stand",
+       "interact.slab-place-upgrade"
+      ]
+     }
+    }
+   }
+  },
+  "oak_stairs": {
+   "id": 53,
+   "tier": 1,
+   "variants": {
+    "default": {
+     "functional": true,
+     "tiles": [
+      "planks_oak",
+      "planks_oak",
+      "planks_oak",
+      "planks_oak",
+      "planks_oak",
+      "planks_oak"
+     ],
+     "boxes": [
+      [
+       0,
+       0,
+       0,
+       1,
+       0.5,
+       1
+      ]
+     ],
+     "stairs": true,
+     "hardness": 2,
+     "drop": "oak_stairs",
+     "tool": null,
+     "minTier": 0,
+     "solid": true,
+     "light": 0,
+     "proof": {
+      "issue": "#053",
+      "tests": [
+       "registry.stairs-model",
+       "physics.stairs-walkup",
+       "interact.stairs-facing"
+      ]
+     }
+    }
+   }
+  },
+  "stone_stairs": {
+   "id": 67,
+   "tier": 1,
+   "variants": {
+    "default": {
+     "functional": true,
+     "tiles": [
+      "cobblestone",
+      "cobblestone",
+      "cobblestone",
+      "cobblestone",
+      "cobblestone",
+      "cobblestone"
+     ],
+     "boxes": [
+      [
+       0,
+       0,
+       0,
+       1,
+       0.5,
+       1
+      ]
+     ],
+     "stairs": true,
+     "hardness": 2,
+     "drop": "stone_stairs",
+     "tool": "pickaxe",
+     "minTier": 0,
+     "solid": true,
+     "light": 0,
+     "proof": {
+      "issue": "#053",
+      "tests": [
+       "registry.stairs-model",
+       "physics.stairs-walkup",
+       "interact.stairs-facing"
+      ]
+     }
+    }
+   }
+  },
+  "brick_stairs": {
+   "id": 108,
+   "tier": 2,
+   "variants": {
+    "default": {
+     "functional": true,
+     "tiles": [
+      "brick_block",
+      "brick_block",
+      "brick_block",
+      "brick_block",
+      "brick_block",
+      "brick_block"
+     ],
+     "boxes": [
+      [
+       0,
+       0,
+       0,
+       1,
+       0.5,
+       1
+      ]
+     ],
+     "stairs": true,
+     "hardness": 2,
+     "drop": "brick_stairs",
+     "tool": "pickaxe",
+     "minTier": 0,
+     "solid": true,
+     "light": 0,
+     "proof": {
+      "issue": "#053",
+      "tests": [
+       "registry.stairs-model",
+       "physics.stairs-walkup",
+       "interact.stairs-facing"
+      ]
+     }
     }
    }
   }
- }
-}/*REGISTRY-END*/;
+ }/*REGISTRY-END*/;
 
 // Engine-side id<->name index (0 = air, implicit).
 (function () {
@@ -1713,6 +1839,31 @@ window.CF.REGISTRY = /*REGISTRY-START*/{
   CF.AIR = 0;
   CF.solidAt = (id) => id !== 0 && CF.BY_ID[id] && CF.BY_ID[id].solid;
   CF.tileFor = (id, faceIdx) => { const v = CF.BY_ID[id]; return v ? v.tiles[faceIdx] : 'MISSING'; };
+  // #053 THE model resolver: cell-local boxes from variant + flat bits. Slab: bit2 top-half, bit4 double.
+  // Stairs: meta 0..3 = facing E(+X) W(-X) S(+Z) N(-Z) (1.12 order), bit4 = upside-down. EVERY consumer
+  // (mesher, physics, placement) must resolve boxes through this - never re-derive bits inline (that drift bit
+  // caused #105/#106 class bugs).
+  CF.boxesOf = (v, fm) => {
+    if (!v || !v.boxes) return null;
+    if (v.stairs) {
+      const d = fm & 3, up = (fm & 4) ? true : false;
+      const step = d === 0 ? [0.5, 0, 0, 1, 1, 1] : d === 1 ? [0, 0, 0, 0.5, 1, 1] : d === 2 ? [0, 0, 0.5, 1, 1, 1] : [0, 0, 0, 1, 1, 0.5];
+      step[1] = up ? 0 : 0.5; step[4] = up ? 0.5 : 1;
+      return [up ? [0, 0.5, 0, 1, 1, 1] : [0, 0, 0, 1, 0.5, 1], step];
+    }
+    if (fm & 4) return [[0, 0, 0, 1, 1, 1]];
+    if (fm & 2) return [[0, 0.5, 0, 1, 1, 1]];
+    return v.boxes;
+  };
+  // Does this variant+meta fill the whole cell (opaque to light / culls neighbor faces)?
+  // Slabs, stairs and any partial-box model pass light like air on the open side (#052/#053/#105).
+  CF.cellOpaque = (v, fm) => {
+    if (!v) return true;
+    if (!v.boxes) return !!v.solid;
+    const bb = CF.boxesOf(v, fm);
+    return bb.length === 1 && bb[0][0] <= 1e-6 && bb[0][1] <= 1e-6 && bb[0][2] <= 1e-6 &&
+      bb[0][3] >= 1 - 1e-6 && bb[0][4] >= 1 - 1e-6 && bb[0][5] >= 1 - 1e-6;
+  };
 
   CF.registryTests = async (r) => {
     const meta = window.__TEXMETA || {};
@@ -1753,6 +1904,15 @@ window.CF.REGISTRY = /*REGISTRY-START*/{
         if (!vr || !CF.IDOF[fam + ':' + v] || !meta[vr.tiles[0]]) return false;
       }
       return true;
+    })());
+    CF.assert(r, 'registry.stairs-model', (() => {
+      const vs = ['oak_stairs', 'stone_stairs', 'brick_stairs'].map((n) => CF.REGISTRY[n] && CF.REGISTRY[n].variants.default);
+      const e = CF.boxesOf(vs[0], 0), w = CF.boxesOf(vs[0], 1), s = CF.boxesOf(vs[0], 2), n3 = CF.boxesOf(vs[0], 3), u = CF.boxesOf(vs[0], 4);
+      const ok = vs.every(Boolean) && vs.every((v) => v.stairs && v.solid && v.tiles.length === 6) &&
+        e.length === 2 && e[1][0] === 0.5 && e[1][4] === 1 && w[1][3] === 0.5 && s[1][2] === 0.5 && n3[1][5] === 0.5 &&
+        u[0][1] === 0.5 && u[1][1] === 0 && u[1][4] === 0.5 &&
+        (window.__TEXMETA || {})['planks_oak'] && !!CF.IDOF['brick_stairs'];
+      return ok;
     })());
     CF.assert(r, 'registry.ids-unique', new Set(CF.BY_ID.map((v) => v && v.id)).size === CF.BY_ID.length);
   };
@@ -1984,7 +2144,7 @@ window.CF = window.CF || {};
               // emission ORs with the sky nibble - the old overwrite left torch cells at 14/255 -> near-black quads.
               // #052 (restored): single slabs also pass skylight (1.12); doubles stay opaque.
               const v = CF.BY_ID[id];
-              const opaque = v ? (v.solid && !(v.boxes && !(flatAt(c.cx * CX + lx, y, c.cz * CZ + lz) & 4))) : true;
+              const opaque = v ? CF.cellOpaque(v, flatAt(c.cx * CX + lx, y, c.cz * CZ + lz)) : true;
               const lv = v ? v.light : 0;
               let val = 0;
               if (lv) { val = lv; pushQ(c.cx * 16 + lx, y, c.cz * 16 + lz, 0, lv); }
@@ -2031,8 +2191,8 @@ window.CF = window.CF || {};
           {
             const nid2 = c2.arr[cell];
             const v2b = nid2 && CF.BY_ID[nid2];
-            // opaque stops; liquids + cross(!solid) + single slabs pass (#043/#105/#052-restored; doubles don't)
-            if (v2b && v2b.solid && !(v2b.boxes && !(flatAt(nx, ny, nz) & 4))) continue;
+            // opaque cubes stop; liquids + partial-box models (cross, slab, stairs) pass light (#043/#105/#052/#053)
+            if (v2b && CF.cellOpaque(v2b, flatAt(nx, ny, nz))) continue;
           }
           const ns = s === 15 ? 15 : s ? (dy !== 0 ? s : s - 1) : 0; // MC rule: FULL 15 skylight NEVER decays (any dir); else vertical free-fall keeps level, horizontal -1 (fixes #031 banding: pool rows were getting sky 14 under canopy gaps)
           const nb = b ? b - 1 : 0;
@@ -2512,8 +2672,29 @@ window.CF = window.CF || {};
     const off = [cx * CX, 0, cz * CZ];
     const dims = [CX, CH, CZ];
     const coord = (a, ua, va, d, u, v) => { const Q = [0, 0, 0]; Q[a] = d; Q[ua] = u; Q[va] = v; for (let i = 0; i < 3; i++) Q[i] += off[i]; return Q; };
-    // #052 multi-box model pass (slabs etc): per-cell explicit boxes, per-face neighbor culling.
-    // v.boxes = [[x0,y0,z0,x1,y1,z1],...] in cell-local 0..1; variant meta via flat bits: 2=top-half,4=double.
+    // #052/#053 multi-box model pass (slabs, stairs): per-cell boxes from CF.boxesOf(flat bits), generic
+    // face culling: each face rect is SUBTRACTED by coplanar coverer rects (own-cell other boxes + neighbor
+    // cell boxes at boundary planes) - stair treads/risers stay, buried interfaces vanish.
+    const cellBoxesAbs = (bx0, by0, bz0) => {
+      const id2 = W.get(bx0, by0, bz0);
+      const v2 = id2 && CF.BY_ID[id2];
+      if (!v2) return null;
+      if (!CF.solidAt(id2)) return null;
+      if (!v2.boxes) return [[bx0, by0, bz0, bx0 + 1, by0 + 1, bz0 + 1]];
+      const fm2 = W.flatAt ? W.flatAt(bx0, by0, bz0) : 0;
+      return CF.boxesOf(v2, fm2).map((b) => [bx0 + b[0], by0 + b[1], bz0 + b[2], bx0 + b[3], by0 + b[4], bz0 + b[5]]);
+    };
+    const subRect = (R, rs) => { // axis-aligned rect minus rect list (slices at cover edges, keep uncovered)
+      const us = [R[0], R[1]], vs = [R[2], R[3]];
+      for (const r of rs) { us.push(r[0], r[1]); vs.push(r[2], r[3]); }
+      const clamp = (lo, hi) => (arr) => [...new Set(arr.map((t) => Math.min(hi, Math.max(lo, t))))].sort((p, q) => p - q);
+      const U = clamp(R[0], R[1])(us), V = clamp(R[2], R[3])(vs), out = []; // #053 FIX: V was clamped to the U-range (collapsed every face to 0 pieces)
+      for (let i = 0; i + 1 < U.length; i++) for (let j = 0; j + 1 < V.length; j++) {
+        const cu = (U[i] + U[i + 1]) / 2, cv = (V[j] + V[j + 1]) / 2;
+        if (!rs.some((r) => cu > r[0] + 1e-9 && cu < r[1] - 1e-9 && cv > r[2] + 1e-9 && cv < r[3] - 1e-9)) out.push([U[i], U[i + 1], V[j], V[j + 1]]);
+      }
+      return out;
+    };
     const boxCells = [];
     for (let x = 0; x < CX; x++) for (let z = 0; z < CZ; z++) for (let y = 1; y < CH - 1; y++) {
       const id = W.get(cx * CX + x, y, cz * CZ + z);
@@ -2522,55 +2703,49 @@ window.CF = window.CF || {};
     }
     for (const [x, y, z, v, id] of boxCells) {
       const fmeta = W.flatAt ? W.flatAt(cx * CX + x, y, cz * CZ + z) : 0;
-      const boxes = (fmeta & 4) ? [[0, 0, 0, 1, 1, 1]] : (fmeta & 2) ? [[0, 0.5, 0, 1, 1, 1]] : v.boxes;
+      const boxes = CF.boxesOf(v, fmeta);
       const wx = cx * CX + x, wz = cz * CZ + z;
-      for (const bx of boxes) {
+      const abs = boxes.map((b) => [wx + b[0], y + b[1], wz + b[2], wx + b[3], y + b[4], wz + b[5]]);
+      for (let bi = 0; bi < boxes.length; bi++) {
+        const bx = boxes[bi], ab = abs[bi];
         for (let a = 0; a < 3; a++) for (const sgn of [1, -1]) {
           const ua = (a + 1) % 3, va = (a + 2) % 3;
-          const n = [0, 0, 0]; n[a] = sgn > 0 ? bx[3 + a] : bx[a];
-          const nc = [wx, y, wz]; nc[a] += sgn;
-          const nid = W.get(nc[0], nc[1], nc[2]);
-          if (nid && CF.solidAt(nid)) { // hide against real solids; #052: horizontal box faces only hide when flush with the cell boundary (top-half bottom face stays visible under the lip)
-            let hide = a !== 1 || (sgn > 0 ? bx[3 + a] === 1 : bx[a] === 0);
-            if (a !== 1) { // #052: side faces against SLAB neighbors hide only where the neighbor's box actually covers this face's y range
-              const nv = CF.BY_ID[nid];
-              if (nv && nv.boxes) {
-                const nf = W.flatAt ? W.flatAt(nc[0], nc[1], nc[2]) : 0;
-                const nboxes = (nf & 4) ? [[0, 0, 0, 1, 1, 1]] : (nf & 2) ? [[0, 0.5, 0, 1, 1, 1]] : nv.boxes;
-                hide = nboxes.some((nb) => bx[1] >= nb[1] - 1e-6 && bx[4] <= nb[4] + 1e-6);
-              }
-            }
-            if (hide) continue;
-          } else if (nid && CF.BY_ID[nid] && CF.BY_ID[nid].boxes && nid === id && a !== 1) {
-            const nf = W.flatAt ? W.flatAt(nc[0], nc[1], nc[2]) : 0;
-            const nboxes = (nf & 4) ? [[0, 0, 0, 1, 1, 1]] : (nf & 2) ? [[0, 0.5, 0, 1, 1, 1]] : CF.BY_ID[nid].boxes;
-            if (nboxes.some((nb) => bx[1] >= nb[1] - 1e-6 && bx[4] <= nb[4] + 1e-6)) continue; // same-family, full-height coverage -> shared face hidden (v1)
+          const plane = sgn > 0 ? ab[3 + a] : ab[a];
+          const rects = [];
+          for (let j = 0; j < abs.length; j++) if (j !== bi) {
+            const nb = abs[j];
+            if (Math.abs((sgn > 0 ? nb[a] : nb[3 + a]) - plane) < 1e-6) rects.push([nb[ua], nb[3 + ua], nb[va], nb[3 + va]]); // own-cell cover
           }
-          const p0 = [0, 0, 0]; p0[a] = n[a]; p0[ua] = bx[ua]; p0[va] = bx[va];
-          const p1 = [0, 0, 0]; p1[a] = n[a]; p1[ua] = bx[3 + ua]; p1[va] = bx[va];
-          const p2 = [0, 0, 0]; p2[a] = n[a]; p2[ua] = bx[3 + ua]; p2[va] = bx[3 + va];
-          const p3 = [0, 0, 0]; p3[a] = n[a]; p3[ua] = bx[ua]; p3[va] = bx[3 + va];
-          const cs = [p0, p1, p2, p3].map((p) => [wx + p[0], y + p[1], wz + p[2]]); // absolute world corners (cell + local, NOT chunk origin!)
+          if (Math.abs(plane - Math.round(plane)) < 1e-6) { // cell-boundary plane: neighbor cell coverers too
+            const nc = [wx, y, wz]; nc[a] += sgn;
+            const nbs = cellBoxesAbs(nc[0], nc[1], nc[2]);
+            if (nbs) for (const nb of nbs) if (Math.abs((sgn > 0 ? nb[a] : nb[3 + a]) - plane) < 1e-6) rects.push([nb[ua], nb[3 + ua], nb[va], nb[3 + va]]);
+          }
+          const pieces = subRect([ab[ua], ab[3 + ua], ab[va], ab[3 + va]], rects);
           const faceIdx = a * 2 + (sgn > 0 ? 0 : 1);
           const tile = v.tiles[faceIdx] || v.tiles[0];
           const meta = (window.__TEXMETA || {})[tile];
           if (!meta) stats.missingTiles.add(tile);
           const sh = SHADE[a] * (sgn > 0 ? 1 : (a === 1 ? 0.45 : 0.7));
-          const lp = [wx, y, wz];
-          const flush = a !== 1 || (sgn > 0 ? bx[3 + a] === 1 : bx[a] === 0); // #052: interior planes (top-half bottom face) sample THIS cell's light, not the neighbor solid
-          if (flush) lp[a] += sgn;
-          const br = W.lightAt(lp[0], lp[1], lp[2]) / 255;
           const du = bx[3 + ua] - bx[ua], dv = bx[3 + va] - bx[va];
-          const tw = (meta ? (meta.w - 0.5) : 15.5) / ASZ / (du || 1);
-          const th = (meta ? (meta.h - 0.5) : 15.5) / ASZ / (dv || 1);
+          const tw = (meta ? (meta.w - 0.5) : 15.5) / ASZ / (du || 1), th = (meta ? (meta.h - 0.5) : 15.5) / ASZ / (dv || 1);
           const uv0 = meta ? [(meta.x + 0.25) / ASZ, (meta.y + 0.25) / ASZ] : MAGENTA_UV.slice(0, 2);
-          const ps = [p0, p1, p2, p3]; // keep local corners for UV math (cs are absolute, unsuitable for it!)
-          const uvc = ps.map((p) => [uv0[0] + tw * (p[ua] - bx[ua]), uv0[1] + th * (bx[3 + va] - p[va])]);
-          for (const oi of [0, 1, 2, 0, 2, 3]) {
-            pos.push(cs[oi][0], cs[oi][1], cs[oi][2]);
-            col.push(uvc[oi][0], uvc[oi][1], sh, br);
+          for (const pc of pieces) {
+            const P = (uaVal, vaVal) => { const Q = [0, 0, 0]; Q[a] = plane; Q[ua] = uaVal; Q[va] = vaVal; return Q; }; // absolute face corners
+            const cs = [P(pc[0], pc[2]), P(pc[1], pc[2]), P(pc[1], pc[3]), P(pc[0], pc[3])];
+            const S = [wx, y, wz]; S[a] = plane + sgn * 0.001; S[ua] = (pc[0] + pc[1]) / 2; S[va] = (pc[2] + pc[3]) / 2; // #105: boxes-passable cells carry real light; air side when at boundary
+            const br = W.lightAt(S[0], S[1], S[2]) / 255;
+            const order = a % 2 === 0 ? [0, 2, 1, 0, 3, 2] : [0, 1, 2, 0, 2, 3];
+            const luv = cs.map((p) => { // local cell coords for UV (abs minus cell origin)
+              const lx = [p[0] - wx, p[1] - y, p[2] - wz];
+              return [uv0[0] + tw * (lx[ua] - bx[ua]), uv0[1] + th * (bx[3 + va] - lx[va])];
+            });
+            for (const oi of order) {
+              pos.push(cs[oi][0], cs[oi][1], cs[oi][2]);
+              col.push(luv[oi][0], luv[oi][1], sh, br);
+            }
+            tris[0] += 2;
           }
-          tris[0] += 2;
         }
       }
     }
@@ -2581,10 +2756,7 @@ window.CF = window.CF || {};
         if (!id2) return false;
         const v2 = CF.BY_ID[id2];
         if (!v2 || !CF.solidAt(id2)) return false;
-        if (!v2.boxes || (fm2 & 4)) return true; // full block or double slab = opaque cover
-        const yLo = (fm2 & 2) ? 0.5 : 0, yHi = (fm2 & 2) ? 1 : 0.5; // single slab spans one half
-        if (ax === 1) return sg > 0 ? yLo === 0 : yHi === 1; // +Y face covered iff neighbor box starts at its cell floor
-        return false; // sides of full blocks against a single slab stay visible (v1, no split faces)
+        return CF.cellOpaque(v2, fm2); // #053: only a FULL cell box (cube/double slab) culls greedy faces; slabs/stairs/crosses keep them visible
       };
       for (const sgn of [1, -1]) { // #046: BOTH face signs (was +axis only -> 3 of 6 faces never meshed)
       if (a === 0 && sgn === 1) {
@@ -3115,32 +3287,42 @@ window.CF = window.CF || {};
   CF.player = player;
 
   const solid = (x, y, z) => CF.solidAt(CF.world.get(Math.floor(x), Math.floor(y), Math.floor(z)));
-  // #052 boxes-aware solidness: multi-box variants (slabs) only collide within their box halves.
-  // Returns the [yLo, yHi] span of solid geometry at cell (x,y,z) covering this column, or null.
-  function cellTopAt(x, y, z) {
-    const id = CF.world.get(Math.floor(x), Math.floor(y), Math.floor(z));
+  // #052/#053 boxes-aware collision: ABSOLUTE box list for a cell (full cube, or variant boxes from
+  // CF.boxesOf(flat bits) - slab halves, stair base+step). Movement tests box-vs-box, not cell spans.
+  function cellBoxesAbs(fx, fy, fz) {
+    const id = CF.world.get(fx, fy, fz);
     if (!id) return null;
     const v = CF.BY_ID[id];
     if (!v || !CF.solidAt(id)) return null;
-    if (!v.boxes) return [Math.floor(y), Math.floor(y) + 1];
-    const fmeta = CF.world.flatAt ? CF.world.flatAt(Math.floor(x), Math.floor(y), Math.floor(z)) : 0;
-    const boxes = (fmeta & 4) ? [[0, 0, 0, 1, 1, 1]] : (fmeta & 2) ? [[0, 0.5, 0, 1, 1, 1]] : v.boxes;
-    let lo = Infinity, hi = -Infinity;
-    for (const b of boxes) { lo = Math.min(lo, b[1]); hi = Math.max(hi, b[4]); }
-    const fy = Math.floor(y);
-    return [fy + lo, fy + hi];
+    if (!v.boxes) return [[fx, fy, fz, fx + 1, fy + 1, fz + 1]];
+    const fm = CF.world.flatAt ? CF.world.flatAt(fx, fy, fz) : 0;
+    return CF.boxesOf(v, fm).map((b) => [fx + b[0], fy + b[1], fz + b[2], fx + b[3], fy + b[4], fz + b[5]]);
   }
-  // vertical/horizontal solid test over a box span; cell-level boxes via cellTopAt
+  // [yLo,yHi] span of geometry in cell (x,y,z) that overlaps the footprint circle (px,hw,pz); legacy
+  // full-cell min/max span when footprint omitted. null = nothing solid.
+  function cellTopAt(x, y, z, px, hw, pz) {
+    const bs = cellBoxesAbs(Math.floor(x), Math.floor(y), Math.floor(z));
+    if (!bs) return null;
+    let lo = Infinity, hi = -Infinity;
+    for (const b of bs) {
+      if (px !== undefined && !(b[0] < px + hw && b[3] > px - hw && b[2] < pz + hw && b[5] > pz - hw)) continue;
+      lo = Math.min(lo, b[1]); hi = Math.max(hi, b[4]);
+    }
+    return hi === -Infinity ? null : [lo, hi];
+  }
+  // vertical/horizontal solid test over a box span; cell-level boxes via cellBoxesAbs
   function solidSpanXZ(lo, hi, px, hw, pz) {
     for (let x = Math.floor(px - hw); x <= Math.floor(px + hw); x++)
       for (let z = Math.floor(pz - hw); z <= Math.floor(pz + hw); z++)
         for (let y = Math.floor(lo); y <= Math.floor(hi - 0.001); y++) {
-          const sp = cellTopAt(x, y, z);
-          if (sp && sp[0] < hi - 1e-6 && sp[1] > lo + 1e-6) return true;
+          const bs = cellBoxesAbs(x, y, z);
+          if (!bs) continue;
+          for (const b of bs)
+            if (b[1] < hi - 1e-6 && b[4] > lo + 1e-6 && b[0] < px + hw && b[3] > px - hw && b[2] < pz + hw && b[5] > pz - hw) return true;
         }
     return false;
   }
-  CF.cellTopAt = cellTopAt; CF.solidSpanXZ = solidSpanXZ;
+  CF.cellTopAt = cellTopAt; CF.solidSpanXZ = solidSpanXZ; CF.cellBoxesAbs = cellBoxesAbs;
   function boxHits(px, py, pz) {
     return solidSpanXZ(py - HH + 0.001, py + HH - 0.001, px, HW, pz);
   }
@@ -3201,8 +3383,8 @@ window.CF = window.CF || {};
         for (let sx = Math.floor(x - HW); sx <= Math.floor(x + HW); sx++)
           for (let sz = Math.floor(z - HW); sz <= Math.floor(z + HW); sz++)
             for (let sy = Math.floor(feet) - 1; sy <= Math.floor(feet) + 1; sy++) {
-              const sp = cellTopAt(sx, sy, sz);
-              if (sp && sp[1] <= feet + 0.001 && sp[1] > top) top = sp[1];
+              const sp = cellTopAt(sx, sy, sz, x, HW, z); // #053: footprint-aware - don't rest on a stair step we're not over
+              if (sp && sp[1] <= feet + 0.55 && sp[1] > top) top = sp[1]; // #053: +0.55 penetration tolerance (falls overshoot half-box tops; full-block +1 top stays excluded)
             }
         ny = (isFinite(top) ? top : Math.floor(ny - HH) + 1) + HH;
         for (let g = 0; g < 8 && boxHits(x, ny, z); g++) ny += 1; // fast falls penetrate several cells - push up until free
@@ -3264,6 +3446,43 @@ window.CF = window.CF || {};
     P.input.f = 0;
     CF.assert(r, 'player.wall-block(' + (P.pos[0] - xBefore).toFixed(2) + ')', P.pos[0] < wx - 0.25 && P.pos[0] > xBefore - 0.01);
     for (let yy = wy; yy <= wy + 2; yy++) for (let dz = -2; dz <= 2; dz++) CF.world.set(wx, yy, wz + dz, 0);
+    // #052/#053 box-model physics on a SYNTHETIC platform (fixed coords - suite-order independent):
+    // stand ON a bottom slab (+0.5), and WALK UP a stair run without any jump.
+    const sx = 30, sz = 30, sy = 70; // platform top = y 70 (feet level); slab/stairs sit at cell 70
+    CF.world.ensureAround(sx, sz, 1);
+    for (let i = 0; i < 10 && CF.world.stats().queue; i++) CF.world.tick();
+    const saved = {};
+    const keep = (x2, y2, z2) => { const k = x2 + ',' + y2 + ',' + z2; if (!(k in saved)) saved[k] = CF.world.get(x2, y2, z2); };
+    for (let x2 = sx - 4; x2 <= sx + 4; x2++) for (let z2 = sz - 2; z2 <= sz + 2; z2++) for (let y2 = 66; y2 <= 78; y2++) keep(x2, y2, z2);
+    for (let x2 = sx - 4; x2 <= sx + 4; x2++) for (let z2 = sz - 2; z2 <= sz + 2; z2++) {
+      for (let y2 = 70; y2 <= 78; y2++) CF.world.set(x2, y2, z2, 0);
+      CF.world.set(x2, 69, z2, CF.IDOF['stone']);
+    }
+    for (let i = 0; i < 10 && CF.world.stats().queue; i++) CF.world.tick();
+    for (let i = 0; i < 200 && CF.world.dirty.size; i++) CF.renderTick();
+    CF.world.set(sx, sy, sz, CF.IDOF['stone_slab:cobblestone']);
+    for (let i = 0; i < 10 && CF.world.stats().queue; i++) CF.world.tick();
+    for (let i = 0; i < 200 && CF.world.dirty.size; i++) CF.renderTick();
+    P.tp(sx + 0.5, sy + 3, sz + 0.5);
+    for (let i = 0; i < 90; i++) tick();
+    CF.assert(r, 'physics.slab-stand(feet=' + (P.pos[1] - 0.9).toFixed(2) + ',want=' + (sy + 0.5) + ')',
+      Math.abs(P.pos[1] - 0.9 - (sy + 0.5)) < 0.02 && P.onGround);
+    // course: +X-facing stairs at sx+1, landing block sx+2 (walk-on = sy+1), blocker wall sx+3
+    CF.world.set(sx, sy, sz, 0);
+    CF.world.set(sx + 1, sy, sz, CF.IDOF['stone_stairs']); CF.world.flatSet(sx + 1, sy, sz, 0); // step on +X half
+    CF.world.set(sx + 2, sy, sz, CF.IDOF['stone']);
+    for (let y2 = sy; y2 <= sy + 3; y2++) CF.world.set(sx + 3, y2, sz, CF.IDOF['stone']);
+    for (let i = 0; i < 10 && CF.world.stats().queue; i++) CF.world.tick();
+    for (let i = 0; i < 200 && CF.world.dirty.size; i++) CF.renderTick();
+    P.tp(sx - 1.5, sy + 1.2, sz + 0.5); P.yaw = Math.PI / 2; // face +X
+    P.input.jump = false; P.input.f = 1;
+    for (let i = 0; i < 200; i++) tick();
+    P.input.f = 0;
+    CF.assert(r, 'physics.stairs-walkup(feet=' + (P.pos[1] - 0.9).toFixed(2) + ',want>=' + (sy + 0.99) + ',x=' + P.pos[0].toFixed(1) + ')',
+      P.onGround && P.pos[1] - 0.9 >= sy + 0.99 && P.pos[0] > sx + 1.9 && P.pos[0] < sx + 2.7);
+    for (const k in saved) { const [x2, y2, z2] = k.split(',').map(Number); CF.world.set(x2, y2, z2, saved[k]); }
+    P.tp(8.5, CF.world.heightAt(8, 8) + 2, 8.5); P.yaw = 0; P.pitch = 0; // leave suites downstream on a clean column (not buried in the restored terrain)
+    for (let i = 0; i < 40 && !P.onGround; i++) tick();
   };
 })();
 
@@ -3345,8 +3564,8 @@ window.CF = window.CF || {};
       const heldName = CF.held && CF.held();
       const tierOk = CF.canHarvest ? CF.canHarvest(v, heldName) : (HAND_TIER >= v.minTier || !v.tool);
       let dropName = v.drop;
-      let dropN = v.dropN || 1; // #052: double slab yields 2; #051 dropN
-      if (v.boxes && CF.world.flatAt && (CF.world.flatAt(m.x, m.y, m.z) & 4)) dropN = 2; // 1.12: double slab -> 2 slabs
+      let dropN = v.dropN || 1; // #052: double slab yields 2; #051 dropN; (#053: stairs bit4 = upside, NOT double!)
+      if (v.boxes && !v.stairs && CF.world.flatAt && (CF.world.flatAt(m.x, m.y, m.z) & 4)) dropN = 2; // 1.12: double slab -> 2 slabs
       if (v.name === 'gravel' && dropName && Math.random() < 0.1) dropName = 'flint'; // 1.12: 10% flint
       if (v.name === 'leaves') { // 1.12: oak leaves 5% sapling, 0.5% apple, else nothing (#019)
         const lr = Math.random();
@@ -3374,13 +3593,14 @@ window.CF = window.CF || {};
 
   CF.place = (hit) => {
     if (!hit) return false;
+    const p = CF.player; // #053: was never declared here - bed/stairs yaw lines threw ReferenceError (bed tests bypassed place(), latent in-game P1)
     let tx = hit.x + hit.face[0], ty = hit.y + hit.face[1], tz = hit.z + hit.face[2];
     const id = CF.hotId();
     if (!id) return false;
     const v = CF.BY_ID[id];
     // #052 slab rule: clicking the TOP FACE of an existing same single-slab upgrades it to double (1.12)
     const hid0 = CF.world.get(hit.x, hit.y, hit.z);
-    if (v.boxes && hit.face[1] === 1 && hid0) {
+    if (v.boxes && !v.stairs && hit.face[1] === 1 && hid0) {
       const hv = CF.BY_ID[hid0];
       if (hv && hv === v && CF.world.flatAt && !(CF.world.flatAt(hit.x, hit.y, hit.z) & 4)) {
         CF.world.flatSet(hit.x, hit.y, hit.z, CF.world.flatAt(hit.x, hit.y, hit.z) | 4);
@@ -3404,7 +3624,12 @@ window.CF = window.CF || {};
       const code = f[1] === 1 ? 1 : f[0] === 1 ? 2 : f[0] === -1 ? 6 : f[2] === 1 ? 4 : 8;
       CF.world.flatSet(tx, ty, tz, code);
     }
-    if (ok && v.boxes && CF.world.flatSet) {
+    if (ok && v.stairs && CF.world.flatSet) {
+      // #053 1.12 stair meta: 0E 1W 2S 3N (+ high side = player look dir = the side you climb toward);
+      // clicking a BOTTOM face flips upside (bit4) like ceiling-mounted 1.12 stairs.
+      CF.world.flatSet(tx, ty, tz, (CF.dirFromYaw ? CF.dirFromYaw(p.yaw) : 0) | (hit.face[1] === -1 ? 4 : 0));
+    }
+    if (ok && v.boxes && !v.stairs && CF.world.flatSet) {
       // #052: bottom slab onto floor face (up) = bit0-style default(0); top slab onto ceiling face (down) = bit 2
       if (hit.face[1] === -1) CF.world.flatSet(tx, ty, tz, 2);
     }
@@ -3506,6 +3731,40 @@ window.CF = window.CF || {};
         okU === true && (fm & 4) === 4 && got === 2);
       CF.drops.length = 0; CF.world.set(66, h, 66, 0); CF.world.flatSet(66, h, 66, 0);
       CF.inv.fill(null); for (const s of invSave) if (s) CF.give(s.name, s.count); CF.sel = selSave; CF.uiRefresh && CF.uiRefresh(); // restore hotbar (place/bedrock tests below depend on it)
+    }
+    // #053: stair facing follows player yaw (4 dirs), bottom-face click flips upside, breaking yields 1
+    {
+      const h = CF.world.heightAt(70, 70);
+      CF.world.ensureAround(70, 70, 1);
+      for (let i = 0; i < 20 && CF.world.stats().queue; i++) CF.world.tick();
+      for (let x = 68; x <= 72; x++) for (let z = 68; z <= 72; z++) for (let y = h; y < h + 5; y++) CF.world.set(x, y, z, 0);
+      const invSave = CF.inv.map((s) => (s ? { name: s.name, count: s.count } : null)), selSave = CF.sel;
+      const yawSave = CF.player.yaw;
+      CF.inv.fill(null);
+      CF.inv[0] = { name: 'stone_stairs', count: 8 }; CF.sel = 0;
+      const yaws = [Math.PI / 2, -Math.PI / 2, 0, Math.PI], want = [0, 1, 2, 3];
+      const got = [];
+      for (let i = 0; i < 4; i++) {
+        CF.player.yaw = yaws[i];
+        CF.world.flatSet(70, h, 70, 99);
+        CF.place({ x: 70, y: h - 1, z: 70, face: [0, 1, 0] }); // on top of surface block, dir from yaw
+        got.push(CF.world.flatAt(70, h, 70));
+        CF.world.set(70, h, 70, 0);
+      }
+      CF.player.yaw = Math.PI / 2;
+      CF.world.set(70, h + 1, 70, IDOF['stone']); // overhead block: click its BOTTOM face -> upside-down (bit4)
+      CF.place({ x: 70, y: h + 1, z: 70, face: [0, -1, 0] });
+      const fmUp = CF.world.flatAt(70, h, 70);
+      CF.drops.length = 0;
+      CF.inv[1] = { name: 'wood_pickaxe', count: 1 }; CF.sel = 1; // stone-family needs pickaxe to drop (1.12, like #052 slab test)
+      CF.mineStart({ x: 70, y: h, z: 70 });
+      let broke = null, ticks = 0;
+      while (ticks < 400 && !(broke && broke.broke)) { broke = CF.mineTick(0.05); ticks++; }
+      const gotN = CF.drops.reduce((n, d) => n + d.n, 0);
+      CF.assert(r, 'interact.stairs-facing(got=' + got + ',want=' + want + ',up=' + fmUp + ',drop=' + gotN + ')',
+        got.join() === want.join() && fmUp === (0 | 4) && gotN === 1);
+      CF.drops.length = 0; CF.world.set(70, h, 70, 0); CF.world.set(70, h + 1, 70, 0); CF.world.flatSet(70, h, 70, 0);
+      CF.inv.fill(null); for (const s of invSave) if (s) CF.give(s.name, s.count); CF.sel = selSave; CF.player.yaw = yawSave; CF.uiRefresh && CF.uiRefresh();
     }
     // #105: torch flame must render at the TOP of the cross quad (readPixels y is FROM BOTTOM).
     {
@@ -3713,6 +3972,10 @@ window.CF = window.CF || {};
     P(['ccc'], { c: 'cobblestone' }, 'stone_slab:cobblestone', 6),
     P(['sss'], { s: 'stone' }, 'stone_slab:stone', 6),
     P(['ppp'], { p: 'planks' }, 'wooden_slab:oak', 6),
+    // #053 stairs: 1+2+3 staircase pattern -> 6 (1.12: oak 53, stone_stairs=COBBLE 67, brick 108)
+    P(['p  ', 'pp ', 'ppp'], { p: 'planks' }, 'oak_stairs', 6),
+    P(['c  ', 'cc ', 'ccc'], { c: 'cobblestone' }, 'stone_stairs', 6),
+    P(['b  ', 'bb ', 'bbb'], { b: 'brick_block' }, 'brick_stairs', 6),
     { shapeless: { iron_block: 1 }, out: { name: 'iron_ingot', n: 9 } },
     { shapeless: { gold_block: 1 }, out: { name: 'gold_ingot', n: 9 } },
     { shapeless: { diamond_block: 1 }, out: { name: 'diamond', n: 9 } },
@@ -3896,6 +4159,10 @@ window.CF = window.CF || {};
     CF.inv.fill(null); put(20, 'iron_ingot', 1); put(21, 'iron_ingot', 1); put(22, 'iron_ingot', 1); put(24, 'stick', 1); put(27, 'stick', 1);
     res = CF.craftOnce([20, 21, 22, 23, 24, 25, 26, 27, 28]);
     CF.assert(r, 'items.iron-pickaxe(' + CF.countItem('iron_pickaxe') + ',' + (res && res.name) + ')', CF.countItem('iron_pickaxe') === 1 && res && res.name === 'iron_pickaxe');
+    // #053 stairs: 1+2+3 staircase pattern -> 6 oak stairs
+    CF.inv.fill(null); for (const s of [20, 23, 24, 26, 27, 28]) put(s, 'planks', 1);
+    res = CF.craftOnce([20, 21, 22, 23, 24, 25, 26, 27, 28]);
+    CF.assert(r, 'items.stairs-craft(' + CF.countItem('oak_stairs') + ',' + (res && res.name) + ')', CF.countItem('oak_stairs') === 6 && res && res.name === 'oak_stairs' && CF.countItem('planks') === 0);
     // tool speeds per model: stone w/ wood pick = 1.125s, w/ hand = 7.5s, iron ore w/ stone pick harvests
     const stoneV = CF.REGISTRY.stone.variants.default;
     CF.assert(r, 'items.speed-stone-wood(' + CF.breakTimeFor(stoneV, 'wood_pickaxe') + ')',
@@ -4740,6 +5007,8 @@ window.CF = window.CF || {};
       if (r) w.edited.add(Math.floor(x / 16) + ',' + Math.floor(z / 16));
       return r;
     };
+    const origF = w.flatSet; // #053: model meta (slab/stairs/torch/bed bits) also marks a chunk edited
+    if (origF) w.flatSet = function (x, y, z, fm) { origF(x, y, z, fm); w.edited.add(Math.floor(x / 16) + ',' + Math.floor(z / 16)); };
   }
 
   function saveNow() {
@@ -4761,6 +5030,11 @@ window.CF = window.CF || {};
       const enc = rleEncode(c.arr);
       save.chunks[k] = b64e(enc);
       bytes += save.chunks[k].length;
+      if (c.flat) { // #053: flat model-meta bits (slab/stairs/torch/bed) ride along (RLE = tiny)
+        let any = false;
+        for (let i = 0; i < c.flat.length && !any; i++) if (c.flat[i]) any = true;
+        if (any) { if (!save.flats) save.flats = {}; save.flats[k] = b64e(rleEncode(c.flat)); }
+      }
     }
     let warn = null;
     for (;;) {
@@ -4794,6 +5068,7 @@ window.CF = window.CF || {};
       CF.world.generate(cx, cz);
       const c = CF.world.chunks.get(k);
       if (c) { c.arr.set(rleDecode(b64d(b), c.arr.length)); CF.world.edited.add(k); CF.world.dirty.add(k); }
+      if (c && save.flats && save.flats[k]) { if (!c.flat) c.flat = new Uint8Array(16 * 128 * 16); c.flat.set(rleDecode(b64d(save.flats[k]), c.flat.length)); CF.world.dirty.add(k); } // #053 meta bits (lazy flat!)
     }
     if (save.player && CF.player) {
       CF.player.tp(...save.player.pos);
@@ -4832,6 +5107,7 @@ window.CF = window.CF || {};
     for (let i = 0; i < 20 && W.stats().queue; i++) W.tick();
     const tx = 8, tz = 8, th = W.heightAt(tx, tz);
     for (let y = th + 1; y <= th + 5; y++) W.set(tx, y, tz, CF.IDOF['cobblestone']);
+    W.set(tx, th + 6, tz, CF.IDOF['stone_stairs']); W.flatSet(tx, th + 6, tz, 2); // #053: meta bits must survive the roundtrip too
     CF.player.tp(8.5, th + 1, 8.5); CF.player.yaw = 1.23; CF.player.pitch = -0.33;
     for (let i = 0; i < 40; i++) W.tick(); // spread/gravity churn
     const info = saveNow();
@@ -4843,6 +5119,8 @@ window.CF = window.CF || {};
     let tower = 0;
     for (let y = th + 1; y <= th + 5; y++) if (CF.world.get(tx, y, tz) === CF.IDOF['cobblestone']) tower++;
     CF.assert(r, 'save.edits(' + tower + ')', tower === 5);
+    CF.assert(r, 'save.flat(' + CF.world.get(tx, th + 6, tz) + '/' + (CF.world.flatAt ? CF.world.flatAt(tx, th + 6, tz) : 'NA') + ')',
+      CF.world.get(tx, th + 6, tz) === CF.IDOF['stone_stairs'] && CF.world.flatAt(tx, th + 6, tz) === 2);
     CF.assert(r, 'save.seed', CF.world.seed === W.seed);
     CF.assert(r, 'save.player', Math.abs(CF.player.yaw - 1.23) < 1e-6 && Math.abs(CF.player.pos[1] - (th + 1)) < 0.01);
     // corrupt save -> clean fallback
@@ -5073,8 +5351,8 @@ window.CF = window.CF || {};
         for (let sx = Math.floor(x - hw); sx <= Math.floor(x + hw); sx++)
           for (let sz = Math.floor(z - hw); sz <= Math.floor(z + hw); sz++)
             for (let sy = Math.floor(feet) - 1; sy <= Math.floor(feet) + 1; sy++) {
-              const sp = CF.cellTopAt(sx, sy, sz);
-              if (sp && sp[1] <= feet + 0.001 && sp[1] > top) top = sp[1];
+              const sp = CF.cellTopAt(sx, sy, sz, x, hw, z); // #053: footprint-aware (stairs/slab boxes)
+              if (sp && sp[1] <= feet + 0.55 && sp[1] > top) top = sp[1]; // #053: penetration tolerance for half-box tops
             }
         ny = (isFinite(top) ? top : Math.floor(ny - hh) + 1) + hh;
         for (let g = 0; g < 8 && boxHit(hw, hh, x, ny, z); g++) ny += 1; // push up out of deep penetration
@@ -6764,6 +7042,36 @@ window.CF = window.CF || {};
       document.title = 'SS:' + JSON.stringify({ h0, mid: [q[0], q[1], q[2]], over: [q2[0], q2[1], q2[2]], overBottom: [q3[0], q3[1], q3[2]], lights: [W.lightAt(rx - 2, h0 + 1, rz + 1), W.lightAt(rx - 2, h0 + 2, rz), W.lightAt(rx - 1, h0 + 2, rz + 1)], tris: CF.rendererStats.tris });
       CF.renderDraw(CF.camera);
     }
+    await new Promise((res) => setTimeout(res, 300));
+  };
+  CF.shotScenarios['stair-run'] = async () => { // #053: ascending run + all 4 facings + upside-down + slab combo
+    CF.freeCam = true;
+    const W = CF.world, rx = 164, rz = 164; // keep inside one chunk pair for clean culling view
+    W.ensureAround(rx, rz, 1);
+    for (let i = 0; i < 30 && W.stats().queue; i++) W.tick();
+    const g0 = Math.max(W.heightAt(rx, rz), 8);
+    for (let x = rx - 6; x <= rx + 6; x++) for (let z = rz - 6; z <= rz + 6; z++) {
+      for (let y = g0; y < g0 + 12; y++) W.set(x, y, z, 0); // carve tall so no tree occludes
+      W.set(x, g0 - 1, z, CF.IDOF['stone']);
+    }
+    for (let i = 0; i < 4; i++) { // ascending oak run toward +X, rise every 2, low edge to -Z
+      const yy = g0 + (i >> 1);
+      W.set(rx - 1 + i, yy, rz + 2, CF.IDOF['oak_stairs']); W.flatSet(rx - 1 + i, yy, rz + 2, 0); // facing +X
+    }
+    W.set(rx + 3, g0 + 2, rz + 2, CF.IDOF['stone']); // landing
+    for (let i = 0; i < 4; i++) { // all 4 facings E W S N (cobble stone_stairs) front row
+      W.set(rx - 2 + i, g0, rz - 3, CF.IDOF['stone_stairs']); W.flatSet(rx - 2 + i, g0, rz - 3, i);
+    }
+    W.set(rx - 2, g0 + 3, rz + 0, CF.IDOF['stone']); // ceiling block (bricks top buried under it = 1.12 upside-down mount)
+    W.set(rx - 2, g0 + 2, rz + 0, CF.IDOF['brick_stairs']); W.flatSet(rx - 2, g0 + 2, rz + 0, 4); // upside-down brick
+    // separate slab beside the far end of the ascending run (multi-box mix, doesn't cover a facing)
+    W.set(rx + 4, g0 + 2, rz + 3, CF.IDOF['stone_slab:stone']);
+    W.ensureLight(rx >> 4, rz >> 4);
+    for (let i = 0; i < 10; i++) W.tick();
+    for (let i = 0; i < 400 && W.dirty.size; i++) CF.renderTick();
+    CF.camera = { pos: [rx - 4.5, g0 + 3.6, rz - 7.5], yaw: Math.atan2(4.5, 9.5), pitch: -0.3 }; // look down at tops, not the shadowed undersides
+    CF.renderDraw(CF.camera);
+    document.title = 'SR:' + JSON.stringify({ g0, tris: CF.rendererStats.tris, miss: [...CF.rendererStats.missingTiles || []] });
     await new Promise((res) => setTimeout(res, 300));
   };
   CF.shotScenarios['storage-wall'] = async () => { // #051: gold/iron/diamond/brick/clay row

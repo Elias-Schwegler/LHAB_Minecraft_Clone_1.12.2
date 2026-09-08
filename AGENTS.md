@@ -11,8 +11,13 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
     URGENT user reports #105 (torch upside-down = 3 bugs: chunk-local cross verts, emitter overwrote packed
     sky -> black flames, +UV verify) & #106 (3 faces black = lightCell float-index undefined->NaN -faces;
     +faces-corner stale-light; ALL lit now - biggest visual win) FIXED same-day, gate now 218/202.
-    NEXT: #053 stairs, #054 farming, #055+#056 NETHER, #057 redstone SPK, #058 streaming, #059 recipe book;
-    backlog #044/#045/#048 (+F7-black leftovers + torch flame tile art). Audit #7 at close. - Gate: TEST GREEN 218 full / 202 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 53/399 (TNT/chest/bed functional:false -
+    #053 DONE (stairs 56/399): oak/stone(=COBBLE!)/brick via centralised CF.boxesOf/cellOpaque model resolver
+    (kills the 4-file bit-re-derivation that caused #105/#106); subRect per-face culling; CAUGHT+FIXED my own
+    box-pass rewrite bug (subRect V-clamped-to-U -> every box face 0 pieces = all slabs/stairs flat, found by
+    RE-checking slab-scene in vision); + latent CF.place undeclared `p` (bed RMB crash) + flat-array never
+    saved (slab/torch/bed meta lost on reload) - both fixed w/ asserts; walkup/facing/craft/save.flat; 224/208.
+    NEXT: #054 farming, #055+#056 NETHER, #057 redstone SPK, #058 streaming, #059 recipe book;
+    backlog #044/#045/#048 (+F7-black leftovers + torch flame tile art). Audit #7 at close. - Gate: TEST GREEN 224 full / 208 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 56/399 (TNT/chest/bed functional:false -
   procedural tiles, not Blender; mechanics shipped+tested, not counted: honest)
   proof-bound (t1 20/125): 15 core+torch+glowstone+furnace + water+lava (#043 buckets).
 - Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy TWO-SIDED faces+AO-less shaded+light+fog),
@@ -28,6 +33,12 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #053 stairs (56/399): centralised CF.boxesOf/cellOpaque model resolver (slab+stairs, mesher+physics+placement+
+  relight all consume it - ends the per-file flat-bit drift behind #105/#106); 1.12-true mapping (stone_stairs=
+  cobble tex, brick 108); subRect face-culling; FOUND+FIXED my own rewrite bug (subRect V-clamped-to-U zeroed all
+  box faces -> slab/stairs flat, caught by RE-running slab-scene vision) + 2 latent gaps (CF.place undeclared `p`
+  = bed RMB in-game crash; chunk flat-array never SAVED = slab/torch/bed meta lost on reload); box-vs-box physics
+  + footprint-aware landing; +5 asserts, 224/208, 4 sheets+stair-run vision PASS.
 - #105+#106 same-day user-report fix (torch triple-bug: chunk-local cross verts + emitter overwrote packed
   sky light + UV verify; black -faces: lightCell() float-index -> undefined->NaN on every plane-0.001 sample;
   faces-corner stale-light scenario bug; slab skylight passability RE-ADDED post-bisect; 6 new PLAYBOOK

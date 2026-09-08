@@ -159,8 +159,8 @@ window.CF = window.CF || {};
         for (let sx = Math.floor(x - hw); sx <= Math.floor(x + hw); sx++)
           for (let sz = Math.floor(z - hw); sz <= Math.floor(z + hw); sz++)
             for (let sy = Math.floor(feet) - 1; sy <= Math.floor(feet) + 1; sy++) {
-              const sp = CF.cellTopAt(sx, sy, sz);
-              if (sp && sp[1] <= feet + 0.001 && sp[1] > top) top = sp[1];
+              const sp = CF.cellTopAt(sx, sy, sz, x, hw, z); // #053: footprint-aware (stairs/slab boxes)
+              if (sp && sp[1] <= feet + 0.55 && sp[1] > top) top = sp[1]; // #053: penetration tolerance for half-box tops
             }
         ny = (isFinite(top) ? top : Math.floor(ny - hh) + 1) + hh;
         for (let g = 0; g < 8 && boxHit(hw, hh, x, ny, z); g++) ny += 1; // push up out of deep penetration
