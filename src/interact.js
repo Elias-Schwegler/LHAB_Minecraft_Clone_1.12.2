@@ -237,6 +237,27 @@ window.CF = window.CF || {};
       CF.drops.length = 0; CF.world.set(66, h, 66, 0); CF.world.flatSet(66, h, 66, 0);
       CF.inv.fill(null); for (const s of invSave) if (s) CF.give(s.name, s.count); CF.sel = selSave; CF.uiRefresh && CF.uiRefresh(); // restore hotbar (place/bedrock tests below depend on it)
     }
+    // #105: torch flame must render at the TOP of the cross quad (readPixels y is FROM BOTTOM).
+    {
+      const h = CF.world.heightAt(78, 78) - 1; // top solid cell
+      CF.world.ensureAround(78, 78, 1);
+      for (let i = 0; i < 20 && CF.world.stats().queue; i++) CF.world.tick();
+      for (let x = 76; x <= 80; x++) for (let z = 75; z <= 83; z++) for (let y = h + 1; y < h + 8; y++) CF.world.set(x, y, z, 0); // clear torch + camera corridor
+      CF.world.set(78, h + 1, 78, IDOF['torch']);
+      CF.world.ensureLight(78 >> 4, 78 >> 4);
+      for (let i = 0; i < 8; i++) CF.world.tick();
+      for (let i = 0; i < 200 && CF.world.dirty.size; i++) CF.renderTick();
+      const cam = { pos: [78.5, h + 2.2, 80.0], yaw: Math.PI, pitch: -0.34 }; // 2 blocks out, aimed at torch center (y h+1.5)
+      CF.renderDraw(cam);
+      const q = new Uint8Array(4);
+      CF.gl.readPixels((CF.canvas.width * 0.5) | 0, (CF.canvas.height * 0.62) | 0, 1, 1, CF.gl.RGBA, CF.gl.UNSIGNED_BYTE, q); // upper torch = flame
+      const upper = [q[0], q[1], q[2]];
+      CF.gl.readPixels((CF.canvas.width * 0.5) | 0, (CF.canvas.height * 0.45) | 0, 1, 1, CF.gl.RGBA, CF.gl.UNSIGNED_BYTE, q);
+      const lower = [q[0], q[1], q[2]];
+      const flame = (p) => p[0] > 150 && p[1] > 110 && p[2] < 220 && p[1] > p[2] + 20; // yellow-white core ok; stick (g=70) and sky (b=255) rejected
+      CF.assert(r, 'interact.torch-up(up=' + upper + ',lo=' + lower + ')', flame(upper) && !flame(lower));
+      CF.world.set(78, h + 1, 78, 0);
+    }
     // #051: clay block yields 4 clay balls (1.12)
     {
       const h = CF.world.heightAt(74, 74) + 1;

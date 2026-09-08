@@ -143,6 +143,26 @@ Engine/logic:
   Diagnostic that cracked it: boxHits(x0,y0,z0)=true at REST + dy0=1.00 (should be 0.9=HH) in the assert label.
 - Two-sided greedy meshing doubles buildMesh CPU (test wall time ~2x; gate numbers in §2). Never conclude
   "suite hangs" from in-page sim time - measure real wall.
+- FACE-LIGHT SAMPLING (#106, the biggest visual bug of the project): pushQuad samples light at
+  plane-0.001 (float). EVERY coordinate accessor used by render must Math.floor internally (lightCell did
+  not -> float index -> undefined -> NaN -> exactly the 3 -faces black; "3 of 6 sides" user report).
+  Diagnostic that cracked it: instrument pushQuad to dump [a, sgn, mid, packed] to a title JSON.
+- RENDER POSITIONS ARE ABSOLUTE - there is NO per-chunk model matrix (VP only). coord() adds off[] for
+  greedy; box pass builds wx+..; the #024 cross pass used chunk-local x/z for months -> torches drew near
+  world origin (the #105 "upside down" report was partly this). Any new mesh pass: absolute coords.
+- LIGHT PACKING: lightAt returns packed (sky<<4)|block. Raw nibble/255 (the torch `|| 14<<0` line) = black
+  quads. Also: relight sky-column must NOT treat non-solid ids (cross blocks, single slabs) as opaque, and
+  emitters must OR into the nibble, never overwrite (`c.light[i]=lv` killed torch skylight since #020).
+- SHOT SCENARIOS: mesh-drain (W.dirty) is NOT light-drain. After building/carving geometry you need
+  `while (W.stats().queue) W.tick()` (+ ensureLight) BEFORE renderTick, else freshly-cut cells keep stale
+  0 light = black faces (faces-corner hid this bug for two sprints).
+- VISION RATIONALIZATION IS A PROCESS FAILURE: the #046/#052 reviewers described the black -face skirt as
+  "intentionally darker side shading" TWICE while the user saw "3 sides black". When a scene has
+  suspiciously uniform black geometry, PROVE it (light probe / instrumented sampler) - never rationalize.
+  A fresh user bug report outranks any past PASS verdict on the same pixels.
+- node --check EVERY edited src file right before tools/build.mjs: one brace-mismatch in harness.js made
+  the bundle boot-hang with title stuck at 'Cubeforge' (no SHOTERR - dispatch never ran) and looked like
+  an infinite scenario; cost a full diagnosis cycle (#106 day).
 - Registry edits: go through the JSON between /*REGISTRY-START|END*/ markers (strict JSON, 1-space indent);
   new blocks need id/tier/variants.default{functional:false until proof, tiles×6, hardness, drop,
   tool/minTier, solid, light, flags} + a proof:{issue,tests:[...]} naming asserts that EXIST in the build.

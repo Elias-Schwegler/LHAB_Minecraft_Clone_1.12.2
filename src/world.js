@@ -169,6 +169,7 @@ window.CF = window.CF || {};
     const lightQueue = new Set();
     const lightDone = new Set();
     function lightCell(c, x, y, z) {
+      x = Math.floor(x); y = Math.floor(y); z = Math.floor(z); // #106: mesher samples faces at plane-0.001 (float) - without floor the %CX yields a float index -> undefined light -> black -faces
       const lx = ((x % CX) + CX) % CX, lz = ((z % CZ) + CZ) % CZ;
       return (y * CZ + lz) * CX + lx;
     }
@@ -217,11 +218,18 @@ window.CF = window.CF || {};
           for (let y = CH - 1; y >= 1; y--) {
             const id = c.arr[(y * CZ + lz) * CX + lx];
             const liq = id && CF.BY_ID[id] && CF.BY_ID[id].liquid;
-            const passable = liq || (id && CF.BY_ID[id].boxes && !(flatAt(c.cx * CX + lx, y, c.cz * CZ + lz) & 4)); // #052: 1.12 slabs pass skylight (only doubles opaque)
-            if (id && !passable) {
-              const lv = CF.BY_ID[id] ? CF.BY_ID[id].light : 0;
-              if (lv) { c.light[(y * CZ + lz) * CX + lx] = lv; pushQ(c.cx * 16 + lx, y, c.cz * 16 + lz, 0, lv); }
-              sky = 0;
+            if (id && !liq) {
+              // #105: cross/non-solid blocks (torch, sapling) must NOT block skylight, and their own
+              // emission ORs with the sky nibble - the old overwrite left torch cells at 14/255 -> near-black quads.
+              // #052 (restored): single slabs also pass skylight (1.12); doubles stay opaque.
+              const v = CF.BY_ID[id];
+              const opaque = v ? (v.solid && !(v.boxes && !(flatAt(c.cx * CX + lx, y, c.cz * CZ + lz) & 4))) : true;
+              const lv = v ? v.light : 0;
+              let val = 0;
+              if (lv) { val = lv; pushQ(c.cx * 16 + lx, y, c.cz * 16 + lz, 0, lv); }
+              if (opaque) sky = 0;
+              else if (sky) val |= sky << 4;
+              if (val) c.light[(y * CZ + lz) * CX + lx] = val;
             } else if (id && liq && CF.BY_ID[id].light) { // #043 TEMP-PROBE-A: liquid light source (lava) only; water passes light unchanged
               c.light[(y * CZ + lz) * CX + lx] = CF.BY_ID[id].light; pushQ(c.cx * 16 + lx, y, c.cz * 16 + lz, 0, CF.BY_ID[id].light);
             } else if (sky) {
@@ -261,8 +269,9 @@ window.CF = window.CF || {};
           const cell = lightCell(c2, nx, ny, nz);
           {
             const nid2 = c2.arr[cell];
-            const pass2 = nid2 && (CF.BY_ID[nid2].liquid || (CF.BY_ID[nid2].boxes && !(flatAt(nx, ny, nz) & 4))); // #052 slabs pass light; doubles don't
-            if (nid2 && !pass2) continue; // opaque stops; liquids + open-half slabs pass
+            const v2b = nid2 && CF.BY_ID[nid2];
+            // opaque stops; liquids + cross(!solid) + single slabs pass (#043/#105/#052-restored; doubles don't)
+            if (v2b && v2b.solid && !(v2b.boxes && !(flatAt(nx, ny, nz) & 4))) continue;
           }
           const ns = s === 15 ? 15 : s ? (dy !== 0 ? s : s - 1) : 0; // MC rule: FULL 15 skylight NEVER decays (any dir); else vertical free-fall keeps level, horizontal -1 (fixes #031 banding: pool rows were getting sky 14 under canopy gaps)
           const nb = b ? b - 1 : 0;
