@@ -134,6 +134,7 @@
     P.input.f = 0;
     for (let i = 0; i < 30 && !CF.rendererStats.ready; i++) { CF.renderTick(); await new Promise((r) => setTimeout(r, 50)); }
     for (let i = 0; i < 40; i++) CF.renderTick();
+    for (let i = 0; i < 40; i++) CF.renderTick();
     CF.renderDraw(CF.camera);
     await new Promise((r) => setTimeout(r, 300));
   };
@@ -435,6 +436,77 @@
     CF.renderDraw(CF.camera);
     await new Promise((res) => setTimeout(res, 300));
   };
+  CF.shotScenarios['torch-probe'] = async () => { // #105 calib: single torch, side camera like interact.torch-up
+    CF.freeCam = true;
+    const W = CF.world;
+    W.ensureAround(78, 78, 1);
+    for (let i = 0; i < 20 && W.stats().queue; i++) W.tick();
+    const h = W.heightAt(78, 78) - 1;
+    for (let x = 76; x <= 80; x++) for (let z = 75; z <= 83; z++) for (let y = h + 1; y < h + 8; y++) W.set(x, y, z, 0);
+    W.set(78, h + 1, 78, CF.IDOF['torch']);
+    W.ensureLight(78 >> 4, 78 >> 4);
+    for (let i = 0; i < 8; i++) W.tick();
+    for (let i = 0; i < 300 && W.dirty.size; i++) CF.renderTick();
+    CF.camera = { pos: [78.5, h + 2.2, 80.0], yaw: Math.PI, pitch: -0.34 };
+    CF.renderDraw(CF.camera);
+    document.title = 'TP:' + JSON.stringify({ h, present: W.get(78, h + 1, 78), light: W.lightAt(78, h + 1, 78), tris: CF.rendererStats.tris });
+    await new Promise((res) => setTimeout(res, 300));
+  };
+  CF.shotScenarios['place-black'] = async () => { // #106 repro: stone on untouched terrain; emulate pushQuad light sampler per face
+    CF.freeCam = true;
+    const W = CF.world, rx = 60, rz = 60;
+    W.ensureAround(rx, rz, 2);
+    for (let i = 0; i < 30 && W.stats().queue; i++) W.tick();
+    for (let i = 0; i < 200 && W.dirty.size; i++) CF.renderTick();
+    const gy = W.heightAt(rx, rz); // first air above natural surface
+    W.set(rx, gy, rz, CF.IDOF['stone']);
+    for (let i = 0; i < 10; i++) W.tick();
+    for (let i = 0; i < 200 && W.dirty.size; i++) CF.renderTick();
+    const out = { gy, faces: {} };
+    const S = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+    for (const [dx, dy, dz] of S) {
+      // pushQuad sampler for +face: plane sits at cell max boundary -> floor lands in NEIGHBOR cell;
+      // for -face (after #106 fix): plane at min boundary - 0.001 -> floor lands in neighbor too.
+      const nx = rx + dx, ny = gy + dy, nz = rz + dz;
+      const fx = dx > 0 ? rx + 1 - 0.001 : dx < 0 ? rx - 0.001 : rx + 0.5;
+      const fy = dy > 0 ? gy + 1 - 0.001 : dy < 0 ? gy - 0.001 : gy + 0.5;
+      const fz = dz > 0 ? rz + 1 - 0.001 : dz < 0 ? rz - 0.001 : rz + 0.5;
+      out.faces[[dx, dy, dz]] = { nbLight: W.lightAt(nx, ny, nz), nbId: W.get(nx, ny, nz), sample: W.lightAt(Math.floor(fx), Math.floor(fy), Math.floor(fz)) };
+    }
+    const cam = { pos: [rx + 3.4, gy + 2.6, rz + 3.4], yaw: Math.PI / 4 + Math.PI, pitch: -0.5 };
+    document.title = 'BL:' + encodeURIComponent(JSON.stringify(out));
+    CF.renderDraw(cam);
+    await new Promise((res) => setTimeout(res, 300));
+  };
+  CF.shotScenarios['face-lit-scene'] = async () => { // #106 calibration: cobble wall -X face dead-on
+    CF.freeCam = true;
+    const W = CF.world, rx = 148, rz = 148;
+    W.ensureAround(rx, rz, 1);
+    for (let i = 0; i < 30 && W.stats().queue; i++) W.tick();
+    const g0 = W.heightAt(rx, rz);
+    for (let x = rx - 4; x <= rx + 4; x++) for (let z = rz - 4; z <= rz + 4; z++) {
+      for (let y = g0; y < g0 + 8; y++) W.set(x, y, z, 0);
+      W.set(x, g0 - 1, z, CF.IDOF['stone']);
+    }
+    for (let x = rx - 1; x <= rx + 1; x++) for (let z = rz - 1; z <= rz + 1; z++) W.set(x, g0, z, CF.IDOF['cobblestone']);
+    W.ensureLight(rx >> 4, rz >> 4);
+    for (let i = 0; i < 10; i++) W.tick();
+    for (let i = 0; i < 200 && W.dirty.size; i++) CF.renderTick();
+    CF.camera = { pos: [rx - 3.4, g0 + 0.65, rz], yaw: Math.PI / 2, pitch: -0.05 };
+    CF.renderDraw(CF.camera);
+    { // #106 diagnostics: re-draw with a dedicated probe camera (GL backbuffer may reset after compositor swap), then sample
+      CF.renderDraw({ pos: [rx - 2.6, g0 + 0.55, rz], yaw: Math.PI / 2, pitch: -0.05 });
+      const q = new Uint8Array(4);
+      const pxs = [[0.5, 0.52], [0.5, 0.46], [0.44, 0.5], [0.56, 0.5], [0.5, 0.62]];
+      const samples = pxs.map(([fx, fy]) => { CF.gl.readPixels((CF.canvas.width * fx) | 0, (CF.canvas.height * fy) | 0, 1, 1, CF.gl.RGBA, CF.gl.UNSIGNED_BYTE, q); return [q[0], q[1], q[2]]; });
+      const px1 = (fx, fy) => { CF.gl.readPixels((CF.canvas.width * fx) | 0, (CF.canvas.height * fy) | 0, 1, 1, CF.gl.RGBA, CF.gl.UNSIGNED_BYTE, q); return [q[0], q[1], q[2]]; };
+      CF.renderDraw({ pos: [rx - 3.4, g0 + 2.5, rz + 4], yaw: Math.PI / 2 + 0.6, pitch: -0.35 }); // angled from -X+Z above: floor + both wall faces visible
+      const angled = { flr: px1(0.5, 0.30), wallL: px1(0.42, 0.52), wallR: px1(0.62, 0.5), sky: px1(0.5, 0.86) };
+      CF.renderDraw(CF.camera);
+      document.title = 'FL:' + encodeURIComponent(JSON.stringify({ g0, Lnb: W.lightAt(rx - 2, g0, rz), Labove: W.lightAt(rx, g0 + 1, rz), Lwall: W.lightAt(rx, g0, rz), tris: CF.rendererStats.tris, samples, angled }));
+    }
+    await new Promise((res) => setTimeout(res, 300));
+  };
   CF.shotScenarios['faces-corner'] = async () => { // #046: camera at the -X/-Z corner sees faces that were never meshed
     CF.freeCam = true;
     const W = CF.world;
@@ -445,9 +517,21 @@
     for (let x = 7; x <= 13; x++) for (let z = 7; z <= 13; z++) W.set(x, by - 1, z, CF.IDOF['stone']);
     W.set(10, by, 10, CF.IDOF['log']); // bark sides + ring top/bottom
     W.set(11, by, 10, CF.IDOF['grass']); // reference block
+    W.ensureLight(10 >> 4, 10 >> 4); // #106: relight NOW (the old code only ran renderTick -> light queue never drained -> stale 0 = black faces)
+    for (let i = 0; i < 30 && W.stats().queue; i++) W.tick();
+    CF.__DBGF = []; // #106 TEMP: capture pushQuad sampler values for the probe area
     for (let i = 0; i < 400 && W.dirty.size; i++) CF.renderTick(); // drain rebuild budget (2/tick)
     for (let i = 0; i < 10; i++) CF.renderTick();
     CF.camera = { pos: [6.6, by + 1.4, 6.6], yaw: Math.atan2(10.5 - 6.6, 10.5 - 6.6), pitch: -0.25 };
+    CF.renderDraw(CF.camera);
+    { // #106 TEMP: neighbors of the two raised blocks + what the sampler reads
+      const q = new Uint8Array(4);
+      const px1 = (fx, fy) => { CF.gl.readPixels((CF.canvas.width * fx) | 0, (CF.canvas.height * fy) | 0, 1, 1, CF.gl.RGBA, CF.gl.UNSIGNED_BYTE, q); return [q[0], q[1], q[2]]; };
+      document.title = 'FC:' + encodeURIComponent(JSON.stringify({
+        L9: W.lightAt(9, by, 10), L11: W.lightAt(11, by, 11), L10top: W.lightAt(10, by + 1, 10), L10: W.lightAt(10, by, 10),
+        blk9: W.get(9, by, 10), pxLo: px1(0.5, 0.5), pxHi: px1(0.5, 0.62), pxPlat: px1(0.5, 0.38), tris: CF.rendererStats.tris,
+      }));
+    }
     CF.renderDraw(CF.camera);
     await new Promise((res) => setTimeout(res, 200));
   };

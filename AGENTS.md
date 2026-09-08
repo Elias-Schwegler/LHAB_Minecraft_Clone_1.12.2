@@ -7,8 +7,12 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   #031 + fixed P1 atlas icon-stride bug; README+GitHub origin+issue mirror done).
   SPRINT 04 PLANNED+ACTIVE (docs/sprints/04.md, issues 049-059 mirrored): nether/dimension FEAT (SPK-7 GO design!), #044 mob polish, #045 3x3 GUI,
   #048 fidelity (+F7 black patch), spider/enderman, redstone SPK (Tier-2 gate), infinite-streaming verify, recipe book.
-    #049 #050 #051 #052 DONE (wood 29/399, wool 45, storage 50, SLABS multi-box model 53/399=13.3%). NEXT: #053 stairs, #054 farming, #055+#056 NETHER, #057 redstone SPK,
-    #058 streaming, #059 recipe book; backlog #044/#045/#048 (+vines issue from mossy cut). Audit #7 at close. - Gate: TEST GREEN 216 full / 200 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 53/399 (TNT/chest/bed functional:false -
+    #049 #050 #051 #052 DONE (wood 29/399, wool 45, storage 50, SLABS multi-box model 53/399=13.3%).
+    URGENT user reports #105 (torch upside-down = 3 bugs: chunk-local cross verts, emitter overwrote packed
+    sky -> black flames, +UV verify) & #106 (3 faces black = lightCell float-index undefined->NaN -faces;
+    +faces-corner stale-light; ALL lit now - biggest visual win) FIXED same-day, gate now 218/202.
+    NEXT: #053 stairs, #054 farming, #055+#056 NETHER, #057 redstone SPK, #058 streaming, #059 recipe book;
+    backlog #044/#045/#048 (+F7-black leftovers + torch flame tile art). Audit #7 at close. - Gate: TEST GREEN 218 full / 202 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 53/399 (TNT/chest/bed functional:false -
   procedural tiles, not Blender; mechanics shipped+tested, not counted: honest)
   proof-bound (t1 20/125): 15 core+torch+glowstone+furnace + water+lava (#043 buckets).
 - Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy TWO-SIDED faces+AO-less shaded+light+fog),
@@ -24,6 +28,10 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #105+#106 same-day user-report fix (torch triple-bug: chunk-local cross verts + emitter overwrote packed
+  sky light + UV verify; black -faces: lightCell() float-index -> undefined->NaN on every plane-0.001 sample;
+  faces-corner stale-light scenario bug; slab skylight passability RE-ADDED post-bisect; 6 new PLAYBOOK
+  lessons incl. "never rationalize suspicious black in vision QA"); 218/202 GREEN, 4 scenes vision PASS.
 - GIT DEBT: #051 direct-commit on main (90a1fe3) - rule restored from #052; see PLAYBOOK process line.
 - #052 slabs: multi-box model class (v.boxes + flat bits 2/4; mesher coverFace; physics cellTopAt
   stand@+0.5; top-face upgrade->double drops 2; slabs pass skylight 1.12). Found+fixed 5 latent bugs incl.

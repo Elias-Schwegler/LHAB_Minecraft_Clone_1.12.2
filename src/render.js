@@ -107,9 +107,12 @@ window.CF = window.CF || {};
           const uvf = meta ? [(meta.x + 0.25) / ASZ, (meta.y + 0.25) / ASZ, (meta.x + 15.75) / ASZ, (meta.y + 15.75) / ASZ] : MAGENTA_UV;
           const quad = (d) => {
             const ax = 0.35, az = 0.35 * d;
-          const A = [x + 0.5 - ax, y, z + 0.5 - az], B = [x + 0.5 + ax, y, z + 0.5 + az];
+          // #105: positions must be ABSOLUTE world (renderer has no per-chunk model matrix; coord() adds
+          // off[] for greedy quads - this pass forgot it -> torches drew at chunk-local spots near origin)
+          const A = [wx + 0.5 - ax, y, wz + 0.5 - az], B = [wx + 0.5 + ax, y, wz + 0.5 + az];
           const C = [B[0], y + 1, B[2]], D = [A[0], y + 1, A[2]];
-          // #049 fix: bottom vertices sample the PNG BOTTOM rows (was flipped -> torch flame grew downward since #024!)
+          // #049 fix, restored in #105 (my WIP 1-v remap sampled outside the tile -> black; #105 bug was the
+          // missing mid-plane light offset, not this mapping): bottom verts sample PNG-bottom (stick), top = flame.
           const uvs = [[uvf[0], uvf[3]], [uvf[2], uvf[3]], [uvf[2], uvf[1]], [uvf[0], uvf[1]]];
             for (const oi of [0, 1, 2, 0, 2, 3]) {
               const P4 = [A, B, C, D][oi];
@@ -144,7 +147,7 @@ window.CF = window.CF || {};
           const shadeBase = SHADE[a];
           let shade = (a % 2 === 0) ? shadeBase : shadeBase * 0.85; // existing +face shading (baselines)
           if (sgn < 0) shade = (a === 1) ? 0.45 : shadeBase * 0.7; // #046 -faces: bottoms darkest, sides darker
-          const tile = CF.tileFor(val & 0xfff, a * 2 + (sgn > 0 ? 0 : 1)); // #046 per-face tile (nx/ny/nz)
+          const tile = CF.tileFor(val & 0xfff, a * 2 + (sgn > 0 ? 0 : 1)) // #046 per-face tile (px,nx,py,ny,pz,nz); // #046 per-face tile (nx/ny/nz)
           pushQuad(a, ua, va, d, u, v, w, hh, tile, shade, tris, sgn);
           for (let uu = 0; uu < w; uu++) for (let vv = 0; vv < hh; vv++) mask[(u + uu) * dims[va] + v + vv] = 0;
           v += hh;
@@ -169,6 +172,7 @@ window.CF = window.CF || {};
       const P = (du, dv) => coord(a, ua, va, plane, u + du, v + dv);
       // pack raw light nibbles (sky<<4|block) into BR; daylight factor applied in shader (#021)
       const mid = coord(a, ua, va, plane, Math.min(dims[ua] - 1, u + (w >> 1)), Math.min(dims[va] - 1, v + (hh >> 1)));
+      if (sgn < 0) mid[a] -= 0.001; // #106: -face plane is the cell's MIN boundary - floor() would land INSIDE the solid itself (light 0 = black faces); sample the air side
       const packed = CF.world.lightAt(mid[0], mid[1], mid[2]);
       const bright = packed / 255;
       const corners = [P(0, 0), P(w, 0), P(w, hh), P(0, hh)];
@@ -567,6 +571,36 @@ void main(){ vec4 t = texture(T, uv); float cut = 1.0 - smoothstep(0.30, 0.62, t
       shot(0);
       const d = Math.abs(e0[0] - e1[0]) + Math.abs(e0[1] - e1[1]) + Math.abs(e0[2] - e1[2]);
       CF.assert(r, 'render.face-back(' + d + ',t0=' + e0[3] + ',t1=' + e1[3] + ',b=' + e1.slice(0, 3) + ')', d > 40);
+      // #106: back faces must be TEXTURED+LIT, not black (light sampled on the air side of the min-boundary plane)
+      {
+        const W2 = CF.world, rx = 88, rz = 88;
+        W2.ensureAround(rx, rz, 1);
+        for (let i = 0; i < 20 && W2.stats().queue; i++) W2.tick();
+        const g0 = W2.heightAt(rx, rz) - 1; // solid surface level (heightAt returns the first air cell)
+        for (let x = rx - 4; x <= rx + 4; x++) for (let z = rz - 4; z <= rz + 4; z++) {
+          for (let y = g0 + 1; y < g0 + 8; y++) W2.set(x, y, z, 0); // clear air above the surface only
+          W2.set(x, g0, z, CF.IDOF['cobblestone']); // wall block ON the surface - never delete the floor!
+        }
+        W2.ensureLight(rx >> 4, rz >> 4);
+        for (let i = 0; i < 10; i++) W2.tick();
+        for (let i = 0; i < 200 && W2.dirty.size; i++) CF.renderTick();
+        CF.renderDraw({ pos: [rx - 2.6, g0 + 1.5, rz], yaw: Math.PI / 2, pitch: -0.2 }); // dead-on the -X cobble face center
+        const q = new Uint8Array(4);
+        const cx = (CF.canvas.width * 0.5) | 0;
+        CF.gl.readPixels(cx, (CF.canvas.height * 0.52) | 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, q);
+        const c1 = [q[0], q[1], q[2]];
+        CF.gl.readPixels(cx, (CF.canvas.height * 0.46) | 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, q);
+        const c2 = [q[0], q[1], q[2]];
+        const lum = (p) => p[0] + p[1] + p[2];
+        const hit = [c1, c2, [0, 0, 0], [0, 0, 0]];
+        for (const [fx, fy, idx] of [[0.44, 0.5, 2], [0.56, 0.5, 3]]) {
+          CF.gl.readPixels((CF.canvas.width * fx) | 0, (CF.canvas.height * fy) | 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, q);
+          hit[idx] = [q[0], q[1], q[2]];
+        }
+        CF.assert(r, 'render.face-lit(' + hit.map(lum).join(',') + ')',
+          hit.every((p) => lum(p) > 150)); // ALL probes on the cobble -X face: textured+lit (black-bug era = <60)
+        for (let x = rx - 4; x <= rx + 4; x++) for (let z = rz - 4; z <= rz + 4; z++) W2.set(x, g0, z, 0);
+      }
     }
   };
 })();
