@@ -1664,18 +1664,144 @@ window.CF.REGISTRY = /*REGISTRY-START*/{
     "minTier": 0,
     "solid": true,
     "light": 0,
-    "proof": {
-     "issue": "#052",
-     "tests": [
-      "registry.slab-model",
-      "physics.slab-stand",
-      "interact.slab-place-upgrade"
-     ]
+     "proof": {
+      "issue": "#052",
+      "tests": [
+       "registry.slab-model",
+       "physics.slab-stand",
+       "interact.slab-place-upgrade"
+      ]
+     }
+    }
+   }
+  },
+  "oak_stairs": {
+   "id": 53,
+   "tier": 1,
+   "variants": {
+    "default": {
+     "functional": true,
+     "tiles": [
+      "planks_oak",
+      "planks_oak",
+      "planks_oak",
+      "planks_oak",
+      "planks_oak",
+      "planks_oak"
+     ],
+     "boxes": [
+      [
+       0,
+       0,
+       0,
+       1,
+       0.5,
+       1
+      ]
+     ],
+     "stairs": true,
+     "hardness": 2,
+     "drop": "oak_stairs",
+     "tool": null,
+     "minTier": 0,
+     "solid": true,
+     "light": 0,
+     "proof": {
+      "issue": "#053",
+      "tests": [
+       "registry.stairs-model",
+       "physics.stairs-walkup",
+       "interact.stairs-facing"
+      ]
+     }
+    }
+   }
+  },
+  "stone_stairs": {
+   "id": 67,
+   "tier": 1,
+   "variants": {
+    "default": {
+     "functional": true,
+     "tiles": [
+      "cobblestone",
+      "cobblestone",
+      "cobblestone",
+      "cobblestone",
+      "cobblestone",
+      "cobblestone"
+     ],
+     "boxes": [
+      [
+       0,
+       0,
+       0,
+       1,
+       0.5,
+       1
+      ]
+     ],
+     "stairs": true,
+     "hardness": 2,
+     "drop": "stone_stairs",
+     "tool": "pickaxe",
+     "minTier": 0,
+     "solid": true,
+     "light": 0,
+     "proof": {
+      "issue": "#053",
+      "tests": [
+       "registry.stairs-model",
+       "physics.stairs-walkup",
+       "interact.stairs-facing"
+      ]
+     }
+    }
+   }
+  },
+  "brick_stairs": {
+   "id": 108,
+   "tier": 2,
+   "variants": {
+    "default": {
+     "functional": true,
+     "tiles": [
+      "brick_block",
+      "brick_block",
+      "brick_block",
+      "brick_block",
+      "brick_block",
+      "brick_block"
+     ],
+     "boxes": [
+      [
+       0,
+       0,
+       0,
+       1,
+       0.5,
+       1
+      ]
+     ],
+     "stairs": true,
+     "hardness": 2,
+     "drop": "brick_stairs",
+     "tool": "pickaxe",
+     "minTier": 0,
+     "solid": true,
+     "light": 0,
+     "proof": {
+      "issue": "#053",
+      "tests": [
+       "registry.stairs-model",
+       "physics.stairs-walkup",
+       "interact.stairs-facing"
+      ]
+     }
     }
    }
   }
- }
-}/*REGISTRY-END*/;
+ }/*REGISTRY-END*/;
 
 // Engine-side id<->name index (0 = air, implicit).
 (function () {
@@ -1698,6 +1824,31 @@ window.CF.REGISTRY = /*REGISTRY-START*/{
   CF.AIR = 0;
   CF.solidAt = (id) => id !== 0 && CF.BY_ID[id] && CF.BY_ID[id].solid;
   CF.tileFor = (id, faceIdx) => { const v = CF.BY_ID[id]; return v ? v.tiles[faceIdx] : 'MISSING'; };
+  // #053 THE model resolver: cell-local boxes from variant + flat bits. Slab: bit2 top-half, bit4 double.
+  // Stairs: meta 0..3 = facing E(+X) W(-X) S(+Z) N(-Z) (1.12 order), bit4 = upside-down. EVERY consumer
+  // (mesher, physics, placement) must resolve boxes through this - never re-derive bits inline (that drift bit
+  // caused #105/#106 class bugs).
+  CF.boxesOf = (v, fm) => {
+    if (!v || !v.boxes) return null;
+    if (v.stairs) {
+      const d = fm & 3, up = (fm & 4) ? true : false;
+      const step = d === 0 ? [0.5, 0, 0, 1, 1, 1] : d === 1 ? [0, 0, 0, 0.5, 1, 1] : d === 2 ? [0, 0, 0.5, 1, 1, 1] : [0, 0, 0, 1, 1, 0.5];
+      step[1] = up ? 0 : 0.5; step[4] = up ? 0.5 : 1;
+      return [up ? [0, 0.5, 0, 1, 1, 1] : [0, 0, 0, 1, 0.5, 1], step];
+    }
+    if (fm & 4) return [[0, 0, 0, 1, 1, 1]];
+    if (fm & 2) return [[0, 0.5, 0, 1, 1, 1]];
+    return v.boxes;
+  };
+  // Does this variant+meta fill the whole cell (opaque to light / culls neighbor faces)?
+  // Slabs, stairs and any partial-box model pass light like air on the open side (#052/#053/#105).
+  CF.cellOpaque = (v, fm) => {
+    if (!v) return true;
+    if (!v.boxes) return !!v.solid;
+    const bb = CF.boxesOf(v, fm);
+    return bb.length === 1 && bb[0][0] <= 1e-6 && bb[0][1] <= 1e-6 && bb[0][2] <= 1e-6 &&
+      bb[0][3] >= 1 - 1e-6 && bb[0][4] >= 1 - 1e-6 && bb[0][5] >= 1 - 1e-6;
+  };
 
   CF.registryTests = async (r) => {
     const meta = window.__TEXMETA || {};
@@ -1738,6 +1889,15 @@ window.CF.REGISTRY = /*REGISTRY-START*/{
         if (!vr || !CF.IDOF[fam + ':' + v] || !meta[vr.tiles[0]]) return false;
       }
       return true;
+    })());
+    CF.assert(r, 'registry.stairs-model', (() => {
+      const vs = ['oak_stairs', 'stone_stairs', 'brick_stairs'].map((n) => CF.REGISTRY[n] && CF.REGISTRY[n].variants.default);
+      const e = CF.boxesOf(vs[0], 0), w = CF.boxesOf(vs[0], 1), s = CF.boxesOf(vs[0], 2), n3 = CF.boxesOf(vs[0], 3), u = CF.boxesOf(vs[0], 4);
+      const ok = vs.every(Boolean) && vs.every((v) => v.stairs && v.solid && v.tiles.length === 6) &&
+        e.length === 2 && e[1][0] === 0.5 && e[1][4] === 1 && w[1][3] === 0.5 && s[1][2] === 0.5 && n3[1][5] === 0.5 &&
+        u[0][1] === 0.5 && u[1][1] === 0 && u[1][4] === 0.5 &&
+        (window.__TEXMETA || {})['planks_oak'] && !!CF.IDOF['brick_stairs'];
+      return ok;
     })());
     CF.assert(r, 'registry.ids-unique', new Set(CF.BY_ID.map((v) => v && v.id)).size === CF.BY_ID.length);
   };

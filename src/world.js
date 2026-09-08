@@ -223,7 +223,7 @@ window.CF = window.CF || {};
               // emission ORs with the sky nibble - the old overwrite left torch cells at 14/255 -> near-black quads.
               // #052 (restored): single slabs also pass skylight (1.12); doubles stay opaque.
               const v = CF.BY_ID[id];
-              const opaque = v ? (v.solid && !(v.boxes && !(flatAt(c.cx * CX + lx, y, c.cz * CZ + lz) & 4))) : true;
+              const opaque = v ? CF.cellOpaque(v, flatAt(c.cx * CX + lx, y, c.cz * CZ + lz)) : true;
               const lv = v ? v.light : 0;
               let val = 0;
               if (lv) { val = lv; pushQ(c.cx * 16 + lx, y, c.cz * 16 + lz, 0, lv); }
@@ -270,8 +270,8 @@ window.CF = window.CF || {};
           {
             const nid2 = c2.arr[cell];
             const v2b = nid2 && CF.BY_ID[nid2];
-            // opaque stops; liquids + cross(!solid) + single slabs pass (#043/#105/#052-restored; doubles don't)
-            if (v2b && v2b.solid && !(v2b.boxes && !(flatAt(nx, ny, nz) & 4))) continue;
+            // opaque cubes stop; liquids + partial-box models (cross, slab, stairs) pass light (#043/#105/#052/#053)
+            if (v2b && CF.cellOpaque(v2b, flatAt(nx, ny, nz))) continue;
           }
           const ns = s === 15 ? 15 : s ? (dy !== 0 ? s : s - 1) : 0; // MC rule: FULL 15 skylight NEVER decays (any dir); else vertical free-fall keeps level, horizontal -1 (fixes #031 banding: pool rows were getting sky 14 under canopy gaps)
           const nb = b ? b - 1 : 0;

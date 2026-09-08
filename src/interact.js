@@ -75,8 +75,8 @@ window.CF = window.CF || {};
       const heldName = CF.held && CF.held();
       const tierOk = CF.canHarvest ? CF.canHarvest(v, heldName) : (HAND_TIER >= v.minTier || !v.tool);
       let dropName = v.drop;
-      let dropN = v.dropN || 1; // #052: double slab yields 2; #051 dropN
-      if (v.boxes && CF.world.flatAt && (CF.world.flatAt(m.x, m.y, m.z) & 4)) dropN = 2; // 1.12: double slab -> 2 slabs
+      let dropN = v.dropN || 1; // #052: double slab yields 2; #051 dropN; (#053: stairs bit4 = upside, NOT double!)
+      if (v.boxes && !v.stairs && CF.world.flatAt && (CF.world.flatAt(m.x, m.y, m.z) & 4)) dropN = 2; // 1.12: double slab -> 2 slabs
       if (v.name === 'gravel' && dropName && Math.random() < 0.1) dropName = 'flint'; // 1.12: 10% flint
       if (v.name === 'leaves') { // 1.12: oak leaves 5% sapling, 0.5% apple, else nothing (#019)
         const lr = Math.random();
@@ -104,13 +104,14 @@ window.CF = window.CF || {};
 
   CF.place = (hit) => {
     if (!hit) return false;
+    const p = CF.player; // #053: was never declared here - bed/stairs yaw lines threw ReferenceError (bed tests bypassed place(), latent in-game P1)
     let tx = hit.x + hit.face[0], ty = hit.y + hit.face[1], tz = hit.z + hit.face[2];
     const id = CF.hotId();
     if (!id) return false;
     const v = CF.BY_ID[id];
     // #052 slab rule: clicking the TOP FACE of an existing same single-slab upgrades it to double (1.12)
     const hid0 = CF.world.get(hit.x, hit.y, hit.z);
-    if (v.boxes && hit.face[1] === 1 && hid0) {
+    if (v.boxes && !v.stairs && hit.face[1] === 1 && hid0) {
       const hv = CF.BY_ID[hid0];
       if (hv && hv === v && CF.world.flatAt && !(CF.world.flatAt(hit.x, hit.y, hit.z) & 4)) {
         CF.world.flatSet(hit.x, hit.y, hit.z, CF.world.flatAt(hit.x, hit.y, hit.z) | 4);
@@ -134,7 +135,12 @@ window.CF = window.CF || {};
       const code = f[1] === 1 ? 1 : f[0] === 1 ? 2 : f[0] === -1 ? 6 : f[2] === 1 ? 4 : 8;
       CF.world.flatSet(tx, ty, tz, code);
     }
-    if (ok && v.boxes && CF.world.flatSet) {
+    if (ok && v.stairs && CF.world.flatSet) {
+      // #053 1.12 stair meta: 0E 1W 2S 3N (+ high side = player look dir = the side you climb toward);
+      // clicking a BOTTOM face flips upside (bit4) like ceiling-mounted 1.12 stairs.
+      CF.world.flatSet(tx, ty, tz, (CF.dirFromYaw ? CF.dirFromYaw(p.yaw) : 0) | (hit.face[1] === -1 ? 4 : 0));
+    }
+    if (ok && v.boxes && !v.stairs && CF.world.flatSet) {
       // #052: bottom slab onto floor face (up) = bit0-style default(0); top slab onto ceiling face (down) = bit 2
       if (hit.face[1] === -1) CF.world.flatSet(tx, ty, tz, 2);
     }
@@ -236,6 +242,40 @@ window.CF = window.CF || {};
         okU === true && (fm & 4) === 4 && got === 2);
       CF.drops.length = 0; CF.world.set(66, h, 66, 0); CF.world.flatSet(66, h, 66, 0);
       CF.inv.fill(null); for (const s of invSave) if (s) CF.give(s.name, s.count); CF.sel = selSave; CF.uiRefresh && CF.uiRefresh(); // restore hotbar (place/bedrock tests below depend on it)
+    }
+    // #053: stair facing follows player yaw (4 dirs), bottom-face click flips upside, breaking yields 1
+    {
+      const h = CF.world.heightAt(70, 70);
+      CF.world.ensureAround(70, 70, 1);
+      for (let i = 0; i < 20 && CF.world.stats().queue; i++) CF.world.tick();
+      for (let x = 68; x <= 72; x++) for (let z = 68; z <= 72; z++) for (let y = h; y < h + 5; y++) CF.world.set(x, y, z, 0);
+      const invSave = CF.inv.map((s) => (s ? { name: s.name, count: s.count } : null)), selSave = CF.sel;
+      const yawSave = CF.player.yaw;
+      CF.inv.fill(null);
+      CF.inv[0] = { name: 'stone_stairs', count: 8 }; CF.sel = 0;
+      const yaws = [Math.PI / 2, -Math.PI / 2, 0, Math.PI], want = [0, 1, 2, 3];
+      const got = [];
+      for (let i = 0; i < 4; i++) {
+        CF.player.yaw = yaws[i];
+        CF.world.flatSet(70, h, 70, 99);
+        CF.place({ x: 70, y: h - 1, z: 70, face: [0, 1, 0] }); // on top of surface block, dir from yaw
+        got.push(CF.world.flatAt(70, h, 70));
+        CF.world.set(70, h, 70, 0);
+      }
+      CF.player.yaw = Math.PI / 2;
+      CF.world.set(70, h + 1, 70, IDOF['stone']); // overhead block: click its BOTTOM face -> upside-down (bit4)
+      CF.place({ x: 70, y: h + 1, z: 70, face: [0, -1, 0] });
+      const fmUp = CF.world.flatAt(70, h, 70);
+      CF.drops.length = 0;
+      CF.inv[1] = { name: 'wood_pickaxe', count: 1 }; CF.sel = 1; // stone-family needs pickaxe to drop (1.12, like #052 slab test)
+      CF.mineStart({ x: 70, y: h, z: 70 });
+      let broke = null, ticks = 0;
+      while (ticks < 400 && !(broke && broke.broke)) { broke = CF.mineTick(0.05); ticks++; }
+      const gotN = CF.drops.reduce((n, d) => n + d.n, 0);
+      CF.assert(r, 'interact.stairs-facing(got=' + got + ',want=' + want + ',up=' + fmUp + ',drop=' + gotN + ')',
+        got.join() === want.join() && fmUp === (0 | 4) && gotN === 1);
+      CF.drops.length = 0; CF.world.set(70, h, 70, 0); CF.world.set(70, h + 1, 70, 0); CF.world.flatSet(70, h, 70, 0);
+      CF.inv.fill(null); for (const s of invSave) if (s) CF.give(s.name, s.count); CF.sel = selSave; CF.player.yaw = yawSave; CF.uiRefresh && CF.uiRefresh();
     }
     // #105: torch flame must render at the TOP of the cross quad (readPixels y is FROM BOTTOM).
     {

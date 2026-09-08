@@ -18,8 +18,29 @@ window.CF = window.CF || {};
     const off = [cx * CX, 0, cz * CZ];
     const dims = [CX, CH, CZ];
     const coord = (a, ua, va, d, u, v) => { const Q = [0, 0, 0]; Q[a] = d; Q[ua] = u; Q[va] = v; for (let i = 0; i < 3; i++) Q[i] += off[i]; return Q; };
-    // #052 multi-box model pass (slabs etc): per-cell explicit boxes, per-face neighbor culling.
-    // v.boxes = [[x0,y0,z0,x1,y1,z1],...] in cell-local 0..1; variant meta via flat bits: 2=top-half,4=double.
+    // #052/#053 multi-box model pass (slabs, stairs): per-cell boxes from CF.boxesOf(flat bits), generic
+    // face culling: each face rect is SUBTRACTED by coplanar coverer rects (own-cell other boxes + neighbor
+    // cell boxes at boundary planes) - stair treads/risers stay, buried interfaces vanish.
+    const cellBoxesAbs = (bx0, by0, bz0) => {
+      const id2 = W.get(bx0, by0, bz0);
+      const v2 = id2 && CF.BY_ID[id2];
+      if (!v2) return null;
+      if (!CF.solidAt(id2)) return null;
+      if (!v2.boxes) return [[bx0, by0, bz0, bx0 + 1, by0 + 1, bz0 + 1]];
+      const fm2 = W.flatAt ? W.flatAt(bx0, by0, bz0) : 0;
+      return CF.boxesOf(v2, fm2).map((b) => [bx0 + b[0], by0 + b[1], bz0 + b[2], bx0 + b[3], by0 + b[4], bz0 + b[5]]);
+    };
+    const subRect = (R, rs) => { // axis-aligned rect minus rect list (slices at cover edges, keep uncovered)
+      const us = [R[0], R[1]], vs = [R[2], R[3]];
+      for (const r of rs) { us.push(r[0], r[1]); vs.push(r[2], r[3]); }
+      const clamp = (lo, hi) => (arr) => [...new Set(arr.map((t) => Math.min(hi, Math.max(lo, t))))].sort((p, q) => p - q);
+      const U = clamp(R[0], R[1])(us), V = clamp(R[2], R[3])(vs), out = []; // #053 FIX: V was clamped to the U-range (collapsed every face to 0 pieces)
+      for (let i = 0; i + 1 < U.length; i++) for (let j = 0; j + 1 < V.length; j++) {
+        const cu = (U[i] + U[i + 1]) / 2, cv = (V[j] + V[j + 1]) / 2;
+        if (!rs.some((r) => cu > r[0] + 1e-9 && cu < r[1] - 1e-9 && cv > r[2] + 1e-9 && cv < r[3] - 1e-9)) out.push([U[i], U[i + 1], V[j], V[j + 1]]);
+      }
+      return out;
+    };
     const boxCells = [];
     for (let x = 0; x < CX; x++) for (let z = 0; z < CZ; z++) for (let y = 1; y < CH - 1; y++) {
       const id = W.get(cx * CX + x, y, cz * CZ + z);
@@ -28,55 +49,49 @@ window.CF = window.CF || {};
     }
     for (const [x, y, z, v, id] of boxCells) {
       const fmeta = W.flatAt ? W.flatAt(cx * CX + x, y, cz * CZ + z) : 0;
-      const boxes = (fmeta & 4) ? [[0, 0, 0, 1, 1, 1]] : (fmeta & 2) ? [[0, 0.5, 0, 1, 1, 1]] : v.boxes;
+      const boxes = CF.boxesOf(v, fmeta);
       const wx = cx * CX + x, wz = cz * CZ + z;
-      for (const bx of boxes) {
+      const abs = boxes.map((b) => [wx + b[0], y + b[1], wz + b[2], wx + b[3], y + b[4], wz + b[5]]);
+      for (let bi = 0; bi < boxes.length; bi++) {
+        const bx = boxes[bi], ab = abs[bi];
         for (let a = 0; a < 3; a++) for (const sgn of [1, -1]) {
           const ua = (a + 1) % 3, va = (a + 2) % 3;
-          const n = [0, 0, 0]; n[a] = sgn > 0 ? bx[3 + a] : bx[a];
-          const nc = [wx, y, wz]; nc[a] += sgn;
-          const nid = W.get(nc[0], nc[1], nc[2]);
-          if (nid && CF.solidAt(nid)) { // hide against real solids; #052: horizontal box faces only hide when flush with the cell boundary (top-half bottom face stays visible under the lip)
-            let hide = a !== 1 || (sgn > 0 ? bx[3 + a] === 1 : bx[a] === 0);
-            if (a !== 1) { // #052: side faces against SLAB neighbors hide only where the neighbor's box actually covers this face's y range
-              const nv = CF.BY_ID[nid];
-              if (nv && nv.boxes) {
-                const nf = W.flatAt ? W.flatAt(nc[0], nc[1], nc[2]) : 0;
-                const nboxes = (nf & 4) ? [[0, 0, 0, 1, 1, 1]] : (nf & 2) ? [[0, 0.5, 0, 1, 1, 1]] : nv.boxes;
-                hide = nboxes.some((nb) => bx[1] >= nb[1] - 1e-6 && bx[4] <= nb[4] + 1e-6);
-              }
-            }
-            if (hide) continue;
-          } else if (nid && CF.BY_ID[nid] && CF.BY_ID[nid].boxes && nid === id && a !== 1) {
-            const nf = W.flatAt ? W.flatAt(nc[0], nc[1], nc[2]) : 0;
-            const nboxes = (nf & 4) ? [[0, 0, 0, 1, 1, 1]] : (nf & 2) ? [[0, 0.5, 0, 1, 1, 1]] : CF.BY_ID[nid].boxes;
-            if (nboxes.some((nb) => bx[1] >= nb[1] - 1e-6 && bx[4] <= nb[4] + 1e-6)) continue; // same-family, full-height coverage -> shared face hidden (v1)
+          const plane = sgn > 0 ? ab[3 + a] : ab[a];
+          const rects = [];
+          for (let j = 0; j < abs.length; j++) if (j !== bi) {
+            const nb = abs[j];
+            if (Math.abs((sgn > 0 ? nb[a] : nb[3 + a]) - plane) < 1e-6) rects.push([nb[ua], nb[3 + ua], nb[va], nb[3 + va]]); // own-cell cover
           }
-          const p0 = [0, 0, 0]; p0[a] = n[a]; p0[ua] = bx[ua]; p0[va] = bx[va];
-          const p1 = [0, 0, 0]; p1[a] = n[a]; p1[ua] = bx[3 + ua]; p1[va] = bx[va];
-          const p2 = [0, 0, 0]; p2[a] = n[a]; p2[ua] = bx[3 + ua]; p2[va] = bx[3 + va];
-          const p3 = [0, 0, 0]; p3[a] = n[a]; p3[ua] = bx[ua]; p3[va] = bx[3 + va];
-          const cs = [p0, p1, p2, p3].map((p) => [wx + p[0], y + p[1], wz + p[2]]); // absolute world corners (cell + local, NOT chunk origin!)
+          if (Math.abs(plane - Math.round(plane)) < 1e-6) { // cell-boundary plane: neighbor cell coverers too
+            const nc = [wx, y, wz]; nc[a] += sgn;
+            const nbs = cellBoxesAbs(nc[0], nc[1], nc[2]);
+            if (nbs) for (const nb of nbs) if (Math.abs((sgn > 0 ? nb[a] : nb[3 + a]) - plane) < 1e-6) rects.push([nb[ua], nb[3 + ua], nb[va], nb[3 + va]]);
+          }
+          const pieces = subRect([ab[ua], ab[3 + ua], ab[va], ab[3 + va]], rects);
           const faceIdx = a * 2 + (sgn > 0 ? 0 : 1);
           const tile = v.tiles[faceIdx] || v.tiles[0];
           const meta = (window.__TEXMETA || {})[tile];
           if (!meta) stats.missingTiles.add(tile);
           const sh = SHADE[a] * (sgn > 0 ? 1 : (a === 1 ? 0.45 : 0.7));
-          const lp = [wx, y, wz];
-          const flush = a !== 1 || (sgn > 0 ? bx[3 + a] === 1 : bx[a] === 0); // #052: interior planes (top-half bottom face) sample THIS cell's light, not the neighbor solid
-          if (flush) lp[a] += sgn;
-          const br = W.lightAt(lp[0], lp[1], lp[2]) / 255;
           const du = bx[3 + ua] - bx[ua], dv = bx[3 + va] - bx[va];
-          const tw = (meta ? (meta.w - 0.5) : 15.5) / ASZ / (du || 1);
-          const th = (meta ? (meta.h - 0.5) : 15.5) / ASZ / (dv || 1);
+          const tw = (meta ? (meta.w - 0.5) : 15.5) / ASZ / (du || 1), th = (meta ? (meta.h - 0.5) : 15.5) / ASZ / (dv || 1);
           const uv0 = meta ? [(meta.x + 0.25) / ASZ, (meta.y + 0.25) / ASZ] : MAGENTA_UV.slice(0, 2);
-          const ps = [p0, p1, p2, p3]; // keep local corners for UV math (cs are absolute, unsuitable for it!)
-          const uvc = ps.map((p) => [uv0[0] + tw * (p[ua] - bx[ua]), uv0[1] + th * (bx[3 + va] - p[va])]);
-          for (const oi of [0, 1, 2, 0, 2, 3]) {
-            pos.push(cs[oi][0], cs[oi][1], cs[oi][2]);
-            col.push(uvc[oi][0], uvc[oi][1], sh, br);
+          for (const pc of pieces) {
+            const P = (uaVal, vaVal) => { const Q = [0, 0, 0]; Q[a] = plane; Q[ua] = uaVal; Q[va] = vaVal; return Q; }; // absolute face corners
+            const cs = [P(pc[0], pc[2]), P(pc[1], pc[2]), P(pc[1], pc[3]), P(pc[0], pc[3])];
+            const S = [wx, y, wz]; S[a] = plane + sgn * 0.001; S[ua] = (pc[0] + pc[1]) / 2; S[va] = (pc[2] + pc[3]) / 2; // #105: boxes-passable cells carry real light; air side when at boundary
+            const br = W.lightAt(S[0], S[1], S[2]) / 255;
+            const order = a % 2 === 0 ? [0, 2, 1, 0, 3, 2] : [0, 1, 2, 0, 2, 3];
+            const luv = cs.map((p) => { // local cell coords for UV (abs minus cell origin)
+              const lx = [p[0] - wx, p[1] - y, p[2] - wz];
+              return [uv0[0] + tw * (lx[ua] - bx[ua]), uv0[1] + th * (bx[3 + va] - lx[va])];
+            });
+            for (const oi of order) {
+              pos.push(cs[oi][0], cs[oi][1], cs[oi][2]);
+              col.push(luv[oi][0], luv[oi][1], sh, br);
+            }
+            tris[0] += 2;
           }
-          tris[0] += 2;
         }
       }
     }
@@ -87,10 +102,7 @@ window.CF = window.CF || {};
         if (!id2) return false;
         const v2 = CF.BY_ID[id2];
         if (!v2 || !CF.solidAt(id2)) return false;
-        if (!v2.boxes || (fm2 & 4)) return true; // full block or double slab = opaque cover
-        const yLo = (fm2 & 2) ? 0.5 : 0, yHi = (fm2 & 2) ? 1 : 0.5; // single slab spans one half
-        if (ax === 1) return sg > 0 ? yLo === 0 : yHi === 1; // +Y face covered iff neighbor box starts at its cell floor
-        return false; // sides of full blocks against a single slab stay visible (v1, no split faces)
+        return CF.cellOpaque(v2, fm2); // #053: only a FULL cell box (cube/double slab) culls greedy faces; slabs/stairs/crosses keep them visible
       };
       for (const sgn of [1, -1]) { // #046: BOTH face signs (was +axis only -> 3 of 6 faces never meshed)
       if (a === 0 && sgn === 1) {
