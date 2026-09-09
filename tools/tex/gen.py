@@ -390,12 +390,31 @@ ICONS = {
     "sapling_oak":       ([(4,3,8,3),(5,5,7,2),(6,1,5,2)], "#3a7d22"),
     "sapling_birch":     ([(4,3,8,3),(5,5,7,2),(6,1,5,2)], "#5aa03a"),
     "sapling_jungle":    ([(3,2,10,4),(5,5,8,2),(6,1,5,2)], "#2f6b1c"),
+    # #054 farmland + crop stages + farm items (procedural: functional:false until Blender-sourced)
+    "tile_farmland":       ([(0,0,16,16)], "#6b4a2c"),
+    "tile_farmland_side":  ([(0,0,16,16)], "#8a6a3f"),
+    "tile_wheat_0":        ([(5,12,2,3),(9,12,2,3),(7,11,2,4)], "#4a8a2a"),
+    "tile_wheat_1":        ([(4,8,2,7),(8,8,2,7),(6,7,2,8)], "#5a9a2e"),
+    "tile_wheat_2":        ([(4,5,2,10),(8,5,2,10),(6,4,2,11)], "#6f9a30"),
+    "tile_wheat_3":        ([(3,2,2,13),(7,2,2,13),(11,3,2,12)], "#c8a83c"),
+    "tile_carrot_0":       ([(7,11,2,4),(5,12,2,3),(9,12,2,3)], "#4a8a2a"),
+    "tile_carrot_1":       ([(5,7,2,8),(9,7,2,8),(7,6,2,9)], "#3f7d22"),
+    "tile_carrot_2":       ([(4,4,2,11),(8,4,2,11),(11,6,2,9),(6,3,2,2)], "#3f7d22"),
+    "tile_potato_0":       ([(6,11,2,4),(9,12,2,3),(4,12,2,3)], "#4a8a2a"),
+    "tile_potato_1":       ([(5,8,2,7),(9,8,2,7),(7,7,2,8)], "#2f6b1c"),
+    "tile_potato_2":       ([(4,6,2,9),(8,5,2,10),(11,7,2,8),(5,4,2,2)], "#2f6b1c"),
+    "item_wheat":          ([(6,1,4,10),(7,11,2,4)], "#d8bc50"),
+    "item_bread":          ([(3,6,10,7)], "#c89050"),
+    "item_wheat_seeds":    ([(5,6,2,2),(8,5,2,2),(6,9,2,2),(10,8,2,2)], "#c8c078"),
+    "item_carrot":         ([(7,3,3,10),(6,2,2,2)], "#e07820"),
+    "item_potato":         ([(4,6,9,7)], "#c8a060"),
 }
 TOOL_SHAPES = {
     "pickaxe": [(4,2,8,2),(3,2,2,3),(11,2,2,3)],
     "axe":     [(4,2,7,2),(4,4,5,2),(4,6,3,1)],
     "shovel":  [(6,2,4,4),(7,5,2,2)],
     "sword":   [(7,2,2,6),(8,1,1,1),(6,8,4,1)],
+    "hoe":     [(3,2,10,2),(3,4,2,2),(11,4,2,2)],  # #054: U-bar blade, handle runs below (special-cased)
     "shears":  [(5,4,2,6),(9,4,2,6),(7,9,2,2),(4,11,3,3),(9,11,3,3)],
 }
 TOOL_MATS = {"wood": "#9c7f4e", "stone": "#7e7e82", "iron": "#d8d8d8", "diamond": "#5cdcd4", "gold": "#f8d858"}
@@ -419,6 +438,27 @@ def icon_quads(name):
             out += [(5,0,6,5,"#f8d858"),(7,1,3,3,"#fff8c0")]
         if name.startswith("sapling_"):
             out += [(7,7,2,4,"#5b3a1c"),(7,11,2,3,"#4a2f16")]  # stem below the crown
+        if name == "tile_farmland":  # wet furrows + highlights (#054)
+            out += [(0,2,16,2,"#4a3118"),(0,7,16,2,"#4a3118"),(0,12,16,2,"#4a3118"),
+                    (2,4,10,1,"#7d5a34"),(4,9,8,1,"#7d5a34"),(2,14,6,1,"#5b431f")]
+        if name == "tile_farmland_side":  # dirt with a dark top lip
+            out += [(0,0,16,3,"#4a3118"),(0,3,16,1,"#6b4a2c"),(3,9,2,2,"#6b4a2c"),(10,12,2,2,"#6b4a2c")]
+        if name == "tile_wheat_2":
+            out += [(3,4,2,2,"#c8a83c"),(10,5,2,2,"#c8a83c")]  # grain heads start
+        if name == "tile_wheat_3":
+            out += [(2,1,3,2,"#e8d878"),(6,1,3,2,"#e8d878"),(10,2,3,2,"#e8d878"),(4,6,2,2,"#e8d878"),(8,5,2,2,"#e8d878")]
+        if name == "tile_carrot_2":
+            out += [(7,14,2,2,"#e07820")]  # carrot tip peeking from soil
+        if name == "tile_potato_2":
+            out += [(9,3,2,2,"#a070c8"),(3,5,2,1,"#a070c8")]  # potato flowers
+        if name == "item_wheat":
+            out += [(4,2,2,3,"#e8d878"),(10,4,2,3,"#e8d878"),(4,6,2,3,"#e8d878"),(10,8,2,3,"#e8d878")]
+        if name == "item_bread":
+            out += [(4,5,8,1,"#e8b878"),(5,4,6,1,"#e8b878"),(6,8,1,3,"#8a5a28"),(9,8,1,3,"#8a5a28")]
+        if name == "item_carrot":
+            out += [(5,1,2,2,"#3a8a2a"),(9,0,2,3,"#3a8a2a"),(6,5,2,2,"#f09040"),(6,9,2,2,"#f09040")]
+        if name == "item_potato":
+            out += [(6,8,1,1,"#8a6a3a"),(9,10,1,1,"#8a6a3a"),(11,7,1,1,"#8a6a3a")]
         return out
     for mat, mc in TOOL_MATS.items():
         for shape, srects in TOOL_SHAPES.items():
@@ -429,6 +469,8 @@ def icon_quads(name):
                     return out
                 if shape == "shears":
                     return [(x,y,w,h,mc) for (x,y,w,h) in srects]
+                if shape == "hoe":
+                    return [(7,4,2,6,"#5b3a1c")] + out + [(x,y,w,h,mc) for (x,y,w,h) in srects]
                 return out + [(x,y,w,h,mc) for (x,y,w,h) in srects]
     return None
 
@@ -494,7 +536,7 @@ def main():
         os.remove(sc.render.filepath)
     icon_names = [n for n in ICONS if n != "item_stick_dark"]
     for mat in ["wood", "stone", "iron", "diamond"]:
-        for shp in ["pickaxe", "axe", "shovel", "sword"]:
+        for shp in ["pickaxe", "axe", "shovel", "sword", "hoe"]:
             icon_names.append("item_%s_%s" % (mat, shp))
     icon_names.append("item_shears")
     build_icons(icon_names, atlas, tiles, len(tiles))

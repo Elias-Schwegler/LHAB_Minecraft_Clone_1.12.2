@@ -8,8 +8,8 @@ window.CF = window.CF || {};
   const CF = window.CF;
   const CH_TOP = 128;
   const meta = (window.__TEXMETA = window.__TEXMETA || {});
-  if (!meta.bed_side) meta.bed_side = { x: 80, y: 96, w: 16, h: 16, src: 'generated:bed.js' };
-  if (!meta.bed_top) meta.bed_top = { x: 96, y: 96, w: 16, h: 16, src: 'generated:bed.js' };
+  if (!meta.bed_side) meta.bed_side = { x: 80, y: 160, w: 16, h: 16, src: 'generated:bed.js' };
+  if (!meta.bed_top) meta.bed_top = { x: 96, y: 160, w: 16, h: 16, src: 'generated:bed.js' };
   const DIRV = [[1, 0], [-1, 0], [0, 1], [0, -1]]; // +X -X +Z -Z
   CF.dirFromYaw = (yaw) => { const s = Math.sin(yaw), c = Math.cos(yaw); return Math.abs(s) > Math.abs(c) ? (s > 0 ? 0 : 1) : (c > 0 ? 2 : 3); };
 
