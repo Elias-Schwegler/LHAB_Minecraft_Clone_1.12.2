@@ -114,6 +114,11 @@ window.CF = window.CF || {};
             }
         ny = (isFinite(top) ? top : Math.floor(ny - HH) + 1) + HH;
         for (let g = 0; g < 8 && boxHits(x, ny, z); g++) ny += 1; // fast falls penetrate several cells - push up until free
+        // #054: landing on empty farmland tramples it back to dirt (1.12; sneak avoids)
+        if (!player.input.sneak) {
+          const fx = Math.floor(x), fz = Math.floor(z), fy = Math.floor(ny - HH - 0.01);
+          if (CF.world.get(fx, fy, fz) === CF.IDOF['farmland'] && !CF.world.get(fx, fy + 1, fz)) CF.world.set(fx, fy, fz, CF.IDOF['dirt']);
+        }
       }
       else ny = Math.ceil(y + HH) - 1 - HH - 0.001;
       player.vel[1] = 0;
@@ -136,7 +141,7 @@ window.CF = window.CF || {};
       player.pitch = Math.max(-1.55, Math.min(1.55, player.pitch - e.movementY * 0.0026));
     }
   });
-  document.addEventListener('click', () => { if (CF.canvas && CF.canvas.requestPointerLock) CF.canvas.requestPointerLock(); });
+  document.addEventListener('click', () => { if (CF.canvas && CF.canvas.requestPointerLock) { CF._everLocked = true; CF.canvas.requestPointerLock(); } }); // #060
 
   CF.playerTests = async (r) => {
     const P = CF.player;
@@ -207,6 +212,34 @@ window.CF = window.CF || {};
     CF.assert(r, 'physics.stairs-walkup(feet=' + (P.pos[1] - 0.9).toFixed(2) + ',want>=' + (sy + 0.99) + ',x=' + P.pos[0].toFixed(1) + ')',
       P.onGround && P.pos[1] - 0.9 >= sy + 0.99 && P.pos[0] > sx + 1.9 && P.pos[0] < sx + 2.7);
     for (const k in saved) { const [x2, y2, z2] = k.split(',').map(Number); CF.world.set(x2, y2, z2, saved[k]); }
+    // #054: landing on EMPTY farmland tramples it to dirt; with a crop above it survives; sneaking spares it
+    {
+      const fx = 30, fz = 30, gy = 70; // sky pad - immune to surface tree growth during the fall sequence
+      const savedT = {};
+      for (let x = fx - 1; x <= fx + 1; x++) for (let z = fz - 1; z <= fz + 1; z++) for (let y = gy - 4; y <= gy + 3; y++) {
+        const k = x + ',' + y + ',' + z; if (!(k in savedT)) savedT[k] = CF.world.get(x, y, z);
+        CF.world.set(x, y, z, y === gy - 1 ? CF.IDOF['dirt'] : 0);
+      }
+      CF.world.set(fx, gy - 1, fz, CF.IDOF['farmland']);
+      P.input.sneak = false;
+      P.tp(fx + 0.5, gy + 3, fz + 0.5);
+      for (let i = 0; i < 90; i++) tick();
+      const trampled = CF.world.get(fx, gy - 1, fz) === CF.IDOF['dirt'] && P.onGround;
+      CF.world.set(fx, gy - 1, fz, CF.IDOF['farmland']);
+      CF.world.set(fx, gy, fz, CF.IDOF['wheat']); CF.world.flatSet(fx, gy, fz, 2);
+      P.tp(fx + 0.5, gy + 3, fz + 0.5);
+      for (let i = 0; i < 90; i++) tick();
+      const spared = CF.world.get(fx, gy - 1, fz) === CF.IDOF['farmland'];
+      CF.world.set(fx, gy, fz, 0);
+      CF.world.set(fx, gy - 1, fz, CF.IDOF['farmland']);
+      P.input.sneak = true;
+      P.tp(fx + 0.5, gy + 3, fz + 0.5);
+      for (let i = 0; i < 90; i++) tick();
+      const sneakOk = CF.world.get(fx, gy - 1, fz) === CF.IDOF['farmland'];
+      P.input.sneak = false;
+      for (const k in savedT) { const [x2, y2, z2] = k.split(',').map(Number); CF.world.set(x2, y2, z2, savedT[k]); }
+      CF.assert(r, 'physics.farmland-trample(' + trampled + ',' + spared + ',' + sneakOk + ')', trampled && spared && sneakOk);
+    }
     P.tp(8.5, CF.world.heightAt(8, 8) + 2, 8.5); P.yaw = 0; P.pitch = 0; // leave suites downstream on a clean column (not buried in the restored terrain)
     for (let i = 0; i < 40 && !P.onGround; i++) tick();
   };

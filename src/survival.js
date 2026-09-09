@@ -206,6 +206,11 @@ window.CF = window.CF || {};
     CF.inv.fill(null); CF.give('apple', 1); CF.sel = 0;
     CF.useHeld();
     CF.assert(r, 'surv.eat(' + S.food + ')', S.food === 14 && CF.countItem('apple') === 0);
+    // #054 bread: 5 food (1.12)
+    S.food = 10; S.sat = 0;
+    CF.inv.fill(null); CF.give('bread', 1); CF.sel = 0;
+    CF.useHeld();
+    CF.assert(r, 'surv.bread(' + S.food + ')', S.food === 15 && CF.countItem('bread') === 0);
     // regen: full food heals
     S.food = 20; S.sat = 5; S.hp = 10; regenAcc = 0;
     for (let t = 0; t < 200; t++) CF.onTick();

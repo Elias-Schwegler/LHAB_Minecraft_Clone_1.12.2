@@ -1675,6 +1675,149 @@ window.CF.REGISTRY = /*REGISTRY-START*/{
     }
    }
   },
+  "farmland": {
+   "id": 60,
+   "tier": 1,
+   "variants": {
+    "default": {
+     "functional": false,
+     "tiles": [
+      "tile_farmland_side",
+      "tile_farmland_side",
+      "tile_farmland",
+      "dirt",
+      "tile_farmland_side",
+      "tile_farmland_side"
+     ],
+     "hardness": 0.5,
+     "drop": "dirt",
+     "tool": null,
+     "minTier": 0,
+     "solid": true,
+     "light": 0,
+     "proof": {
+      "issue": "#054",
+      "tests": [
+       "interact.till",
+       "physics.farmland-trample"
+      ]
+     }
+    }
+   }
+  },
+  "wheat": {
+   "id": 59,
+   "tier": 1,
+   "variants": {
+    "default": {
+     "functional": false,
+     "tiles": [
+      "tile_wheat_0",
+      "tile_wheat_0",
+      "tile_wheat_0",
+      "tile_wheat_0",
+      "tile_wheat_0",
+      "tile_wheat_0"
+     ],
+     "stageTiles": [
+      "tile_wheat_0",
+      "tile_wheat_1",
+      "tile_wheat_2",
+      "tile_wheat_3"
+     ],
+     "crop": true,
+     "cross": true,
+     "maxStage": 7,
+     "hardness": 0,
+     "drop": null,
+     "tool": null,
+     "minTier": 0,
+     "solid": false,
+     "light": 0,
+     "proof": {
+      "issue": "#054",
+      "tests": [
+       "world.crop-grow",
+       "interact.harvest"
+      ]
+     }
+    }
+   }
+  },
+  "carrot": {
+   "id": 141,
+   "tier": 1,
+   "variants": {
+    "default": {
+     "functional": false,
+     "tiles": [
+      "tile_carrot_0",
+      "tile_carrot_0",
+      "tile_carrot_0",
+      "tile_carrot_0",
+      "tile_carrot_0",
+      "tile_carrot_0"
+     ],
+     "stageTiles": [
+      "tile_carrot_0",
+      "tile_carrot_1",
+      "tile_carrot_2"
+     ],
+     "crop": true,
+     "cross": true,
+     "maxStage": 6,
+     "hardness": 0,
+     "drop": null,
+     "tool": null,
+     "minTier": 0,
+     "solid": false,
+     "light": 0,
+     "proof": {
+      "issue": "#054",
+      "tests": [
+       "world.crop-grow"
+      ]
+     }
+    }
+   }
+  },
+  "potato": {
+   "id": 142,
+   "tier": 1,
+   "variants": {
+    "default": {
+     "functional": false,
+     "tiles": [
+      "tile_potato_0",
+      "tile_potato_0",
+      "tile_potato_0",
+      "tile_potato_0",
+      "tile_potato_0",
+      "tile_potato_0"
+     ],
+     "stageTiles": [
+      "tile_potato_0",
+      "tile_potato_1",
+      "tile_potato_2"
+     ],
+     "crop": true,
+     "cross": true,
+     "maxStage": 7,
+     "hardness": 0,
+     "drop": null,
+     "tool": null,
+     "minTier": 0,
+     "solid": false,
+     "light": 0,
+     "proof": {
+      "issue": "#054",
+      "tests": [
+       "world.crop-grow"
+      ]
+     }
+    }
+   }
+  },
   "oak_stairs": {
    "id": 53,
    "tier": 1,

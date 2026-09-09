@@ -24,7 +24,7 @@ window.CF = window.CF || {};
     lava_bucket: { tile: 'item_lava_bucket', stack: 1 },
     // mob drops + passive products (#037/#038). No atlas tiles yet -> blank icons (tracked #044); counts/logic tested.
     bone: {}, arrow: {}, gunpowder: {}, string: {}, feather: {}, leather: {}, ink_sac: {},
-    egg: {}, wheat: {}, carrot: { food: 3 }, potato: { food: 1 }, wheat_seeds: {},
+    egg: {}, wheat: { tile: 'item_wheat' }, carrot: { tile: 'item_carrot', food: 3 }, potato: { tile: 'item_potato', food: 1 }, wheat_seeds: { tile: 'item_wheat_seeds' }, bread: { tile: 'item_bread', food: 5 }, // #054 farm icons landed (blank-icons era over)
     raw_porkchop: { food: 3 }, cooked_porkchop: { food: 8 },
     raw_beef: { food: 3 }, steak: { food: 8 },
     mutton: { food: 2 }, cooked_mutton: { food: 6 },
@@ -33,7 +33,7 @@ window.CF = window.CF || {};
     clay_ball: {}, brick: {}, // #051 chain items (icons -> #048)
   };
   for (const [mat, info] of Object.entries(TOOLS))
-    for (const shape of ['pickaxe', 'axe', 'shovel', 'sword'])
+    for (const shape of ['pickaxe', 'axe', 'shovel', 'sword', 'hoe'])
       CF.ITEMS[mat + '_' + shape] = { tile: 'item_' + mat + '_' + shape, tool: { type: shape, tier: info.tier, speed: info.speed }, stack: 1 };
 
   CF.itemDef = (name) => {
@@ -105,6 +105,8 @@ window.CF = window.CF || {};
     P(['gsg', 'sgs', 'gsg'], { g: 'gunpowder', s: 'sand' }, 'tnt', 1),
     P(['i', 'f'], { i: 'iron_ingot', f: 'flint' }, 'flint_and_steel', 1),
     P(['i i', ' i '], { i: 'iron_ingot' }, 'bucket', 1), // #043 (1.12 V pattern, 3 ingots)
+    P(['mm ', ' s ', ' s '], null, 'hoe', 4), // #054 (1.12 hoe; materials expanded below)
+    P(['www'], { w: 'wheat' }, 'bread', 1), // #054 (3 wheat -> 1 bread)
     // #051 storage compression/uncraft + brick
     P(['iii', 'iii', 'iii'], { i: 'iron_ingot' }, 'iron_block', 1),
     P(['ggg', 'ggg', 'ggg'], { i: 'gold_ingot', g: 'gold_ingot' }, 'gold_block', 1),
@@ -159,14 +161,16 @@ window.CF = window.CF || {};
       if (!rows || rows.length !== rec.rows.length) continue;
       let ok = true;
       const consumed = {};
-      for (let r = 0; r < rows.length && ok; r++)
-        for (let c = 0; c < rows[r].length && ok; c++) {
-          const want = rec.key[rec.rows[r][c]] || (rec.rows[r][c] === ' ' ? null : '?');
-          const got = rows[r][c];
-          const wantN = rec.rows[r][c] === ' ' ? null : want;
-          if (wantN !== got) ok = false;
+      for (let r = 0; r < rows.length && ok; r++) {
+        const wlen = Math.max(rows[r].length, rec.rows[r].length); // #054: compare full pattern width (a 2-wide hoe grid must NOT match the 3-wide pickaxe whose col-2 went unchecked)
+        for (let c = 0; c < wlen && ok; c++) {
+          const rc = c < rec.rows[r].length ? rec.rows[r][c] : ' ';
+          const want = rc === ' ' ? null : (rec.key[rc] || '?');
+          const got = c < rows[r].length ? rows[r][c] : null;
+          if (want !== got) ok = false;
           if (got) consumed[got] = (consumed[got] || 0) + 1;
         }
+      }
       if (ok) return { out: rec.out, count: Math.floor(filled ? 1 : 1) };
     }
     return null;
@@ -191,8 +195,8 @@ window.CF = window.CF || {};
   CF.furnacePlace = (x, y, z) => { CF.blockEntities[x + ',' + y + ',' + z] = { type: 'furnace', input: null, fuel: null, out: null, burn: 0, cook: 0 }; };
   // #040 chest: 27-slot container block entity (+ tiles drawn procedurally by render at load)
   const meta = (window.__TEXMETA = window.__TEXMETA || {});
-  if (!meta.chest_side) meta.chest_side = { x: 48, y: 96, w: 16, h: 16, src: 'generated:items.js' };
-  if (!meta.chest_top) meta.chest_top = { x: 64, y: 96, w: 16, h: 16, src: 'generated:items.js' };
+  if (!meta.chest_side) meta.chest_side = { x: 48, y: 160, w: 16, h: 16, src: 'generated:items.js' };
+  if (!meta.chest_top) meta.chest_top = { x: 64, y: 160, w: 16, h: 16, src: 'generated:items.js' };
   CF.chestPlace = (x, y, z) => { CF.blockEntities[x + ',' + y + ',' + z] = { type: 'chest', slots: new Array(27).fill(null) }; };
   CF.chestBreak = (x, y, z) => {
     const k = x + ',' + y + ',' + z, c = CF.blockEntities[k];
@@ -206,9 +210,9 @@ window.CF = window.CF || {};
   CF.containerBreak = (name, x, y, z) => { if (name === 'furnace' && CF.furnaceBreak) CF.furnaceBreak(x, y, z); if (name === 'chest' && CF.chestBreak) CF.chestBreak(x, y, z); };
   // #043 bucket tiles (procedural, painted by render.js in free atlas row y=64)
   if (!meta.item_bucket) {
-    meta.item_bucket = { x: 16, y: 112, w: 16, h: 16, src: 'generated:items.js' };
-    meta.item_water_bucket = { x: 32, y: 112, w: 16, h: 16, src: 'generated:items.js' };
-    meta.item_lava_bucket = { x: 48, y: 112, w: 16, h: 16, src: 'generated:items.js' };
+    meta.item_bucket = { x: 112, y: 160, w: 16, h: 16, src: 'generated:items.js' };
+    meta.item_water_bucket = { x: 128, y: 160, w: 16, h: 16, src: 'generated:items.js' };
+    meta.item_lava_bucket = { x: 144, y: 160, w: 16, h: 16, src: 'generated:items.js' };
   }
   CF.useBucket = (hit) => { // RMB: empty bucket + liquid source -> fill (source removed, MC-accurate); filled + air face-adjacent -> place new source
     if (!hit || !CF.world) return false;
@@ -305,6 +309,13 @@ window.CF = window.CF || {};
     CF.inv.fill(null); for (const s of [20, 23, 24, 26, 27, 28]) put(s, 'planks', 1);
     res = CF.craftOnce([20, 21, 22, 23, 24, 25, 26, 27, 28]);
     CF.assert(r, 'items.stairs-craft(' + CF.countItem('oak_stairs') + ',' + (res && res.name) + ')', CF.countItem('oak_stairs') === 6 && res && res.name === 'oak_stairs' && CF.countItem('planks') === 0);
+    // #054: hoe (2 mats + 2 sticks diagonal) + bread (3 wheat)
+    CF.inv.fill(null); put(20, 'planks', 1); put(21, 'planks', 1); put(24, 'stick', 1); put(27, 'stick', 1);
+    res = CF.craftOnce([20, 21, 22, 23, 24, 25, 26, 27, 28]);
+    CF.assert(r, 'items.hoe-craft(' + CF.countItem('wood_hoe') + ',' + (res && res.name) + ')', CF.countItem('wood_hoe') === 1 && res && res.name === 'wood_hoe');
+    CF.inv.fill(null); for (const s of [20, 21, 22]) put(s, 'wheat', 1);
+    res = CF.craftOnce([20, 21, 22, 23, 24, 25, 26, 27, 28]);
+    CF.assert(r, 'items.bread-craft(' + CF.countItem('bread') + ')', CF.countItem('bread') === 1 && CF.countItem('wheat') === 0);
     // tool speeds per model: stone w/ wood pick = 1.125s, w/ hand = 7.5s, iron ore w/ stone pick harvests
     const stoneV = CF.REGISTRY.stone.variants.default;
     CF.assert(r, 'items.speed-stone-wood(' + CF.breakTimeFor(stoneV, 'wood_pickaxe') + ')',

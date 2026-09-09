@@ -111,7 +111,12 @@ window.CF = window.CF || {};
           const id = W.get(cx * 16 + x, y, cz * 16 + z);
           const v = id && CF.BY_ID[id];
           if (!v || !v.cross) continue;
-          const tile = v.tiles[0];
+          let tile = v.tiles[0];
+          if (v.crop) { // #054: growth stage (flat & 7) picks from stageTiles
+            const st = (W.flatAt ? W.flatAt(cx * 16 + x, y, cz * 16 + z) : 0) & 7;
+            const sts = v.stageTiles || v.tiles;
+            tile = sts[Math.min(sts.length - 1, Math.floor(st / (8 / sts.length)))];
+          }
           const meta = (window.__TEXMETA || {})[tile];
           if (!meta) stats.missingTiles.add(tile);
           const wx = cx * 16 + x, wz = cz * 16 + z;
@@ -292,18 +297,18 @@ void main(){ vec4 t = texture(T, uv); float cut = 1.0 - smoothstep(0.30, 0.62, t
       ctx.putImageData(px, 0, 0);
       // #042/#040/#041/#043 procedurally painted tiles in FREE atlas cells (zero-download rule; these
       // blocks stay functional:false so parity is untouched). NOTE (#043 P1 fix): until the gen.py row-
-      // stride fix these cells collided with real item icons; free row layout now = y96 (from x32) + y112.
+      // stride fix these cells collided with real item icons; free rows now y144-y176; paints on y160.
       const cell = (ox, oy, fn) => { for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { const c = fn(x, y); ctx.fillStyle = c; ctx.fillRect(ox + x, oy + y, 1, 1); } };
-      cell(16, 96, (x, y) => (y >= 6 && y <= 9) ? (x % 4 < 2 ? '#3a2018' : '#d8d2c0') : (y < 3 || y > 12 ? '#a83028' : '#c84030')); // tnt_side: red body, dark band, "TNT" hint
-      cell(32, 96, (x, y) => (x > 6 && x < 9 && y > 6 && y < 9) ? '#e8d040' : (x > 5 && x < 10 && y > 7 && y < 9 ? '#3a3a3a' : ((x % 2) ^ (y % 2) ? '#6a6a6a' : '#4a4a4a'))); // tnt_top: grey gunpowder + fuse
+      cell(16, 160, (x, y) => (y >= 6 && y <= 9) ? (x % 4 < 2 ? '#3a2018' : '#d8d2c0') : (y < 3 || y > 12 ? '#a83028' : '#c84030')); // tnt_side: red body, dark band, "TNT" hint
+      cell(32, 160, (x, y) => (x > 6 && x < 9 && y > 6 && y < 9) ? '#e8d040' : (x > 5 && x < 10 && y > 7 && y < 9 ? '#3a3a3a' : ((x % 2) ^ (y % 2) ? '#6a6a6a' : '#4a4a4a'))); // tnt_top: grey gunpowder + fuse
       // #040 chest tiles: lid seam + latch
-      cell(48, 96, (x, y) => (y === 4 || y === 5) ? '#6a4a22' : (x > 6 && x < 9 && y > 5 && y < 9) ? '#d8d2c0' : (y > 12 ? '#5a3c1a' : ((x + y) % 7 === 0 ? '#7a5528' : '#8a6230')));
-      cell(64, 96, (x, y) => (y > 6 && y < 9) ? '#6a4a22' : ((x + y) % 6 === 0 ? '#7a5528' : '#96703a'));
+      cell(48, 160, (x, y) => (y === 4 || y === 5) ? '#6a4a22' : (x > 6 && x < 9 && y > 5 && y < 9) ? '#d8d2c0' : (y > 12 ? '#5a3c1a' : ((x + y) % 7 === 0 ? '#7a5528' : '#8a6230')));
+      cell(64, 160, (x, y) => (y > 6 && y < 9) ? '#6a4a22' : ((x + y) % 6 === 0 ? '#7a5528' : '#96703a'));
       // #041 bed tiles: red blanket + white pillow (head), wooden frame edge
-      cell(80, 96, (x, y) => (y < 3 || y > 12) ? '#6a4a22' : (x < 3 ? '#6a4a22' : '#c03830'));
-      cell(96, 96, (x, y) => (y < 2 || y > 13) ? '#6a4a22' : (y < 5 ? '#e8e4da' : '#c03830'));
+      cell(80, 160, (x, y) => (y < 3 || y > 12) ? '#6a4a22' : (x < 3 ? '#6a4a22' : '#c03830'));
+      cell(96, 160, (x, y) => (y < 2 || y > 13) ? '#6a4a22' : (y < 5 ? '#e8e4da' : '#c03830'));
       const T43 = 'rgba(0,0,0,0)';
-      const bucket = (fill) => (x, y) => { // #043 MC-style bucket sprites (empty/water/lava) on free row y=112
+      const bucket = (fill) => (x, y) => { // #043 MC-style bucket sprites (empty/water/lava) on free row y=160
         if (y === 5 && x >= 3 && x <= 12) return '#d8d8d8'; // rim
         if (y === 4 && (x === 3 || x === 12)) return '#c0c0c0';
         if (y >= 6 && y <= 13 && x >= 3 && x <= 12) {
@@ -313,7 +318,7 @@ void main(){ vec4 t = texture(T, uv); float cut = 1.0 - smoothstep(0.30, 0.62, t
         }
         return T43;
       };
-      cell(16, 112, bucket(null)); cell(32, 112, bucket('water')); cell(48, 112, bucket('lava'));
+      cell(112, 160, bucket(null)); cell(128, 160, bucket('water')); cell(144, 160, bucket('lava'));
       // #049: Cycles PNG bakes flattened tile ALPHA to 255 (glass center & water translucency lost).
       // Restore it here in-canvas (same pipeline, still zero-download): glass hollow frame, water see-through.
       const alphaCell = (name, fn) => {

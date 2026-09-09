@@ -369,6 +369,38 @@
     document.title = 'SR:' + JSON.stringify({ g0, tris: CF.rendererStats.tris, miss: [...CF.rendererStats.missingTiles || []] });
     await new Promise((res) => setTimeout(res, 300));
   };
+  CF.shotScenarios['farm-scene'] = async () => { // #054: farmland + all crop growth stages + trampled patch
+    CF.freeCam = true;
+    const W = CF.world, rx = 240, rz = 240; // far from every test arena
+    W.ensureAround(rx, rz, 1);
+    for (let i = 0; i < 20 && W.stats().queue; i++) W.tick();
+    const g0 = Math.max(W.heightAt(rx, rz), 8);
+    for (let x = rx - 6; x <= rx + 6; x++) for (let z = rz - 5; z <= rz + 5; z++) {
+      for (let y = g0; y < g0 + 9; y++) W.set(x, y, z, 0);
+      W.set(x, g0 - 1, z, CF.IDOF['dirt']);
+    }
+    for (let i = 0; i < 5; i++) { // wheat stages 0,2,4,6,7 on farmland
+      W.set(rx - 4 + i, g0 - 1, rz - 2, CF.IDOF['farmland']);
+      W.set(rx - 4 + i, g0, rz - 2, CF.IDOF['wheat']); W.flatSet(rx - 4 + i, g0, rz - 2, [0, 2, 4, 6, 7][i]);
+    }
+    for (let i = 0; i < 3; i++) { // carrots 0/3/6
+      W.set(rx - 2 + i, g0 - 1, rz + 1, CF.IDOF['farmland']);
+      W.set(rx - 2 + i, g0, rz + 1, CF.IDOF['carrot']); W.flatSet(rx - 2 + i, g0, rz + 1, i * 3);
+    }
+    for (let i = 0; i < 3; i++) { // potatoes 0/3/7
+      W.set(rx - 2 + i, g0 - 1, rz + 3, CF.IDOF['farmland']);
+      W.set(rx - 2 + i, g0, rz + 3, CF.IDOF['potato']); W.flatSet(rx - 2 + i, g0, rz + 3, [0, 3, 7][i]);
+    }
+    W.set(rx + 3, g0 - 1, rz - 2, CF.IDOF['farmland']); // freshly tilled empty strip
+    W.set(rx + 4, g0 - 1, rz - 2, CF.IDOF['grass']); // untrampled grass reference
+    W.ensureLight(rx >> 4, rz >> 4);
+    for (let i = 0; i < 8; i++) W.tick();
+    for (let i = 0; i < 400 && W.dirty.size; i++) CF.renderTick();
+    CF.camera = { pos: [rx - 6.5, g0 + 2.2, rz + 6.5], yaw: Math.atan2(6.5, -6.5), pitch: -0.24 };
+    CF.renderDraw(CF.camera);
+    document.title = 'FS:' + JSON.stringify({ g0, tris: CF.rendererStats.tris, miss: [...(CF.rendererStats.missingTiles || [])] });
+    await new Promise((res) => setTimeout(res, 300));
+  };
   CF.shotScenarios['storage-wall'] = async () => { // #051: gold/iron/diamond/brick/clay row
     CF.freeCam = true;
     const W = CF.world, rx = 120, rz = 120;
