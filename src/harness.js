@@ -508,6 +508,30 @@
     CF.renderDraw(cam);
     await new Promise((res) => setTimeout(res, 300));
   };
+  CF.shotScenarios['drop-pickup'] = async () => { // #060: three thrown item billboards (block item + pure item + stairs) resting on a clean floor
+    CF.freeCam = true;
+    const W = CF.world, rx = 94, rz = 94;
+    W.ensureAround(rx, rz, 1);
+    for (let i = 0; i < 20 && W.stats().queue; i++) W.tick();
+    const g0 = Math.max(W.heightAt(rx, rz), 8);
+    for (let x = rx - 5; x <= rx + 5; x++) for (let z = rz - 5; z <= rz + 5; z++) {
+      for (let y = g0; y < g0 + 8; y++) W.set(x, y, z, 0);
+      W.set(x, g0 - 1, z, CF.IDOF['stone']);
+    }
+    W.ensureLight(rx >> 4, rz >> 4);
+    for (let i = 0; i < 6; i++) W.tick();
+    for (let i = 0; i < 300 && W.dirty.size; i++) CF.renderTick();
+    for (const [n, name] of [[0, 'cobblestone'], [1, 'apple'], [2, 'stone_stairs']]) {
+      CF.itemEnts.push({ name, n: 1, x: rx - 0.7 + n * 0.7, y: g0 + 2.2, z: rz, vx: 0, vy: 0, vz: 0, age: 20, ph: n * 2.1 });
+    }
+    for (let i = 0; i < 40; i++) CF.itemTick(); // let them fall to rest
+    const restY = CF.itemEnts.map((e) => +e.y.toFixed(2));
+    const cam = { pos: [rx, g0 + 0.55, rz + 3.0], yaw: Math.PI, pitch: 0.02 }; // eye-height close-up on the icons
+    CF.camera = cam;
+    CF.renderDraw(cam);
+    document.title = 'DI:' + JSON.stringify({ restY, floorTop: g0, itris: CF.rendererStats.itris, cnt: CF.itemEnts.length });
+    await new Promise((res) => setTimeout(res, 300));
+  };
   CF.shotScenarios['face-lit-scene'] = async () => { // #106 calibration: cobble wall -X face dead-on
     CF.freeCam = true;
     const W = CF.world, rx = 148, rz = 148;

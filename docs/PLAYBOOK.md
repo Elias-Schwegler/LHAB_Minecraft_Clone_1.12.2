@@ -166,6 +166,7 @@ Engine/logic:
 - Registry edits: go through the JSON between /*REGISTRY-START|END*/ markers (strict JSON, 1-space indent);
   new blocks need id/tier/variants.default{functional:false until proof, tiles×6, hardness, drop,
   tool/minTier, solid, light, flags} + a proof:{issue,tests:[...]} naming asserts that EXIST in the build.
+- AN EDIT THAT DELETES A TRAILING NEWLINE MERGES TWO STATEMENTS: oldString ending in newline replaced by newString without it glues the next line onto a // comment line - code vanishes into the comment, node --check stays GREEN, runtime ReferenceError (cost: cellHitsPlayer const-p, every place threw, #053->#060). After ANY edit whose oldString ends at a line boundary, RE-READ the seam or run the suite before pushing.
 - Vision-QA sessions die with "At most 32 image(s) may be provided in one prompt" (llama.cpp counts ALL
   images in re-sent history). Fixed by global plugin `~/.config/opencode/plugins/image-cap.js`: prunes
   oldest screenshots from the outgoing prompt (keeps last 24, env OPENCODE_IMAGE_KEEP); no /compact needed.

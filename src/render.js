@@ -5,7 +5,7 @@ window.CF = window.CF || {};
   const CF = window.CF;
   const CX = 16, CH = 128, CZ = 16;
   let gl, prog, uVP, uFog, uTloc, tex, meshMap = new Map(), texReady = false;
-  let palTex, mobVAO, mobVB; // #035: mobs reuse this shader, sampling a solid-color palette on unit 1
+  let palTex, mobVAO, mobVB, itemVAO, itemVB; // #035: mobs reuse this shader, sampling a solid-color palette on unit 1; #060: item billboards on the atlas
   const stats = { meshes: 0, tris: 0, rebuilds: 0, glErr: 0, missingTiles: new Set() };
   CF.rendererStats = stats;
   const SHADE = { 0: 0.8, 1: 1.0, 2: 0.6 }; // +x,+y,+z faces; opposite = slightly darker
@@ -369,6 +369,13 @@ void main(){ vec4 t = texture(T, uv); float cut = 1.0 - smoothstep(0.30, 0.62, t
     gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 28, 24);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(7), gl.STREAM_DRAW);
     gl.bindVertexArray(null);
+    itemVAO = gl.createVertexArray(); gl.bindVertexArray(itemVAO); // #060 dropped-item billboards (atlas unit 0)
+    itemVB = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, itemVB);
+    gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 28, 0);
+    gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 28, 12);
+    gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 28, 24);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(7), gl.STREAM_DRAW);
+    gl.bindVertexArray(null);
   }
 
   function upload(cx, cz, m) {
@@ -497,6 +504,36 @@ void main(){ vec4 t = texture(T, uv); float cut = 1.0 - smoothstep(0.30, 0.62, t
         gl.uniform1i(uTloc, 0);
         gl.bindVertexArray(null);
         stats.mtris = mv.length / 21;
+      }
+    }
+    // #060 dropped-item billboards: two crossed textured quads sampled from the ATLAS (same unit 0, same shader)
+    stats.itris = 0; stats.itemCount = CF.itemEnts ? CF.itemEnts.length : 0;
+    if (CF.itemEnts && CF.itemEnts.length && texReady) {
+      const iv = [];
+      const S = ASZ, W = CF.world;
+      for (const it of CF.itemEnts) {
+        const d = CF.itemDef && CF.itemDef(it.name);
+        const meta = d && (window.__TEXMETA || {})[d.tile];
+        const uvf = meta ? [(meta.x + 0.25) / S, (meta.y + 0.25) / S, (meta.x + meta.w - 0.25) / S, (meta.y + meta.h - 0.25) / S] : MAGENTA_UV;
+        const br = (W.lightAt(Math.floor(it.x), Math.max(1, Math.floor(it.y + 0.1)), Math.floor(it.z)) || 14 << 0) / 255;
+        const bob = Math.sin(CF.ticks * 0.12 + it.ph) * 0.04;
+        const py = it.y + 0.12 + bob;
+        for (const dd of [1, -1]) { // two crossed quads (like cross-model blocks)
+          const ax = 0.12, az = 0.12 * dd;
+          const A = [it.x - ax, py, it.z - az], B = [it.x + ax, py, it.z + az];
+          const C = [B[0], py + 0.26, B[2]], D = [A[0], py + 0.26, A[2]];
+          const uvs = [[uvf[0], uvf[3]], [uvf[2], uvf[3]], [uvf[2], uvf[1]], [uvf[0], uvf[1]]];
+          for (const oi of [0, 1, 2, 0, 2, 3]) { const P4 = [A, B, C, D][oi]; iv.push(P4[0], P4[1], P4[2], uvs[oi][0], uvs[oi][1], 0.98, br); }
+        }
+      }
+      if (iv.length) {
+        gl.depthMask(true); gl.disable(gl.BLEND); gl.uniform1i(uTloc, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, itemVB);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(iv), gl.STREAM_DRAW);
+        gl.bindVertexArray(itemVAO);
+        gl.drawArrays(gl.TRIANGLES, 0, iv.length / 7);
+        gl.bindVertexArray(null);
+        stats.itris = iv.length / 21;
       }
     }
     // translucent liquid pass (no depth write) (#022) - premultiplied blending

@@ -1,7 +1,7 @@
 # AGENTS.md — project STATE memory (1-minute grounding)
 Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each session) · Spec: docs/REFERENCE.md
 
-## Current state (2026-09-07, SPRINT 04 ACTIVE - it21)
+## Current state (2026-09-09, SPRINT 04 ACTIVE - it25)
 - Tags: v0.0.0 scaffold → v0.1.0 sprint01+fixes → v0.2.0 sprint02 closed -> v0.3.0 SPRINT 03 CLOSED (audit #6 READY-WITH-NOTES, 7 P3 fixed same-close).
 - Sprint 03 CLOSED: #033 #035 #032 #036 #037 #038 #042 #039 #040 #041 #046 #047 #043 #034 ALL DONE (#043 closed
   #031 + fixed P1 atlas icon-stride bug; README+GitHub origin+issue mirror done).
@@ -16,8 +16,12 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
     box-pass rewrite bug (subRect V-clamped-to-U -> every box face 0 pieces = all slabs/stairs flat, found by
     RE-checking slab-scene in vision); + latent CF.place undeclared `p` (bed RMB crash) + flat-array never
     saved (slab/torch/bed meta lost on reload) - both fixed w/ asserts; walkup/facing/craft/save.flat; 224/208.
+    #060 DONE (polish, no parity): Q-drop item entities (throw/magnet/0.5s-delay/despawn) as atlas-icon
+    billboards + pause-on-mouse-release/inventory with controls overlay + RMB contextmenu suppressed;
+    +interact.q-drop; 225/209. (self-inflicted: my #053 edit had comment-swallowed cellHitsPlayer's
+    `const p` -> every place crashed; caught instantly by the new test.)
     NEXT: #054 farming, #055+#056 NETHER, #057 redstone SPK, #058 streaming, #059 recipe book;
-    backlog #044/#045/#048 (+F7-black leftovers + torch flame tile art). Audit #7 at close. - Gate: TEST GREEN 224 full / 208 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 56/399 (TNT/chest/bed functional:false -
+    backlog #044/#045/#048 (+F7-black leftovers + torch flame tile art). Audit #7 at close. - Gate: TEST GREEN 225 full / 209 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 56/399 (TNT/chest/bed functional:false -
   procedural tiles, not Blender; mechanics shipped+tested, not counted: honest)
   proof-bound (t1 20/125): 15 core+torch+glowstone+furnace + water+lava (#043 buckets).
 - Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy TWO-SIDED faces+AO-less shaded+light+fog),
@@ -33,6 +37,11 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #060 Q-drop/pause/RMB polish: item entities (throw physics w/ solidSpanXZ + cellTopAt rest + 0.5s pickup
+  delay + 1.6 magnet + 6000t despawn + 200 cap) rendered as atlas-icon crossed billboards (new dynamic VBO
+  pass, same shader/unit0); sim freezes on pointer-unlock or inventory-open w/ controls overlay (freeCam/
+  scripted/sleeping exempt so harness safe); contextmenu preventDefault. Caught my own #053 self-inflicted
+  wound: an Edit had comment-swallowed cellHitsPlayer's `const p` -> EVERY CF.place threw. +1 assert 225/209.
 - #053 stairs (56/399): centralised CF.boxesOf/cellOpaque model resolver (slab+stairs, mesher+physics+placement+
   relight all consume it - ends the per-file flat-bit drift behind #105/#106); 1.12-true mapping (stone_stairs=
   cobble tex, brick 108); subRect face-culling; FOUND+FIXED my own rewrite bug (subRect V-clamped-to-U zeroed all
