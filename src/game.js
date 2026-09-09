@@ -14,6 +14,15 @@ window.CF = window.CF || {};
     const gl = canvas.getContext('webgl2', { antialias: false, preserveDrawingBuffer: true });
     if (!gl) { CF.errors.push('WebGL2 unavailable'); document.title = 'FATAL: no webgl2'; return; }
     CF.gl = gl; CF.canvas = canvas;
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault()); // #060: RMB places blocks - never pop the browser menu
+    // #060 pause overlay (pointer-lock released / inventory open = 1.12 singleplayer pause)
+    const pauseEl = document.createElement('div');
+    pauseEl.style.cssText = 'position:fixed;inset:0;display:none;align-items:center;justify-content:center;' +
+      'flex-direction:column;background:rgba(0,0,0,0.45);color:#fff;font:16px monospace;z-index:9;pointer-events:none';
+    pauseEl.innerHTML = '<div style="font-size:22px;margin-bottom:8px">Game Paused</div><div>click to resume &middot; WASD move &middot; mouse look</div>' +
+      '<div style="margin-top:6px;opacity:0.7">LMB break &middot; RMB place &middot; Q drop &middot; E inventory &middot; F4 survival &middot; F3 debug</div>';
+    (document.body || document.documentElement).appendChild(pauseEl);
+    CF._pauseEl = pauseEl;
     function resize() {
       const w = canvas.clientWidth * devicePixelRatio, h = canvas.clientHeight * devicePixelRatio;
       if (canvas.width !== w | 0 || canvas.height !== h | 0) { canvas.width = w | 0; canvas.height = h | 0; }
@@ -28,14 +37,20 @@ window.CF = window.CF || {};
     // RENDER on rAF. Sim never depends on rAF firing.
     const loopId = setInterval(() => {
       const t0 = performance.now();
-      if (CF.world) {
-        const p = CF.player;
+      // #060 PAUSE: no pointer lock (mouse released) or inventory open freezes the SIM (render keeps running).
+      // freeCam (shots/tests) and scripted input (harness) are exempt so the test suite never deadlocks.
+      const p = CF.player;
+      CF.paused = !!(p && !p.input.scripted && !CF.freeCam && !CF.sleeping &&
+        (!document.pointerLockElement || (CF.ui && CF.ui.open)));
+      if (CF._pauseEl) CF._pauseEl.style.display = CF.paused && document.pointerLockElement === null ? 'flex' : 'none';
+      if (CF.world && !CF.paused) {
         CF.world.ensureAround(p ? p.pos[0] : 0, p ? p.pos[2] : 0, 4);
         CF.world.tick();
         CF.playerTick && CF.playerTick();
         CF.mobTick && CF.mobTick(); // #035 entities (spawn scheduler is survival-gated)
         CF.tntTick && CF.tntTick(); // #042 primed TNT fuses + chain + explode
         CF.bedTick && CF.bedTick(); // #041 sleep sequence + weather/lightning/shake decay
+        CF.itemTick && CF.itemTick(); // #060 dropped-item physics + pickup magnet
       }
       CF.renderTick && CF.renderTick();
       CF.onTick && CF.onTick();

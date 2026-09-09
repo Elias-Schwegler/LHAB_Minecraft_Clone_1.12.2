@@ -102,6 +102,56 @@ window.CF = window.CF || {};
     return ox && oy;
   };
 
+  // #060 item entities: Q drops the held item as a pickup-able billboard (1.12 throw + magnet pickup).
+  CF.itemEnts = [];
+  CF.dropHeld = () => {
+    const s = CF.inv[CF.sel];
+    if (!s || (CF.ui && CF.ui.open)) return false;
+    const name = s.name;
+    s.count--; if (s.count <= 0) CF.inv[CF.sel] = null;
+    const P = CF.player, cy = Math.cos(P.yaw), sy = Math.sin(P.yaw);
+    CF.itemEnts.push({ name, n: 1, x: P.pos[0] + cy * 0.45, y: P.pos[1] + 0.6, z: P.pos[2] + sy * 0.45,
+      vx: cy * 4, vy: 2.5, vz: sy * 4, age: 0, ph: Math.random() * 6.28 });
+    if (CF.itemEnts.length > 200) CF.itemEnts.splice(0, CF.itemEnts.length - 200);
+    CF.uiRefresh && CF.uiRefresh();
+    return true;
+  };
+  CF.itemTick = () => {
+    const P = CF.player, W = CF.world, dt = 0.05;
+    for (let i = CF.itemEnts.length - 1; i >= 0; i--) {
+      const it = CF.itemEnts[i];
+      if (++it.age > 6000) { CF.itemEnts.splice(i, 1); continue; } // 5-min despawn (1.12)
+      it.vy = Math.max(-20, it.vy - 32 * dt); // terminal velocity: never faster than 1 cell/tick (no tunnelling)
+      const nx = it.x + it.vx * dt, nz = it.z + it.vz * dt, ny = it.y + it.vy * dt;
+      const hw = 0.12;
+      if (CF.solidSpanXZ(ny - 0.12, ny + 0.12, nx, hw, it.z)) { it.vx = 0; } else it.x = nx;
+      if (CF.solidSpanXZ(ny - 0.12, ny + 0.12, it.x, hw, nz)) { it.vz = 0; } else it.z = nz;
+      if (CF.solidSpanXZ(ny - 0.12, ny + 0.12, it.x, hw, it.z)) { // vertical collision: rest on box top or bounce off ceiling
+        if (it.vy < 0) {
+          let top = -Infinity;
+          for (let sx = Math.floor(it.x - hw); sx <= Math.floor(it.x + hw); sx++)
+            for (let sz = Math.floor(it.z - hw); sz <= Math.floor(it.z + hw); sz++)
+              for (let sy2 = Math.floor(ny) - 1; sy2 <= Math.floor(ny) + 1; sy2++) {
+                const sp = CF.cellTopAt(sx, sy2, sz, it.x, hw, it.z);
+                if (sp && sp[1] <= ny - 0.12 + 0.35 && sp[1] > top) top = sp[1];
+              }
+          it.y = (isFinite(top) ? top : Math.floor(ny - 0.12) + 0.12) + 0.001;
+          it.vy = 0; it.vx *= 0.72; it.vz *= 0.72; // ground friction
+        } else { it.vy = 0; }
+      } else it.y = ny;
+      if (it.age > 10 && P) { // pickup delay 0.5s, then magnet (1.12 ~1.0 radius; ours eye-to-item 1.6 lenient)
+        const d = Math.hypot(it.x - P.pos[0], it.y - (P.pos[1] - 0.2), it.z - P.pos[2]);
+        if (d < 1.6) {
+          const left = CF.give(it.name, it.n);
+          const took = it.n - left;
+          if (took > 0) { it.n = left; CF.uiRefresh && CF.uiRefresh(); }
+          if (it.n <= 0) CF.itemEnts.splice(i, 1);
+        }
+      }
+    }
+  };
+  window.addEventListener('keydown', (e) => { if (e.code === 'KeyQ' && !e.repeat) CF.dropHeld && CF.dropHeld(); });
+
   CF.place = (hit) => {
     if (!hit) return false;
     const p = CF.player; // #053: was never declared here - bed/stairs yaw lines threw ReferenceError (bed tests bypassed place(), latent in-game P1)
@@ -297,6 +347,31 @@ window.CF = window.CF || {};
       const flame = (p) => p[0] > 150 && p[1] > 110 && p[2] < 220 && p[1] > p[2] + 20; // yellow-white core ok; stick (g=70) and sky (b=255) rejected
       CF.assert(r, 'interact.torch-up(up=' + upper + ',lo=' + lower + ')', flame(upper) && !flame(lower));
       CF.world.set(78, h + 1, 78, 0);
+    }
+    // #060: Q-drop throws a pickup-able billboard entity; 0.5s pickup delay then magnet re-gives it
+    {
+      const P = CF.player;
+      const posSave = P.pos.slice();
+      const invSave = CF.inv.map((s) => (s ? { name: s.name, count: s.count } : null)), selSave = CF.sel, freeSave = CF.freeCam;
+      CF.freeCam = false;
+      CF.world.ensureAround(P.pos[0], P.pos[2], 1);
+      for (let i = 0; i < 20 && CF.world.stats().queue; i++) CF.world.tick();
+      CF.inv.fill(null); CF.inv[0] = { name: 'cobblestone', count: 5 }; CF.sel = 0;
+      const before = CF.countItem('cobblestone');
+      const okD = CF.dropHeld();
+      const mid = CF.countItem('cobblestone');
+      const it = CF.itemEnts[CF.itemEnts.length - 1];
+      const sitOn = () => P.tp(it.x, it.y + 0.9, it.z); // stay in magnet range but inside the delay window
+      sitOn();
+      for (let i = 0; i < 6; i++) { sitOn(); CF.itemTick(); }
+      const heldEarly = CF.countItem('cobblestone');
+      for (let i = 0; i < 40; i++) { sitOn(); CF.itemTick(); } // age past delay -> magnet
+      const heldLate = CF.countItem('cobblestone');
+      const gone = !CF.itemEnts.includes(it);
+      CF.assert(r, 'interact.q-drop(ok=' + okD + ',' + before + '>' + mid + '>=' + heldEarly + '->' + heldLate + ',gone=' + gone + ')',
+        okD === true && mid === before - 1 && heldEarly === mid && heldLate === before && gone);
+      P.tp(posSave[0], posSave[1], posSave[2]); P.vel[0] = P.vel[1] = P.vel[2] = 0;
+      CF.inv.fill(null); for (const s of invSave) if (s) CF.give(s.name, s.count); CF.sel = selSave; CF.freeCam = freeSave; CF.uiRefresh && CF.uiRefresh();
     }
     // #051: clay block yields 4 clay balls (1.12)
     {
