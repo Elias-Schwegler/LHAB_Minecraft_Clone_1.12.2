@@ -163,6 +163,14 @@ Engine/logic:
 - node --check EVERY edited src file right before tools/build.mjs: one brace-mismatch in harness.js made
   the bundle boot-hang with title stuck at 'Cubeforge' (no SHOTERR - dispatch never ran) and looked like
   an infinite scenario; cost a full diagnosis cycle (#106 day).
+- Recipe compare must pad BOTH sides (#054): tryCraft looped only over the normalized GRID width, so a 2-wide
+  pattern matched a 3-wide recipe whose extra column was never checked - the wood-hoe grid crafted PICKAXES.
+  When adding any shaped recipe, assert its exact output AND that a foreign grid shape refuses.
+- A makeWorld-style FACTORY must never assign CF.* globals (#054): worldTests' own CF.makeWorld(seed) for the
+  determinism assert silently repointed CF.growCrop to the throwaway instance. Export on the returned object +
+  module-level delegate only. (SPK-7 dims will call makeWorld a lot - this rule matters more later.)
+- Test arenas: check the issue for whose coords are sacred before carving (3rd offence, #054): (120,120)=mob/bed,
+  66-80=slab/torch/stairs/wood, 8/30=player course. New suites get fresh spots (200,200+) and save/restore.
 - Registry edits: go through the JSON between /*REGISTRY-START|END*/ markers (strict JSON, 1-space indent);
   new blocks need id/tier/variants.default{functional:false until proof, tiles×6, hardness, drop,
   tool/minTier, solid, light, flags} + a proof:{issue,tests:[...]} naming asserts that EXIST in the build.

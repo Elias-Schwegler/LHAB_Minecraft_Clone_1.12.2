@@ -101,7 +101,7 @@ window.CF = window.CF || {};
           const nv = nb && CF.BY_ID[nb];
           if (!nv || !nv.cross) continue;
           const SUPV = { 1: [0, -1, 0], 2: [-1, 0, 0], 6: [1, 0, 0], 4: [0, 0, -1], 8: [0, 0, 1] };
-          const v = SUPV[flatAt(nx, ny, nz)] || [0, -1, 0];
+          const v = nv.crop ? [0, -1, 0] : (SUPV[flatAt(nx, ny, nz)] || [0, -1, 0]); // #054: crops always ride the block below (stage bits != torch codes)
           if (CF.solidAt(get(nx + v[0], ny + v[1], nz + v[2]))) continue;
           set(nx, ny, nz, 0);
           if (CF.drops) CF.drops.push({ name: nv.name, n: 1, x: nx + 0.5, y: ny + 0.5, z: nz + 0.5 });
@@ -318,6 +318,23 @@ window.CF = window.CF || {};
       const c = chunkAt(x, z); if (!c) return;
       if (!c.flat) c.flat = new Uint8Array(CX * CH * CZ);
       c.flat[flatIdx(x, y, z)] = v;
+      dirty.add(c.cx + ',' + c.cz); // #054: meta changes (crop stage!) must re-mesh - was silently stale before
+    }
+    // #054 crop growth (1.12 randomTick core): stage+1 if lit enough; force = bone-meal-style hook.
+    // Returned on the world object; CF.growCrop is a module-level DELEGATE below - assigning inside the
+    // factory would let worldTests' makeWorld(deterministic) silently repoint it at a throwaway instance.
+    function growCrop(x, y, z, force) {
+      const id = get(x, y, z);
+      const v = id && CF.BY_ID[id];
+      if (!v || !v.crop) return false;
+      const st = (flatAt(x, y, z) & 7);
+      if (st >= (v.maxStage || 7)) return false;
+      if (!force) {
+        const li = lightAt(x, y, z) || 0;
+        if ((li >> 4) < 9 && (li & 15) < 8) return false; // MC: needs sky>=9 or nearby emitter>=8
+      }
+      setFlat(x, y, z, st + 1);
+      return true;
     }
     function q(x, y, z) {
       if (fluidQueue.size >= 4096) return;
@@ -466,13 +483,15 @@ window.CF = window.CF || {};
           }
         } else if (id === SAND || id === GRAVEL) {
           fall(x, y, z, id);
+        } else if (CF.BY_ID[id].crop) { // #054: crops advance on random ticks (~34% of samples landing on them)
+          if (rtRng() < 0.34) growCrop(x, y, z);
         } else if (CF.BY_ID[id].name === 'sapling' && rtRng() < 0.5) {
           growSapling(x, y, z); // #049: randomTick growth (1.12 ~5%/day; amplified here for liveliness, documented)
         }
       }
     }
     function stats() { return { chunks: chunks.size, generated, queue: genQueue.length, dirty: dirty.size, spreadEv }; }    function heightAt(x, z) { const h = colHeight(x, z); return h; }
-    return { get, set, tick, ensureAround, stats, generate, chunks, dirty, heightAt, biome, seed, decayLeavesNear, growSapling, lightAt, ensureLight, flatAt, flatSet: setFlat, fluidStat };
+    return { get, set, tick, ensureAround, stats, generate, chunks, dirty, heightAt, biome, seed, decayLeavesNear, growSapling, growCrop, lightAt, ensureLight, flatAt, flatSet: setFlat, fluidStat };
   }
   CF.makeWorld = makeWorld;
   // #021 day/night: 24000-tick cycle; daylight factor curve (moonlight floor handled in shader).
@@ -486,6 +505,8 @@ window.CF = window.CF || {};
   };
   const seed = ((location.search.match(/seed=(\d+)/) || [0, 1337])[1] | 0);
   CF.world = makeWorld(seed);
+  // #054 stable delegate - survives world swaps (load/SPK-7): the factory must not touch CF globals.
+  CF.growCrop = (x, y, z, force) => CF.world.growCrop(x, y, z, force);
   CF.makeWorld = makeWorld; // SPK-7 hook: second world instance (dimension experiment) - NOT yet used by the game
 })();
 
@@ -598,6 +619,37 @@ window.CF = window.CF || {};
     for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) for (let dy = 3; dy <= 5; dy++)
       if (w.get(tx + 24 + dx, th + dy, tz + dz) === ID['leaves']) kept++;
     CF.assert(r, 'world.leaves-persist(' + kept + ')', kept > 60);
+    // #054 crop growth: lit grows stage-by-stage (API), caps at maxStage, sealed-dark refuses; restore fully
+    {
+      const px = 200, pz = 200; // dedicated arena - (120,120) is the mob/bed suite turf
+      w.ensureAround(px, pz, 1);
+      for (let i = 0; i < 20 && w.stats().queue; i++) w.tick();
+      const ph = w.heightAt(px, pz);
+      const saved = {};
+      const keep = (x2, y2, z2) => { const k = x2 + ',' + y2 + ',' + z2; if (!(k in saved)) saved[k] = w.get(x2, y2, z2); };
+      for (let x = px - 2; x <= px + 2; x++) for (let z = pz - 2; z <= pz + 2; z++) for (let y = ph - 5; y < ph + 6; y++) keep(x, y, z);
+      for (let x = px - 2; x <= px + 2; x++) for (let z = pz - 2; z <= pz + 2; z++) { for (let y = ph; y < ph + 6; y++) w.set(x, y, z, 0); w.set(x, ph - 1, z, ID['dirt']); }
+      w.set(px, ph, pz, ID['farmland']);
+      w.ensureLight(px >> 4, pz >> 4);
+      for (let i = 0; i < 6; i++) w.tick();
+      const WHEAT = CF.IDOF['wheat'];
+      const sOk = w.set(px, ph + 1, pz, WHEAT); w.flatSet(px, ph + 1, pz, 0);
+      const g1 = CF.growCrop(px, ph + 1, pz, false);
+      const st1 = w.flatAt(px, ph + 1, pz);
+      while (CF.growCrop(px, ph + 1, pz, true)) { /* force to max */ }
+      const stMax = w.flatAt(px, ph + 1, pz);
+      const li = w.lightAt(px, ph + 1, pz);
+      const dk = ph - 3;
+      for (let y = dk - 1; y <= dk + 1; y++) for (let x = px - 1; x <= px + 1; x++) for (let z = pz - 1; z <= pz + 1; z++) w.set(x, y, z, ID['stone']);
+      w.set(px, dk, pz, 0);
+      w.ensureLight(px >> 4, pz >> 4);
+      for (let i = 0; i < 8; i++) w.tick();
+      w.set(px, dk, pz, WHEAT); w.flatSet(px, dk, pz, 0);
+      const gDark = CF.growCrop(px, dk, pz, false);
+      for (const k in saved) { const [x2, y2, z2] = k.split(',').map(Number); w.set(x2, y2, z2, saved[k]); }
+      CF.assert(r, 'world.crop-grow(' + g1 + ',' + st1 + '->' + stMax + ',dark=' + gDark + ',li=' + li + ')',
+        sOk && g1 === true && st1 === 1 && stMax === 7 && gDark === false);
+    }
   };
   CF.grassTests = async (r) => {
     const w = CF.world;

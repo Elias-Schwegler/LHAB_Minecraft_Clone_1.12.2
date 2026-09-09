@@ -20,8 +20,12 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
     billboards + pause-on-mouse-release/inventory with controls overlay + RMB contextmenu suppressed;
     +interact.q-drop; 225/209. (self-inflicted: my #053 edit had comment-swallowed cellHitsPlayer's
     `const p` -> every place crashed; caught instantly by the new test.)
-    NEXT: #054 farming, #055+#056 NETHER, #057 redstone SPK, #058 streaming, #059 recipe book;
-    backlog #044/#045/#048 (+F7-black leftovers + torch flame tile art). Audit #7 at close. - Gate: TEST GREEN 225 full / 209 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 56/399 (TNT/chest/bed functional:false -
+    #054 DONE (farming v1, parity unchanged 56 - crop blocks functional:false procedural): hoe x4, farmland+
+    trample, wheat/carrot/potato stage-growth (randomTick+CF.growCrop), 1.12 harvest tables, bread; +7 asserts
+    232/216; latent-bug haul: tryCraft width-pad hole (hoe matched PICKAXE recipe), torch-code vs crop-stage
+    clobber, #060 boot-pause = shot framing drift, makeWorld-touched CF.growCrop global, arena stomps AGAIN.
+    NEXT: #055+#056 NETHER (centerpiece), #057 redstone SPK, #058 streaming, #059 recipe book;
+    backlog #044/#045/#048 (+poisonous_potato, +F7-black leftovers + torch flame tile art). Audit #7 at close. - Gate: TEST GREEN 232 full / 216 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 56/399 (TNT/chest/bed functional:false -
   procedural tiles, not Blender; mechanics shipped+tested, not counted: honest)
   proof-bound (t1 20/125): 15 core+torch+glowstone+furnace + water+lava (#043 buckets).
 - Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy TWO-SIDED faces+AO-less shaded+light+fog),
@@ -37,6 +41,14 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #054 farming v1: hoe x4 (1.12 patterns) till->farmland (+trample revert on empty-landing, sneak/crop safe),
+  wheat/carrot/potato cross crops with flat-bit stages -> stageTiles in the SAME cross pass, randomTick growth +
+  CF.growCrop API (light-gated; force=bone-meal hook), 1.12 harvest tables, bread(+5). Farm item icons landed.
+  Test-haul: tryCraft width-padding hole (hoe matched the PICKAXE recipe - could have shipped a wrong table!),
+  torch face-code clobbering crop stage bits, #060 boot-pause = shot-framing drift (pause now only after first
+  lock), makeWorld() must not touch CF globals (deterministic-test world hijacked CF.growCrop), crop-test arena
+  stomped the 120,120 mob/bed turf -> moved to 200,200. +7 asserts 232/216 GREEN; farm-scene vision PASS;
+  blocks functional:false honest (procedural art -> #048; poisonous_potato/hydration deferred).
 - #060 Q-drop/pause/RMB polish: item entities (throw physics w/ solidSpanXZ + cellTopAt rest + 0.5s pickup
   delay + 1.6 magnet + 6000t despawn + 200 cap) rendered as atlas-icon crossed billboards (new dynamic VBO
   pass, same shader/unit0); sim freezes on pointer-unlock or inventory-open w/ controls overlay (freeCam/

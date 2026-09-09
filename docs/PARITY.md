@@ -60,5 +60,10 @@ wood variants (no tiles), all Tier-2/3 families.
 [x] F3 debug                                             <- #009 asserts
 
 ### Tier-2 / Tier-3: see REFERENCE.md §tiers + backlog epics; parity.mjs prints live table.
+[x] farming v1: hoe(4 mats) till grass/dirt -> farmland(+trample revert), wheat 8-stage randomTick growth on
+    farmland, harvest 1-3 grain + seeds, bread (3->1, +5 food), carrot/potato 2-4 drops  <- #054
+    (items.hoe-craft/bread-craft, world.crop-grow, interact.till/harvest, physics.farmland-trample, surv.bread
+    asserts + farm-scene.png vision PASS). Crop/farmland blocks functional:false (procedural tiles; Blender
+    art -> #048). poisonous_potato + hydration/neighbor boost deferred.
 
 Last auto-run: 2026-09-08 (56/399 at #053 close) - parity.mjs writes qa/parity-latest.json; this doc's table is updated MANUALLY at each merge (audit #6 F5)

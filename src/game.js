@@ -37,12 +37,17 @@ window.CF = window.CF || {};
     // RENDER on rAF. Sim never depends on rAF firing.
     const loopId = setInterval(() => {
       const t0 = performance.now();
-      // #060 PAUSE: no pointer lock (mouse released) or inventory open freezes the SIM (render keeps running).
-      // freeCam (shots/tests) and scripted input (harness) are exempt so the test suite never deadlocks.
+      // #060 PAUSE: freezes the sim when the mouse is RELEASED mid-game (after first lock) or inventory is open.
+      // BOOT NEVER PAUSES (pre-#060 loop kept ticking while the overlay shows) - shot/test determinism preserved.
+      // freeCam (shots/tests), scripted input (harness) and sleeping are exempt.
       const p = CF.player;
       CF.paused = !!(p && !p.input.scripted && !CF.freeCam && !CF.sleeping &&
-        (!document.pointerLockElement || (CF.ui && CF.ui.open)));
-      if (CF._pauseEl) CF._pauseEl.style.display = CF.paused && document.pointerLockElement === null ? 'flex' : 'none';
+        ((CF._everLocked && !document.pointerLockElement) || (CF.ui && CF.ui.open)));
+      if (CF._pauseEl) {
+        const intro = !CF._everLocked; // boot hint (sim keeps running, overlay is pointer-transparent)
+        CF._pauseEl.style.display = CF.paused || intro ? 'flex' : 'none';
+        if (CF._pauseEl.firstChild) CF._pauseEl.firstChild.textContent = CF.paused ? 'Game Paused' : 'Cubeforge';
+      }
       if (CF.world && !CF.paused) {
         CF.world.ensureAround(p ? p.pos[0] : 0, p ? p.pos[2] : 0, 4);
         CF.world.tick();

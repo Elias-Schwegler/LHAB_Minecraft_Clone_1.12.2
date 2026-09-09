@@ -12,6 +12,7 @@ window.CF = window.CF || {};
   CF.hotId = () => {
     const h = CF.held && CF.held();
     if (!h) return 0;
+    if (CF.PLANTABLE && CF.PLANTABLE[h]) { const r2 = CF.REGISTRY[CF.PLANTABLE[h]]; return r2 ? r2.variants[Object.keys(r2.variants)[0]].id : 0; } // #054: wheat_seeds plants the wheat block
     if (h.indexOf(':') > 0) { // #052: variant items ('stone_slab:cobblestone')
       const p2 = h.split(':');
       const r2 = CF.REGISTRY[p2[0]];
@@ -82,7 +83,18 @@ window.CF = window.CF || {};
         const lr = Math.random();
         dropName = lr < 0.05 ? (v.variant === 'oak' ? 'sapling' : 'sapling:' + v.variant) : lr < 0.055 && v.variant === 'oak' ? 'apple' : null; // #049 species saplings; apples oak-only (1.12)
       }
-      const drops = tierOk && dropName ? [{ name: dropName, n: dropN, x: m.x + 0.5, y: m.y + 0.5, z: m.z + 0.5 }] : [];
+      let cropDrops = null; // #054: crops harvest by stage (1.12). Wheat: 1-3 grain + 1-2 seeds; carrot/potato 2-4; immature -> the seed/item back
+      if (v.crop) {
+        const st = CF.world.flatAt ? CF.world.flatAt(m.x, m.y, m.z) & 7 : 0;
+        const R = (k) => Math.floor(Math.random() * k);
+        cropDrops = st >= (v.maxStage || 7)
+          ? (v.name === 'wheat'
+            ? [{ name: 'wheat', n: 1 + R(3) }, { name: 'wheat_seeds', n: 1 + R(2) }]
+            : [{ name: v.name, n: 2 + R(3) }]) // poisonous_potato 2% chance deferred to #048
+          : [{ name: v.name === 'wheat' ? 'wheat_seeds' : v.name, n: 1 }];
+        for (const d of cropDrops) { d.x = m.x + 0.5; d.y = m.y + 0.5; d.z = m.z + 0.5; }
+      }
+      const drops = tierOk ? (cropDrops || (dropName ? [{ name: dropName, n: dropN, x: m.x + 0.5, y: m.y + 0.5, z: m.z + 0.5 }] : [])) : [];
       if (v.name === 'furnace' && CF.furnaceBreak) CF.furnaceBreak(m.x, m.y, m.z); // #032: contents to player
       if (v.name === 'chest' && CF.chestBreak) CF.chestBreak(m.x, m.y, m.z); // #040: contents to player
       if (v.name === 'bed' && CF.bedBreak) CF.bedBreak(m.x, m.y, m.z); // #041: both halves
@@ -104,6 +116,7 @@ window.CF = window.CF || {};
 
   // #060 item entities: Q drops the held item as a pickup-able billboard (1.12 throw + magnet pickup).
   CF.itemEnts = [];
+  CF.PLANTABLE = { wheat_seeds: 'wheat', carrot: 'carrot', potato: 'potato' }; // #054 (1.12: carrot/potato plant themselves)
   CF.dropHeld = () => {
     const s = CF.inv[CF.sel];
     if (!s || (CF.ui && CF.ui.open)) return false;
@@ -152,6 +165,18 @@ window.CF = window.CF || {};
   };
   window.addEventListener('keydown', (e) => { if (e.code === 'KeyQ' && !e.repeat) CF.dropHeld && CF.dropHeld(); });
 
+  // #054 hoe: RMB on grass/dirt with empty cell above tills farmland (1.12; durability ignored Tier-1 like buckets)
+  CF.useHoe = (hit) => {
+    if (!hit) return false;
+    const heldName = CF.held && CF.held();
+    const def = heldName && CF.itemDef(heldName);
+    if (!def || !def.tool || def.tool.type !== 'hoe') return false;
+    const id = CF.world.get(hit.x, hit.y, hit.z);
+    if (id !== CF.IDOF['grass'] && id !== CF.IDOF['dirt']) return false;
+    if (CF.world.get(hit.x, hit.y + 1, hit.z)) return false;
+    return CF.world.set(hit.x, hit.y, hit.z, CF.IDOF['farmland']);
+  };
+
   CF.place = (hit) => {
     if (!hit) return false;
     const p = CF.player; // #053: was never declared here - bed/stairs yaw lines threw ReferenceError (bed tests bypassed place(), latent in-game P1)
@@ -178,9 +203,13 @@ window.CF = window.CF || {};
         : CF.solidAt(CF.world.get(tx - f[0], ty - f[1], tz - f[2]));
       if (!support) return false;
     }
+    if (v.crop) { // #054: crops only plant ON farmland (the cell below the target)
+      if (CF.world.get(tx, ty - 1, tz) !== CF.IDOF['farmland']) return false;
+    }
     if (v.name === 'bed' && CF.bedPlace) return CF.bedPlace(tx, ty, tz, CF.dirFromYaw(p.yaw)); // #041 2-cell, consumes itself
     const ok = CF.world.set(tx, ty, tz, id);
-    if (ok && v.cross && CF.world.flatSet) {
+    if (ok && v.crop && CF.world.flatSet) CF.world.flatSet(tx, ty, tz, 0); // #054: stage 0
+    if (ok && v.cross && !v.crop && CF.world.flatSet) { // #054: crops keep their stage byte; only torches get face-attach codes
       const f = hit.face;
       const code = f[1] === 1 ? 1 : f[0] === 1 ? 2 : f[0] === -1 ? 6 : f[2] === 1 ? 4 : 8;
       CF.world.flatSet(tx, ty, tz, code);
@@ -205,7 +234,7 @@ window.CF = window.CF || {};
   window.addEventListener('mousedown', (e) => {
     if (!CF.player) return;
     if (e.button === 0) CF.mineStart(CF.aim());
-    if (e.button === 2) { if (!(CF.useFlintSteel && CF.useFlintSteel(CF.aim())) && !(CF.useBlock && CF.useBlock(CF.aim())) && !(CF.useBucket && CF.useBucket(CF.aim())) && !(CF.mobFeed && CF.mobFeed()) && !(CF.useHeld && CF.useHeld())) CF.place(CF.aim()); }
+    if (e.button === 2) { if (!(CF.useFlintSteel && CF.useFlintSteel(CF.aim())) && !(CF.useBlock && CF.useBlock(CF.aim())) && !(CF.useBucket && CF.useBucket(CF.aim())) && !(CF.mobFeed && CF.mobFeed()) && !(CF.useHoe && CF.useHoe(CF.aim())) && !(CF.useHeld && CF.useHeld())) CF.place(CF.aim()); }
   });
   window.addEventListener('mouseup', () => { CF.mining = null; });
   window.addEventListener('wheel', (e) => { CF.sel = (CF.sel + (e.deltaY > 0 ? 1 : -1) + CF.hotbar.length) % CF.hotbar.length; CF.uiRefresh && CF.uiRefresh(); });
@@ -326,6 +355,58 @@ window.CF = window.CF || {};
         got.join() === want.join() && fmUp === (0 | 4) && gotN === 1);
       CF.drops.length = 0; CF.world.set(70, h, 70, 0); CF.world.set(70, h + 1, 70, 0); CF.world.flatSet(70, h, 70, 0);
       CF.inv.fill(null); for (const s of invSave) if (s) CF.give(s.name, s.count); CF.sel = selSave; CF.player.yaw = yawSave; CF.uiRefresh && CF.uiRefresh();
+    }
+    // #054: hoe tills grass/dirt (refuses stone/covered); crops harvest by stage
+    {
+      const h = CF.world.heightAt(82, 82);
+      CF.world.ensureAround(82, 82, 1);
+      for (let i = 0; i < 20 && CF.world.stats().queue; i++) CF.world.tick();
+      const savedT = {};
+      for (let x = 80; x <= 84; x++) for (let z = 80; z <= 84; z++) for (let y = h - 6; y <= h + 4; y++) {
+        const k = x + ',' + y + ',' + z; if (!(k in savedT)) savedT[k] = CF.world.get(x, y, z);
+        CF.world.set(x, y, z, y === h - 1 ? IDOF['dirt'] : 0); // full-depth pad floor at h-1, clear above
+      }
+      const gy = h - 1;
+      CF.world.set(82, gy, 82, IDOF['grass']);
+      const invSave = CF.inv.map((s) => (s ? { name: s.name, count: s.count } : null)), selSave = CF.sel;
+      CF.inv.fill(null); CF.inv[0] = { name: 'wood_hoe', count: 1 }; CF.sel = 0;
+      const tilled = CF.useHoe({ x: 82, y: gy, z: 82, face: [0, 1, 0] });
+      const isFM = CF.world.get(82, gy, 82) === IDOF['farmland'];
+      CF.world.set(84, gy, 84, IDOF['stone']);
+      const refusedStone = CF.useHoe({ x: 84, y: gy, z: 84, face: [0, 1, 0] }); // hoe refuses stone
+      CF.world.set(84, gy, 84, 0);
+      CF.world.set(82, gy + 1, 82, IDOF['dirt']); // cover it
+      CF.world.set(82, gy, 82, IDOF['grass']);
+      const refusedCovered = CF.useHoe({ x: 82, y: gy, z: 82, face: [0, 1, 0] });
+      CF.world.set(82, gy + 1, 82, 0);
+      CF.inv[1] = { name: 'wheat_seeds', count: 2 }; CF.sel = 1;
+      const pFail2 = CF.place({ x: 82, y: gy, z: 82, face: [0, 1, 0] }); // grass below -> refuse
+      CF.world.set(82, gy, 82, IDOF['farmland']);
+      const pOk = CF.place({ x: 82, y: gy, z: 82, face: [0, 1, 0] });
+      const plantedHere = CF.world.get(82, gy + 1, 82) === IDOF['wheat'] && CF.world.flatAt(82, gy + 1, 82) === 0;
+      CF.world.set(82, gy + 1, 82, 0);
+      // mature harvest: wheat@stage7 -> 1-3 grain + 1-2 seeds; immature stage3 -> 1 seed
+      CF.world.set(82, gy + 1, 82, IDOF['wheat']); CF.world.flatSet(82, gy + 1, 82, 7);
+      CF.drops.length = 0;
+      CF.mineStart({ x: 82, y: gy + 1, z: 82 });
+      let broke = null, tks = 0;
+      while (tks < 200 && !(broke && broke.broke)) { broke = CF.mineTick(0.05); tks++; }
+      const dm = broke && broke.broke ? broke.drops : [];
+      const grain = dm.filter((d) => d.name === 'wheat').reduce((a, d) => a + d.n, 0);
+      const seed = dm.filter((d) => d.name === 'wheat_seeds').reduce((a, d) => a + d.n, 0);
+      CF.world.set(82, gy + 1, 82, IDOF['wheat']); CF.world.flatSet(82, gy + 1, 82, 3);
+      CF.mineStart({ x: 82, y: gy + 1, z: 82 });
+      broke = null; tks = 0;
+      while (tks < 200 && !(broke && broke.broke)) { broke = CF.mineTick(0.05); tks++; }
+      const di = broke && broke.broke ? broke.drops : [];
+      CF.assert(r, 'interact.harvest(g=' + grain + ',s=' + seed + ',imm=' + JSON.stringify(di.map((d) => d.name + d.n)) + ')',
+        grain >= 1 && grain <= 3 && seed >= 1 && seed <= 2 && di.length === 1 && di[0].name === 'wheat_seeds' && di[0].n === 1);
+      CF.world.set(82, gy + 1, 82, 0); CF.drops.length = 0;
+      for (const k in savedT) { const [x2, y2, z2] = k.split(',').map(Number); CF.world.set(x2, y2, z2, savedT[k]); }
+      CF.world.flatSet(82, gy + 1, 82, 0);
+      CF.assert(r, 'interact.till(' + tilled + ',' + isFM + ',' + refusedStone + ',' + refusedCovered + ',' + pFail2 + ',' + pOk + ',' + plantedHere + ')',
+        tilled === true && isFM === true && refusedCovered === false && pFail2 === false && pOk === true && plantedHere === true);
+      CF.inv.fill(null); for (const s of invSave) if (s) CF.give(s.name, s.count); CF.sel = selSave; CF.uiRefresh && CF.uiRefresh();
     }
     // #105: torch flame must render at the TOP of the cross quad (readPixels y is FROM BOTTOM).
     {
