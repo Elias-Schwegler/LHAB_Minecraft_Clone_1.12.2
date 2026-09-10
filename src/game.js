@@ -43,7 +43,7 @@ window.CF = window.CF || {};
       const p = CF.player;
       CF.paused = !!(p && !p.input.scripted && !CF.freeCam && !CF.sleeping &&
         ((CF._everLocked && !document.pointerLockElement) || (CF.ui && CF.ui.open)));
-      if (CF._pauseEl) {
+      if (CF._pauseEl && !CF.shotName) { // #059: shot harness owns the overlay (never in QA/PNG frames)
         const intro = !CF._everLocked && !(p && p.input.scripted) && !CF.freeCam; // boot hint for REAL players only (shots/tests never show it)
         CF._pauseEl.style.display = CF.paused || intro ? 'flex' : 'none';
         if (CF._pauseEl.firstChild) CF._pauseEl.firstChild.textContent = CF.paused ? 'Game Paused' : 'Cubeforge';

@@ -24,10 +24,12 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
     trample, wheat/carrot/potato stage-growth (randomTick+CF.growCrop), 1.12 harvest tables, bread; +7 asserts
     232/216; latent-bug haul: tryCraft width-pad hole (hoe matched PICKAXE recipe), torch-code vs crop-stage
     clobber, #060 boot-pause = shot framing drift, makeWorld-touched CF.growCrop global, arena stomps AGAIN.
+    #059 DONE (recipe book UI + THE 3x3 WORKBENCH GUI it exposed missing - UI had only 2x2, tools uncraftable in-game!; book =
+    materials-filtered click-to-fill list; TDZ boot-killer + len-4 craft reset found; ui.book assert; overlay gated for shots)
     #058 DONE (streaming VERIFY - found NOTHING was ever evicted! R_KEEP=7 clean-chunk eviction + GL buffer free + dirty/genQueue/lightDone prune; stream-bounded
     (1920-block replay, resident<=225, queue drains) + stream-save (far tower roundtrip) asserts; far-field.png PASS; Tier-1 worldgen row flipped [x]).
-    NEXT: #055+#056 NETHER (centerpiece), #057 redstone SPK, #059 recipe book;
-    backlog #044/#045/#048 (+poisonous_potato, +F7-black leftovers + torch flame tile art). Audit #7 at close. - Gate: TEST GREEN 234 full / 218 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 56/399 (TNT/chest/bed functional:false -
+    NEXT: #055+#056 NETHER (centerpiece), #057 redstone SPK;
+    backlog #044/#045/#048 (+poisonous_potato, +F7-black leftovers + torch flame tile art). Audit #7 at close. - Gate: TEST GREEN 235 full / 219 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 56/399 (TNT/chest/bed functional:false -
   procedural tiles, not Blender; mechanics shipped+tested, not counted: honest)
   proof-bound (t1 20/125): 15 core+torch+glowstone+furnace + water+lava (#043 buckets).
 - Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy TWO-SIDED faces+AO-less shaded+light+fog),
@@ -43,6 +45,13 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #059 recipe book UI + THE 3x3 WORKBENCH GUI it exposed missing: right-click crafting_table -> uiOpenWorkbench (9-slot
+  CF.ui.craft, 2x2 mode = lattice 0/1/3/4 hidden+guarded, close returns all); book = panel of recipes the current
+  inventory can pay for AND that fit the lattice (2x2 correctly hides tool shapes - matches MC), click = bookFill
+  (grid->inv return, take ingredients, place pattern). MC "discovered" persistence deferred. OUTED: pre-#059 tools
+  were NOT craftable in-game (2x2-only UI; items tests hit tryCraft directly - parity row honesty note added);
+  TDZ let-bookEl killed boot page-wide (module lets must precede build()); an old test reset craft to len-4; pause
+  overlay now gated on CF.shotName for all shots. +1 assert ui.book, 235/219; ui-book/ui-inventory vision PASS.
 - #058 streaming verify: the Tier-1 "infinite world" claim was UNVERIFIED - nothing was ever evicted (chunks/meshMap GL/
   lightDone grew unboundedly). Added R_KEEP=7 clean-chunk eviction (edited chunks stay until persistence lands them),
   VAO/VBO free on evict, dirty/genQueue/lightDone prune, renderTick guards. 1920-block diagonal replay + 600-tick real

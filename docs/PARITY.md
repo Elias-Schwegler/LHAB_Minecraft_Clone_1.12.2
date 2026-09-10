@@ -46,7 +46,10 @@ wood variants (no tiles), all Tier-2/3 families.
 [x] block place/break/AABB collision                     <- #005/#006 interact asserts + walking.png
 [x] 1.9-style player physics + combat cooldown           <- #005 physics asserts + #036 charge-meter combat w/ per-tool cooldown (items.*+mob.* asserts: mob.cdm-* window tests, starter combat shots)
 [x] hotbar/inventory/drag-drop                           <- #025 (ui.open/drag/result/craft-collect asserts, ui-inventory.png)
-[ ] crafting grid + recipe book + smelting                        <- grid/recipes/smelting #024 (items.planks/torch/table/iron-pickaxe/smelt asserts); recipe BOOK UI missing
+[x] crafting grid + recipe book + smelting               <- grid/recipes/smelting #024 (items.* asserts); 3x3 workbench GUI + click-to-fill
+    recipe book #059 (ui.book assert: okW/pick-fill/result/collect + 2x2-mode filters tools; ui-book.png/ui-inventory.png vision PASS;
+    MC "discovered" persistence deferred - book filters by current materials). NOTE: pre-#059 the UI was 2x2-only - tools
+    were NOT craftable in-game at all (tests called tryCraft directly and never noticed) - #059's own test found this.
 [x] day/night + sky/block light engine                   <- #020 light + #021 cycle (time.* asserts, night shots)
 [ ] gravity blocks (sand/gravel/concrete_powder)  <- sand+gravel done #013 asserts; concrete_powder pending
 [x] water/lava flow + obsidian/cobblestone            <- #022 asserts (spread/caps/3 Java interactions) + #043 (1.12 delays water5/lava30, mover-resolves-contact, fluids.lava-slow, bucket round-trip, bucket-demo.png reaction ring)
