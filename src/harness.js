@@ -402,6 +402,22 @@
     document.title = 'FS:' + JSON.stringify({ g0, tris: CF.rendererStats.tris, miss: [...(CF.rendererStats.missingTiles || [])] });
     await new Promise((res) => setTimeout(res, 300));
   };
+  CF.shotScenarios['ui-book'] = async () => { // #059: workbench GUI - 3x3 grid + recipe book, pickaxe clicked-fill
+    const P = CF.player, W = CF.world;
+    CF.freeCam = false;
+    W.ensureAround(30, 30, 2);
+    for (let i = 0; i < 30 && W.stats().queue; i++) W.tick();
+    const gy = W.heightAt(30, 30);
+    W.set(30, gy, 32, CF.IDOF['crafting_table']);
+    P.tp(30.5, gy + 1, 30.5); P.yaw = Math.PI; P.pitch = 0;
+    CF.inv.fill(null); CF.give('planks', 6); CF.give('stick', 4);
+    CF.useBlock({ x: 30, y: gy, z: 32 });
+    const list = CF.RECIPES.map((r, i) => i); // find pickaxe through the book list the UI builds
+    const pick = list.map((i) => ({ i, r: CF.RECIPES[i] })).filter((x) => x.r.out && x.r.out.name === 'wood_pickaxe')[0];
+    CF.bookFill(pick.i);
+    await new Promise((x) => setTimeout(x, 400));
+    document.title = 'UB:' + encodeURIComponent(JSON.stringify({ result: CF.ui.result && CF.ui.result.name, slots: document.querySelectorAll('#inv .book .r').length }));
+  };
   CF.shotScenarios['far-field'] = async () => { // #058: real-tick walk 300+ blocks from spawn, then look back at the streamed edge
     CF.freeCam = false;
     const W = CF.world, P = CF.player;

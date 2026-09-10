@@ -7,8 +7,9 @@ window.CF = window.CF || {};
   CF.ui = {
     open: false,
     ghost: null,          // {name,count} carried by cursor
-    craft: [null, null, null, null],
+    craft: new Array(9).fill(null), // #059: 9 slots ALWAYS; 2x2 mode uses indices 0,1,3,4
     craftSize: 2,
+    workbench: false,     // #059: true while a crafting-table GUI is open (3x3 + recipe book fills 3x3)
     container: null,      // #032: blockEntity key while a container GUI (furnace) is open
   };
 
@@ -38,7 +39,11 @@ window.CF = window.CF || {};
     '#inv{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(20,20,20,.85);' +
     'border:2px solid #555;padding:10px;display:none;z-index:30;color:#fff;font:12px monospace}' +
     '#inv .grid{display:grid;grid-template-columns:repeat(9,40px);gap:3px}' +
-    '#inv .cgrid{display:grid;grid-template-columns:repeat(2,40px);gap:3px}' +
+    '#inv .cgrid{display:grid;grid-template-columns:repeat(3,40px);gap:3px}' + // #059 3x3; 2x2 mode hides .w2off slots
+    '#inv .book{position:absolute;right:10px;top:40px;width:138px;max-height:70%;overflow:auto;border:2px solid #555;padding:6px;background:#1a1a1a}' +
+    '#inv .book h4{margin:0 0 6px}' +
+    '#inv .book .r{display:inline-block;width:38px;height:38px;margin:2px;border:1px solid #444;cursor:pointer;position:relative;vertical-align:top}' +
+    '#inv .book .r:hover{border-color:#aaa}' +
     '#inv .slot{width:36px;height:36px;border-width:2px}' +
     '#inv h4{margin:6px 0 3px;font-weight:normal;color:#bbb}' +
     '#ghost{position:fixed;width:32px;height:32px;pointer-events:none;z-index:40;display:none;image-rendering:pixelated}' +
@@ -81,7 +86,7 @@ window.CF = window.CF || {};
     return d;
   }
 
-  let hud, inv, ghostEl, hudSlots = [], invSlots = [], craftSlots = [], resultSlot = null;
+  let hud, inv, ghostEl, hudSlots = [], invSlots = [], craftSlots = [], resultSlot = null, bookEl = null; // #059 bookEl declared early (renderBook runs during build)
   let furnEl, finSlot, ffuelSlot, foutSlot, burnBar, cookArrow;
   let chestEl, chestSlots = [];
   let atkEl;
@@ -94,7 +99,7 @@ window.CF = window.CF || {};
     inv.appendChild(title);
     const cgWrap = document.createElement('div'); cgWrap.innerHTML = '<h4>Crafting</h4>';
     const cg = document.createElement('div'); cg.className = 'cgrid';
-    for (let i = 0; i < 4; i++) { const s = mkSlot('craft', i); craftSlots.push(s); cg.appendChild(s); }
+    for (let i = 0; i < 9; i++) { const s = mkSlot('craft', i); craftSlots.push(s); cg.appendChild(s); } // #059: 3x3 layout; 2x2 hides the extras
     resultSlot = mkSlot('result', 0); resultSlot.classList.add('result');
     const resWrap = document.createElement('div'); resWrap.appendChild(cg);
     const resLbl = document.createElement('div'); resLbl.innerHTML = '<h4>→</h4>';
@@ -153,7 +158,13 @@ window.CF = window.CF || {};
       hudSlots[i].classList.toggle('sel', i === CF.sel);
     }
     for (let i = 0; i < invSlots.length; i++) paint(invSlots[i], CF.inv[i + 9]);
-    for (let i = 0; i < 4; i++) paint(craftSlots[i], CF.ui.craft[i]);
+    for (let i = 0; i < 9; i++) { // #059: paint all; 2x2 mode hides the off-lattice slots
+      paint(craftSlots[i], CF.ui.craft[i]);
+      const off = !CF.ui.workbench && [2, 5, 6, 7, 8].includes(i);
+      craftSlots[i].classList.toggle('w2off', off);
+      craftSlots[i].style.visibility = off ? 'hidden' : 'visible';
+    }
+    renderBook();
     updateResult();
     paint(resultSlot, CF.ui.result);
     if (furnEl) {
@@ -188,9 +199,10 @@ window.CF = window.CF || {};
   }
 
   function updateResult() {
-    const grid = CF.ui.craft.map((s) => s || null);
+    const c = CF.ui.craft;
+    const grid = CF.ui.workbench ? c.map((s) => s || null) : [c[0], c[1], c[3], c[4]]; // #059: 2x2 lattice maps into the 9-slot array
     CF.ui.result = null;
-    const res = CF.tryCraft ? CF.tryCraft(grid, 2) : null;
+    const res = CF.tryCraft ? CF.tryCraft(grid, CF.ui.workbench ? 3 : 2) : null;
     if (res) CF.ui.result = { name: res.out.name, count: res.out.n };
   }
 
@@ -206,6 +218,7 @@ window.CF = window.CF || {};
       CF.inv[i] = stack; return cur;
     }
     if (kind === 'craft') {
+      if (!CF.ui.workbench && [2, 5, 6, 7, 8].includes(i)) return stack; // #059: 2x2 lattice rejects off-grid drops
       const cur = CF.ui.craft[i];
       CF.ui.craft[i] = stack;
       updateResult();
@@ -240,7 +253,7 @@ window.CF = window.CF || {};
       if (!CF.ui.result) return;
       const r = CF.ui.result;
       // consume inputs: 1 from each non-empty craft slot
-      for (let c = 0; c < 4; c++) if (CF.ui.craft[c]) { CF.ui.craft[c].count--; if (!CF.ui.craft[c].count) CF.ui.craft[c] = null; }
+      for (let c = 0; c < 9; c++) if (CF.ui.craft[c]) { CF.ui.craft[c].count--; if (!CF.ui.craft[c].count) CF.ui.craft[c] = null; } // #059 3x3-aware
       const left = CF.give ? CF.give(r.name, r.count) : r.count;
       if (left) CF.ui.ghost = { name: r.name, count: left };
       refresh();
@@ -288,7 +301,7 @@ window.CF = window.CF || {};
       CF.ui.open = !CF.ui.open;
       if (inv) inv.style.display = CF.ui.open ? 'block' : 'none';
       if (!CF.ui.open && CF.ui.ghost) { CF.give(CF.ui.ghost.name, CF.ui.ghost.count); CF.ui.ghost = null; }
-      if (!CF.ui.open) for (let i = 0; i < 4; i++) if (CF.ui.craft[i]) { CF.give(CF.ui.craft[i].name, CF.ui.craft[i].count); CF.ui.craft[i] = null; }
+      if (!CF.ui.open) { CF.ui.workbench = false; for (let i = 0; i < 9; i++) if (CF.ui.craft[i]) { CF.give(CF.ui.craft[i].name, CF.ui.craft[i].count); CF.ui.craft[i] = null; } } // #059: close returns all 9 + leaves workbench mode
       if (!CF.ui.open) CF.ui.container = null; // #032: closing kills container view (contents stay in BE)
       refresh();
     }
@@ -300,6 +313,7 @@ window.CF = window.CF || {};
   CF.useBlock = (hit) => {
     if (!hit) return false;
     if (CF.useBed && CF.useBed(hit)) return true; // #041 bed
+    if (CF.IDOF && CF.world.get(hit.x, hit.y, hit.z) === CF.IDOF['crafting_table']) return CF.uiOpenWorkbench(); // #059 3x3 GUI
     if (!CF.blockEntities) return false;
     const k = hit.x + ',' + hit.y + ',' + hit.z;
     const f = CF.blockEntities[k];
@@ -311,6 +325,78 @@ window.CF = window.CF || {};
     if (!CF.ui.open) { CF.ui.open = true; if (inv) inv.style.display = 'block'; }
     refresh();
   };
+  // #059: crafting table opens the 3x3 grid GUI (+ full recipe book); sneak-free right-click, contents return on close
+  CF.uiOpenWorkbench = () => {
+    CF.ui.workbench = true;
+    if (!CF.ui.open) { CF.ui.open = true; if (inv) inv.style.display = 'block'; }
+    refresh();
+    return true;
+  };
+  // #059 recipe book: every recipe the CURRENT inventory can pay for, click fills the grid.
+  // (MC 'discovered/known' persistence deferred - craftable-filter is the useful v1.)
+  function bookList() {
+    const size = CF.ui.workbench ? 3 : 2;
+    const out = [];
+    CF.RECIPES.forEach((rec, idx) => {
+      const need = {};
+      if (rec.shapeless) { for (const m in rec.shapeless) need[m] = (need[m] || 0) + rec.shapeless[m]; }
+      else {
+        if (rec.rows.length > size || rec.rows.some((r) => r.length > size)) return;
+        for (const row of rec.rows) for (const ch of row) { const nm = rec.key[ch]; if (nm) need[nm] = (need[nm] || 0) + 1; }
+      }
+      for (const m in need) if (CF.countItem(m) < need[m]) return;
+      out.push({ idx, name: rec.out.name, n: rec.out.n });
+    });
+    return out;
+  }
+  CF.bookFill = (ri) => {
+    const rec = CF.RECIPES[ri];
+    if (!rec) return false;
+    for (let c = 0; c < 9; c++) if (CF.ui.craft[c]) { CF.give(CF.ui.craft[c].name, CF.ui.craft[c].count); CF.ui.craft[c] = null; }
+    const size = CF.ui.workbench ? 3 : 2;
+    const slotAt = size === 3 ? (r, c) => r * 3 + c : (r, c) => [0, 1, 3, 4][r * 2 + c];
+    const take = (name) => {
+      for (let i = 0; i < 36; i++) { const s = CF.inv[i]; if (s && s.name === name) { s.count--; if (!s.count) CF.inv[i] = null; return true; } }
+      return false;
+    };
+    if (rec.shapeless) {
+      const cells = size === 3 ? [0, 1, 2] : [0, 1];
+      let k = 0;
+      for (const [m, cnt] of Object.entries(rec.shapeless)) for (let t = 0; t < cnt; t++) {
+        if (!take(m)) return false;
+        CF.ui.craft[cells[k++ % cells.length]] = { name: m, count: 1 };
+      }
+    } else {
+      for (let r = 0; r < rec.rows.length; r++) for (let c = 0; c < rec.rows[r].length; c++) {
+        const nm = rec.key[rec.rows[r][c]];
+        if (!nm) continue;
+        if (!take(nm)) return false;
+        CF.ui.craft[slotAt(r, c)] = { name: nm, count: 1 };
+      }
+    }
+    updateResult(); refresh();
+    return true;
+  };
+  function renderBook() {
+    if (!inv) return;
+    if (!bookEl) { bookEl = document.createElement('div'); bookEl.className = 'book'; inv.appendChild(bookEl); }
+    if (!CF.ui.open) { bookEl.style.display = 'none'; return; }
+    bookEl.style.display = 'block';
+    bookEl.innerHTML = '<h4>Recipes (' + (CF.ui.workbench ? '3x3' : '2x2') + ')</h4>';
+    const list = bookList();
+    for (const e of list) {
+      const d = document.createElement('div');
+      d.className = 'r';
+      const ic = document.createElement('div');
+      ic.style.cssText = 'position:absolute;inset:0;background-repeat:no-repeat';
+      Object.assign(ic.style, iconCss(itemTile(e.name)));
+      d.appendChild(ic);
+      d.title = e.name + ' x' + e.n;
+      d.addEventListener('mousedown', (ev) => { ev.preventDefault(); CF.bookFill(e.idx); });
+      bookEl.appendChild(d);
+    }
+    if (!list.length) bookEl.innerHTML += '<div style="opacity:0.6">nothing craftable - gather materials</div>';
+  }
   CF.uiCloseContainer = (k) => { if (CF.ui.container === k) { CF.ui.container = null; refresh(); } };
 
   CF.uiRefresh = refresh;
@@ -338,7 +424,7 @@ window.CF = window.CF || {};
     CF.assert(r, 'ui.drag', CF.inv[20] && CF.inv[20].name === 'cobblestone' && !CF.inv[3]);
     // craft through UI: 1 log into craft grid -> planks x4 result -> collect
     CF.inv.fill(null); CF.inv[5] = { name: 'log', count: 2 };
-    CF.ui.craft = [null, null, null, null]; CF.ui.ghost = null;
+    CF.ui.craft = new Array(9).fill(null); CF.ui.ghost = null; // #059: was 4-wide pre-workbench era
     CF.uiClick('inv', 5); CF.uiClick('craft', 0);   // pickup log, place in craft grid
     CF.assert(r, 'ui.result', CF.ui.result && CF.ui.result.name === 'planks' && CF.ui.result.count === 4);
     CF.uiClick('result', 0);
@@ -409,6 +495,33 @@ window.CF = window.CF || {};
     const got = CF.chestBreak(cx0, cy0, cz0);
     CF.assert(r, 'ui.chest-break', got >= 5 && CF.countItem('dirt') === 5 && !CF.blockEntities[ck]);
     CF.world.set(cx0, cy0, cz0, 0);
+    // #059: 3x3 workbench GUI + recipe book (list/click-fill) - craft a wooden pickaxe THROUGH the book
+    {
+      const tbx = 66, tbz = 66;
+      CF.world.ensureAround(tbx, tbz, 1);
+      for (let i = 0; i < 10 && CF.world.stats().queue; i++) CF.world.tick();
+      const tby = CF.world.heightAt(tbx, tbz);
+      CF.world.set(tbx, tby, tbz, CF.IDOF['crafting_table']);
+      CF.inv.fill(null);
+      CF.give('planks', 6); CF.give('stick', 4);
+      const opened = CF.useBlock({ x: tbx, y: tby, z: tbz });
+      const okW = opened === true && CF.ui.workbench === true && CF.ui.open === true;
+      const book = bookList();
+      const pick = book.find((b) => b.name === 'wood_pickaxe');
+      const filled = pick ? CF.bookFill(pick.idx) : false;
+      const gridOk = !!(CF.ui.craft[0] && CF.ui.craft[1] && CF.ui.craft[2] && CF.ui.craft[4] && CF.ui.craft[7] &&
+        CF.ui.craft[0].name === 'planks' && CF.ui.craft[4].name === 'stick' &&
+        CF.ui.result && CF.ui.result.name === 'wood_pickaxe');
+      const planksA = CF.countItem('planks');
+      CF.uiClick('result', 0);
+      const made = CF.countItem('wood_pickaxe');
+      const after = CF.countItem('planks');
+      CF.ui.workbench = false;
+      const size2 = bookList().length; // 2x2 mode must hide tool recipes (they cannot fit the small lattice)
+      CF.world.set(tbx, tby, tbz, 0); CF.ui.ghost = null;
+      CF.assert(r, 'ui.book(' + okW + ',' + !!pick + ',' + filled + ',' + gridOk + ',' + made + ',' + planksA + '>' + after + ',s2=' + size2 + ')',
+        okW && !!pick && filled === true && gridOk === true && made === 1 && planksA === 3 && after === 3 && size2 >= 1 && size2 < book.length);
+    }
     // #047 crosshair present + hidden while a GUI is open; camera interpolation keeps standing y EXACT
     const xh = document.getElementById('xh');
     CF.ui.open = true; refresh(); const xhHidden = xh.style.display === 'none';
