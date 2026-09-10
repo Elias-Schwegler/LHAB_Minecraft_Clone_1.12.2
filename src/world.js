@@ -295,6 +295,24 @@ window.CF = window.CF || {};
       if (lightQueue.size < 96) lightQueue.add(k);
       for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) lightDone.delete((cx + dx) + ',' + (cz + dz));
     }
+    let api = null; // #058: self-reference for evict (api.edited is attached by persist.initEditTracking AFTER construction)
+    const R_KEEP = 7; // clean chunks this far outside the player stay resident (ensure radius 4 + margin)
+    function evictAround(cx0, cz0) {
+      // #058 infinite-world bound: chunks outside R_KEEP that are CLEAN (never edited) and not pending a
+      // re-mesh are dropped - terrain/biomes/caves re-derive bit-exact from the seed via generate().
+      // Edited chunks stay resident until the save/eviction pass lands them (survival-memory polish -> #044).
+      const ed = api && api.edited;
+      for (const [k, c] of chunks) {
+        if (Math.abs(c.cx - cx0) <= R_KEEP && Math.abs(c.cz - cz0) <= R_KEEP) continue;
+        if (ed && ed.has(k)) continue; // edited chunks stay (see note above)
+        chunks.delete(k);
+        dirty.delete(k); // #058: pending rebuild of a gone chunk is worthless - drop it (renderTick also guards)
+        for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) lightDone.delete((c.cx + dx) + ',' + (c.cz + dz));
+      }
+      for (const k of genQueue) {
+        const p = k.split(','); if (Math.abs(p[0] - cx0) > R_KEEP + 3 || Math.abs(p[1] - cz0) > R_KEEP + 3) { const i = genQueue.indexOf(k); if (i >= 0) genQueue.splice(i, 1); }
+      }
+    }
     function ensureAround(px, pz, radius) {
       const cx = key(px, 0), cz = keyZ(pz);
       for (let dx = -radius; dx <= radius; dx++) for (let dz = -radius; dz <= radius; dz++) {
@@ -305,6 +323,7 @@ window.CF = window.CF || {};
         const pa = a.split(','), pb = b.split(',');
         return (Math.abs(pa[0] - cx) + Math.abs(pa[1] - cz)) - (Math.abs(pb[0] - cx) + Math.abs(pb[1] - cz));
       });
+      if (radius >= 2) evictAround(cx, cz); // #058
     }
     // ---- fluids (#022): level per cell (0=source, 1..7=flow), queue + tick budget.
     // #043 per-liquid spread delay (1.12 block ticks: water 5, lava 30 - lava creeps, water gushes)
@@ -491,7 +510,7 @@ window.CF = window.CF || {};
       }
     }
     function stats() { return { chunks: chunks.size, generated, queue: genQueue.length, dirty: dirty.size, spreadEv }; }    function heightAt(x, z) { const h = colHeight(x, z); return h; }
-    return { get, set, tick, ensureAround, stats, generate, chunks, dirty, heightAt, biome, seed, decayLeavesNear, growSapling, growCrop, lightAt, ensureLight, flatAt, flatSet: setFlat, fluidStat };
+    return api = { get, set, tick, ensureAround, stats, generate, chunks, dirty, heightAt, biome, seed, decayLeavesNear, growSapling, growCrop, lightAt, ensureLight, flatAt, flatSet: setFlat, fluidStat };
   }
   CF.makeWorld = makeWorld;
   // #021 day/night: 24000-tick cycle; daylight factor curve (moonlight floor handled in shader).
@@ -649,6 +668,45 @@ window.CF = window.CF || {};
       for (const k in saved) { const [x2, y2, z2] = k.split(',').map(Number); w.set(x2, y2, z2, saved[k]); }
       CF.assert(r, 'world.crop-grow(' + g1 + ',' + st1 + '->' + stMax + ',dark=' + gDark + ',li=' + li + ')',
         sOk && g1 === true && st1 === 1 && stMax === 7 && gDark === false);
+    }
+    // #058 infinite streaming: 1920-block diagonal replay of the real loop (ensureAround+tick), then a
+    // teleport-free scripted-input walk segment; chunks must stay BOUNDED and the queue drain to 0.
+    {
+      const P = CF.player;
+      let maxC = 0, qHi = 0;
+      for (let hop = 1; hop <= 48; hop++) {
+        w.ensureAround(hop * 40, hop * 40, 4);
+        for (let i = 0; i < 25 && w.stats().queue; i++) w.tick();
+        maxC = Math.max(maxC, w.stats().chunks); qHi = Math.max(qHi, w.stats().queue);
+      }
+      const gx = 48 * 40 + 0.5, gz = 48 * 40 + 0.5;
+      P.tp(gx, w.heightAt(48 * 40, 48 * 40) + 2, gz); P.yaw = Math.PI / 4; P.pitch = 0;
+      P.input.scripted = true; P.input.f = 1; P.input.jump = true; // 1.12 auto-jump over 1-block lips
+      for (let i = 0; i < 600; i++) { CF.playerTick(); w.ensureAround(P.pos[0], P.pos[2], 4); w.tick(); }
+      P.input.f = 0; P.input.jump = false; P.input.scripted = false;
+      for (let i = 0; i < 40 && w.stats().queue; i++) w.tick();
+      // bound check excludes EDITED chunks (those legitimately stay resident until landed - see R_KEEP rule)
+      const edCount = w.edited ? w.edited.size : 0;
+      const endC = w.stats().chunks, endQ = w.stats().queue, walked = Math.hypot(P.pos[0] - gx, P.pos[2] - gz);
+      maxC = Math.max(maxC, endC);
+      // far-coord persistence: tower at (2000,2000), full save->load round trip
+      if (!w.edited && CF.saveNow) CF.saveNow(); // #058: ensure edit-tracking wrapper installed BEFORE our sets
+      const tx = 2000, tz = 2000, th = w.heightAt(tx, tz);
+      const seedSave = w.seed;
+      for (let y = th; y <= th + 4; y++) w.set(tx, y, tz, CF.IDOF['cobblestone']);
+      if (CF.saveNow && CF.loadNow) {
+        CF.saveNow(); CF.loadNow();
+        const w3 = CF.world;
+        w3.ensureAround(tx, tz, 2);
+        for (let i = 0; i < 60 && w3.stats().queue; i++) w3.tick();
+        let tower = 0;
+        for (let y = th; y <= th + 4; y++) if (w3.get(tx, y, tz) === CF.IDOF['cobblestone']) tower++;
+        w3.ensureAround(8, 8, 3); P.tp(8.5, w3.heightAt(8, 8) + 2, 8.5); P.yaw = 0; // hand downstream suites a clean spawn
+        for (let i = 0; i < 40 && w3.stats().queue; i++) w3.tick();
+        CF.assert(r, 'world.stream-save(' + tower + ',seed=' + (w3.seed === seedSave) + ')', tower === 5 && w3.seed === seedSave);
+      }
+      CF.assert(r, 'world.stream-bounded(max=' + maxC + ',end=' + endC + ',ed=' + edCount + ',walk=' + walked.toFixed(0) + ',qhi=' + qHi + ',endQ=' + endQ + ')',
+        maxC - edCount <= 260 && endC - edCount <= 225 && walked > 60 && endQ === 0);
     }
   };
   CF.grassTests = async (r) => {

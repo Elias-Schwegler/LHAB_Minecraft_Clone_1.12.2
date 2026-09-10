@@ -40,7 +40,9 @@ wood variants (no tiles), all Tier-2/3 families.
 
 ## Mechanic % (tiered checklists — flip to [x] ONLY with evidence link)
 ### Tier-1 (50% bar gate)
-[ ] chunked infinite worldgen w/ biomes + ores + caves   <- #002 asserts+shot; streaming-unlimited pending
+[x] chunked infinite worldgen w/ biomes + ores + caves   <- #002 + #058 streaming VERIFY (world.stream-bounded/save asserts: 1920-block
+    diagonal replay + 600-tick real-input walk: clean chunks EVICT beyond r=7 (resident capped), queues drain to 0, far-coord tower
+    survives save->load; far-field.png shows endless lit terrain at (219,222); shot harness CF_BUDGET/CF_TIMEOUT envs added)
 [x] block place/break/AABB collision                     <- #005/#006 interact asserts + walking.png
 [x] 1.9-style player physics + combat cooldown           <- #005 physics asserts + #036 charge-meter combat w/ per-tool cooldown (items.*+mob.* asserts: mob.cdm-* window tests, starter combat shots)
 [x] hotbar/inventory/drag-drop                           <- #025 (ui.open/drag/result/craft-collect asserts, ui-inventory.png)

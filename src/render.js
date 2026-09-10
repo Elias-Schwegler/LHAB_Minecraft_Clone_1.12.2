@@ -426,10 +426,16 @@ void main(){ vec4 t = texture(T, uv); float cut = 1.0 - smoothstep(0.30, 0.62, t
     const W = CF.world;
     stats.ready = texReady;
     if (!W) return;
+    // #058: chunks evicted by the streaming bound drop their VAOs/VBOs too (GL memory + draw cost stay bounded)
+    if (texReady) for (const [k, e] of meshMap) if (!W.chunks.has(k)) {
+      gl.deleteBuffer(e.vb); gl.deleteVertexArray(e.vao); gl.deleteBuffer(e.wvb); gl.deleteVertexArray(e.wvao);
+      meshMap.delete(k);
+    }
     let budget = 2;
     for (const k of W.dirty) {
       if (budget-- <= 0) break;
       W.dirty.delete(k);
+      if (!W.chunks.has(k)) continue; // evicted before its rebuild slot came up (#058)
       const [cx, cz] = k.split(',').map(Number);
       W.ensureLight(cx, cz);
       upload(cx, cz, buildMesh(cx, cz));
