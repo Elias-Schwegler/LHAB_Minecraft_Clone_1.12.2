@@ -2359,6 +2359,24 @@ window.CF = window.CF || {};
       if (lightQueue.size < 96) lightQueue.add(k);
       for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) lightDone.delete((cx + dx) + ',' + (cz + dz));
     }
+    let api = null; // #058: self-reference for evict (api.edited is attached by persist.initEditTracking AFTER construction)
+    const R_KEEP = 7; // clean chunks this far outside the player stay resident (ensure radius 4 + margin)
+    function evictAround(cx0, cz0) {
+      // #058 infinite-world bound: chunks outside R_KEEP that are CLEAN (never edited) and not pending a
+      // re-mesh are dropped - terrain/biomes/caves re-derive bit-exact from the seed via generate().
+      // Edited chunks stay resident until the save/eviction pass lands them (survival-memory polish -> #044).
+      const ed = api && api.edited;
+      for (const [k, c] of chunks) {
+        if (Math.abs(c.cx - cx0) <= R_KEEP && Math.abs(c.cz - cz0) <= R_KEEP) continue;
+        if (ed && ed.has(k)) continue; // edited chunks stay (see note above)
+        chunks.delete(k);
+        dirty.delete(k); // #058: pending rebuild of a gone chunk is worthless - drop it (renderTick also guards)
+        for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) lightDone.delete((c.cx + dx) + ',' + (c.cz + dz));
+      }
+      for (const k of genQueue) {
+        const p = k.split(','); if (Math.abs(p[0] - cx0) > R_KEEP + 3 || Math.abs(p[1] - cz0) > R_KEEP + 3) { const i = genQueue.indexOf(k); if (i >= 0) genQueue.splice(i, 1); }
+      }
+    }
     function ensureAround(px, pz, radius) {
       const cx = key(px, 0), cz = keyZ(pz);
       for (let dx = -radius; dx <= radius; dx++) for (let dz = -radius; dz <= radius; dz++) {
@@ -2369,6 +2387,7 @@ window.CF = window.CF || {};
         const pa = a.split(','), pb = b.split(',');
         return (Math.abs(pa[0] - cx) + Math.abs(pa[1] - cz)) - (Math.abs(pb[0] - cx) + Math.abs(pb[1] - cz));
       });
+      if (radius >= 2) evictAround(cx, cz); // #058
     }
     // ---- fluids (#022): level per cell (0=source, 1..7=flow), queue + tick budget.
     // #043 per-liquid spread delay (1.12 block ticks: water 5, lava 30 - lava creeps, water gushes)
@@ -2555,7 +2574,7 @@ window.CF = window.CF || {};
       }
     }
     function stats() { return { chunks: chunks.size, generated, queue: genQueue.length, dirty: dirty.size, spreadEv }; }    function heightAt(x, z) { const h = colHeight(x, z); return h; }
-    return { get, set, tick, ensureAround, stats, generate, chunks, dirty, heightAt, biome, seed, decayLeavesNear, growSapling, growCrop, lightAt, ensureLight, flatAt, flatSet: setFlat, fluidStat };
+    return api = { get, set, tick, ensureAround, stats, generate, chunks, dirty, heightAt, biome, seed, decayLeavesNear, growSapling, growCrop, lightAt, ensureLight, flatAt, flatSet: setFlat, fluidStat };
   }
   CF.makeWorld = makeWorld;
   // #021 day/night: 24000-tick cycle; daylight factor curve (moonlight floor handled in shader).
@@ -2713,6 +2732,45 @@ window.CF = window.CF || {};
       for (const k in saved) { const [x2, y2, z2] = k.split(',').map(Number); w.set(x2, y2, z2, saved[k]); }
       CF.assert(r, 'world.crop-grow(' + g1 + ',' + st1 + '->' + stMax + ',dark=' + gDark + ',li=' + li + ')',
         sOk && g1 === true && st1 === 1 && stMax === 7 && gDark === false);
+    }
+    // #058 infinite streaming: 1920-block diagonal replay of the real loop (ensureAround+tick), then a
+    // teleport-free scripted-input walk segment; chunks must stay BOUNDED and the queue drain to 0.
+    {
+      const P = CF.player;
+      let maxC = 0, qHi = 0;
+      for (let hop = 1; hop <= 48; hop++) {
+        w.ensureAround(hop * 40, hop * 40, 4);
+        for (let i = 0; i < 25 && w.stats().queue; i++) w.tick();
+        maxC = Math.max(maxC, w.stats().chunks); qHi = Math.max(qHi, w.stats().queue);
+      }
+      const gx = 48 * 40 + 0.5, gz = 48 * 40 + 0.5;
+      P.tp(gx, w.heightAt(48 * 40, 48 * 40) + 2, gz); P.yaw = Math.PI / 4; P.pitch = 0;
+      P.input.scripted = true; P.input.f = 1; P.input.jump = true; // 1.12 auto-jump over 1-block lips
+      for (let i = 0; i < 600; i++) { CF.playerTick(); w.ensureAround(P.pos[0], P.pos[2], 4); w.tick(); }
+      P.input.f = 0; P.input.jump = false; P.input.scripted = false;
+      for (let i = 0; i < 40 && w.stats().queue; i++) w.tick();
+      // bound check excludes EDITED chunks (those legitimately stay resident until landed - see R_KEEP rule)
+      const edCount = w.edited ? w.edited.size : 0;
+      const endC = w.stats().chunks, endQ = w.stats().queue, walked = Math.hypot(P.pos[0] - gx, P.pos[2] - gz);
+      maxC = Math.max(maxC, endC);
+      // far-coord persistence: tower at (2000,2000), full save->load round trip
+      if (!w.edited && CF.saveNow) CF.saveNow(); // #058: ensure edit-tracking wrapper installed BEFORE our sets
+      const tx = 2000, tz = 2000, th = w.heightAt(tx, tz);
+      const seedSave = w.seed;
+      for (let y = th; y <= th + 4; y++) w.set(tx, y, tz, CF.IDOF['cobblestone']);
+      if (CF.saveNow && CF.loadNow) {
+        CF.saveNow(); CF.loadNow();
+        const w3 = CF.world;
+        w3.ensureAround(tx, tz, 2);
+        for (let i = 0; i < 60 && w3.stats().queue; i++) w3.tick();
+        let tower = 0;
+        for (let y = th; y <= th + 4; y++) if (w3.get(tx, y, tz) === CF.IDOF['cobblestone']) tower++;
+        w3.ensureAround(8, 8, 3); P.tp(8.5, w3.heightAt(8, 8) + 2, 8.5); P.yaw = 0; // hand downstream suites a clean spawn
+        for (let i = 0; i < 40 && w3.stats().queue; i++) w3.tick();
+        CF.assert(r, 'world.stream-save(' + tower + ',seed=' + (w3.seed === seedSave) + ')', tower === 5 && w3.seed === seedSave);
+      }
+      CF.assert(r, 'world.stream-bounded(max=' + maxC + ',end=' + endC + ',ed=' + edCount + ',walk=' + walked.toFixed(0) + ',qhi=' + qHi + ',endQ=' + endQ + ')',
+        maxC - edCount <= 260 && endC - edCount <= 225 && walked > 60 && endQ === 0);
     }
   };
   CF.grassTests = async (r) => {
@@ -3275,10 +3333,16 @@ void main(){ vec4 t = texture(T, uv); float cut = 1.0 - smoothstep(0.30, 0.62, t
     const W = CF.world;
     stats.ready = texReady;
     if (!W) return;
+    // #058: chunks evicted by the streaming bound drop their VAOs/VBOs too (GL memory + draw cost stay bounded)
+    if (texReady) for (const [k, e] of meshMap) if (!W.chunks.has(k)) {
+      gl.deleteBuffer(e.vb); gl.deleteVertexArray(e.vao); gl.deleteBuffer(e.wvb); gl.deleteVertexArray(e.wvao);
+      meshMap.delete(k);
+    }
     let budget = 2;
     for (const k of W.dirty) {
       if (budget-- <= 0) break;
       W.dirty.delete(k);
+      if (!W.chunks.has(k)) continue; // evicted before its rebuild slot came up (#058)
       const [cx, cz] = k.split(',').map(Number);
       W.ensureLight(cx, cz);
       upload(cx, cz, buildMesh(cx, cz));
@@ -7122,7 +7186,7 @@ window.CF = window.CF || {};
       CF.paused = !!(p && !p.input.scripted && !CF.freeCam && !CF.sleeping &&
         ((CF._everLocked && !document.pointerLockElement) || (CF.ui && CF.ui.open)));
       if (CF._pauseEl) {
-        const intro = !CF._everLocked; // boot hint (sim keeps running, overlay is pointer-transparent)
+        const intro = !CF._everLocked && !(p && p.input.scripted) && !CF.freeCam; // boot hint for REAL players only (shots/tests never show it)
         CF._pauseEl.style.display = CF.paused || intro ? 'flex' : 'none';
         if (CF._pauseEl.firstChild) CF._pauseEl.firstChild.textContent = CF.paused ? 'Game Paused' : 'Cubeforge';
       }
@@ -7233,6 +7297,7 @@ window.CF = window.CF || {};
   async function runShot(name) {
     CF.shotName = name;
     for (let i = 0; i < 200 && !CF.ready; i++) await new Promise((res) => setTimeout(res, 50));
+    if (CF._pauseEl) CF._pauseEl.style.display = 'none'; // #060 overlay is a DOM layer - never in promo/qa frames
     CF.shotDone = false;
     try {
       if (typeof CF.shotScenarios === 'object' && CF.shotScenarios[name]) await CF.shotScenarios[name]();
@@ -7566,6 +7631,29 @@ window.CF = window.CF || {};
     CF.camera = { pos: [rx - 6.5, g0 + 2.2, rz + 6.5], yaw: Math.atan2(6.5, -6.5), pitch: -0.24 };
     CF.renderDraw(CF.camera);
     document.title = 'FS:' + JSON.stringify({ g0, tris: CF.rendererStats.tris, miss: [...(CF.rendererStats.missingTiles || [])] });
+    await new Promise((res) => setTimeout(res, 300));
+  };
+  CF.shotScenarios['far-field'] = async () => { // #058: real-tick walk 300+ blocks from spawn, then look back at the streamed edge
+    CF.freeCam = false;
+    const W = CF.world, P = CF.player;
+    P.tp(8.5, W.heightAt(8, 8) + 2, 8.5); P.yaw = Math.PI / 4; P.pitch = -0.05;
+    P.input.scripted = true; P.input.f = 1; P.input.jump = true;
+    let ticks = 0;
+    while (ticks < 1600 && Math.hypot(P.pos[0] - 8.5, P.pos[2] - 8.5) < 300) {
+      CF.playerTick(); W.ensureAround(P.pos[0], P.pos[2], 4); W.tick(); CF.renderTick(); ticks++;
+    }
+    P.input.f = 0; P.input.jump = false; P.input.scripted = false;
+    CF.freeCam = true; // keep the game loop's boot-intro overlay out of the final frame
+    if (CF._pauseEl) CF._pauseEl.style.display = 'none'; // headless loops tick sparsely - hide explicitly
+    for (let i = 0; i < 60 && W.stats().queue; i++) { W.tick(); CF.renderTick(); }
+    for (let i = 0; i < 40; i++) CF.renderTick();
+    CF.camera = { pos: [P.pos[0] - 5, P.pos[1] + 9, P.pos[2] - 5], yaw: Math.PI / 4 + Math.PI, pitch: -0.22 }; // float behind/above, looking back over the traversed trail
+    CF.renderDraw(CF.camera);
+    document.title = 'FF:' + encodeURIComponent(JSON.stringify({
+      pos: P.pos.map((v) => Math.round(v)), chunks: W.stats().chunks, mapped: CF.rendererStats.mapped,
+      drawn: CF.rendererStats.drawn, tris: CF.rendererStats.tris, sim: Math.round(CF.simMs || 0),
+      ov: CF._pauseEl ? CF._pauseEl.style.display : 'NOEL', paused: !!CF.paused, free: !!CF.freeCam,
+    }));
     await new Promise((res) => setTimeout(res, 300));
   };
   CF.shotScenarios['storage-wall'] = async () => { // #051: gold/iron/diamond/brick/clay row

@@ -66,6 +66,7 @@
   async function runShot(name) {
     CF.shotName = name;
     for (let i = 0; i < 200 && !CF.ready; i++) await new Promise((res) => setTimeout(res, 50));
+    if (CF._pauseEl) CF._pauseEl.style.display = 'none'; // #060 overlay is a DOM layer - never in promo/qa frames
     CF.shotDone = false;
     try {
       if (typeof CF.shotScenarios === 'object' && CF.shotScenarios[name]) await CF.shotScenarios[name]();
@@ -399,6 +400,29 @@
     CF.camera = { pos: [rx - 6.5, g0 + 2.2, rz + 6.5], yaw: Math.atan2(6.5, -6.5), pitch: -0.24 };
     CF.renderDraw(CF.camera);
     document.title = 'FS:' + JSON.stringify({ g0, tris: CF.rendererStats.tris, miss: [...(CF.rendererStats.missingTiles || [])] });
+    await new Promise((res) => setTimeout(res, 300));
+  };
+  CF.shotScenarios['far-field'] = async () => { // #058: real-tick walk 300+ blocks from spawn, then look back at the streamed edge
+    CF.freeCam = false;
+    const W = CF.world, P = CF.player;
+    P.tp(8.5, W.heightAt(8, 8) + 2, 8.5); P.yaw = Math.PI / 4; P.pitch = -0.05;
+    P.input.scripted = true; P.input.f = 1; P.input.jump = true;
+    let ticks = 0;
+    while (ticks < 1600 && Math.hypot(P.pos[0] - 8.5, P.pos[2] - 8.5) < 300) {
+      CF.playerTick(); W.ensureAround(P.pos[0], P.pos[2], 4); W.tick(); CF.renderTick(); ticks++;
+    }
+    P.input.f = 0; P.input.jump = false; P.input.scripted = false;
+    CF.freeCam = true; // keep the game loop's boot-intro overlay out of the final frame
+    if (CF._pauseEl) CF._pauseEl.style.display = 'none'; // headless loops tick sparsely - hide explicitly
+    for (let i = 0; i < 60 && W.stats().queue; i++) { W.tick(); CF.renderTick(); }
+    for (let i = 0; i < 40; i++) CF.renderTick();
+    CF.camera = { pos: [P.pos[0] - 5, P.pos[1] + 9, P.pos[2] - 5], yaw: Math.PI / 4 + Math.PI, pitch: -0.22 }; // float behind/above, looking back over the traversed trail
+    CF.renderDraw(CF.camera);
+    document.title = 'FF:' + encodeURIComponent(JSON.stringify({
+      pos: P.pos.map((v) => Math.round(v)), chunks: W.stats().chunks, mapped: CF.rendererStats.mapped,
+      drawn: CF.rendererStats.drawn, tris: CF.rendererStats.tris, sim: Math.round(CF.simMs || 0),
+      ov: CF._pauseEl ? CF._pauseEl.style.display : 'NOEL', paused: !!CF.paused, free: !!CF.freeCam,
+    }));
     await new Promise((res) => setTimeout(res, 300));
   };
   CF.shotScenarios['storage-wall'] = async () => { // #051: gold/iron/diamond/brick/clay row

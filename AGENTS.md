@@ -24,8 +24,10 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
     trample, wheat/carrot/potato stage-growth (randomTick+CF.growCrop), 1.12 harvest tables, bread; +7 asserts
     232/216; latent-bug haul: tryCraft width-pad hole (hoe matched PICKAXE recipe), torch-code vs crop-stage
     clobber, #060 boot-pause = shot framing drift, makeWorld-touched CF.growCrop global, arena stomps AGAIN.
-    NEXT: #055+#056 NETHER (centerpiece), #057 redstone SPK, #058 streaming, #059 recipe book;
-    backlog #044/#045/#048 (+poisonous_potato, +F7-black leftovers + torch flame tile art). Audit #7 at close. - Gate: TEST GREEN 232 full / 216 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 56/399 (TNT/chest/bed functional:false -
+    #058 DONE (streaming VERIFY - found NOTHING was ever evicted! R_KEEP=7 clean-chunk eviction + GL buffer free + dirty/genQueue/lightDone prune; stream-bounded
+    (1920-block replay, resident<=225, queue drains) + stream-save (far tower roundtrip) asserts; far-field.png PASS; Tier-1 worldgen row flipped [x]).
+    NEXT: #055+#056 NETHER (centerpiece), #057 redstone SPK, #059 recipe book;
+    backlog #044/#045/#048 (+poisonous_potato, +F7-black leftovers + torch flame tile art). Audit #7 at close. - Gate: TEST GREEN 234 full / 218 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 56/399 (TNT/chest/bed functional:false -
   procedural tiles, not Blender; mechanics shipped+tested, not counted: honest)
   proof-bound (t1 20/125): 15 core+torch+glowstone+furnace + water+lava (#043 buckets).
 - Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy TWO-SIDED faces+AO-less shaded+light+fog),
@@ -41,6 +43,12 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #058 streaming verify: the Tier-1 "infinite world" claim was UNVERIFIED - nothing was ever evicted (chunks/meshMap GL/
+  lightDone grew unboundedly). Added R_KEEP=7 clean-chunk eviction (edited chunks stay until persistence lands them),
+  VAO/VBO free on evict, dirty/genQueue/lightDone prune, renderTick guards. 1920-block diagonal replay + 600-tick real
+  walk: resident chunks capped <=225, queues drain 0, far tower survives save/load (found: persist wrappers must be
+  installed BEFORE edits or edits go unsaved). world.stream-bounded/save asserts, far-field.png PASS (needed
+  CF_BUDGET/CF_TIMEOUT env in shot.mjs - software GL). Tier-1 worldgen row flipped [x]. 234/218 GREEN.
 - #054 farming v1: hoe x4 (1.12 patterns) till->farmland (+trample revert on empty-landing, sneak/crop safe),
   wheat/carrot/potato cross crops with flat-bit stages -> stageTiles in the SAME cross pass, randomTick growth +
   CF.growCrop API (light-gated; force=bone-meal hook), 1.12 harvest tables, bread(+5). Farm item icons landed.

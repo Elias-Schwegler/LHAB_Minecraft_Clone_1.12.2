@@ -44,7 +44,7 @@ window.CF = window.CF || {};
       CF.paused = !!(p && !p.input.scripted && !CF.freeCam && !CF.sleeping &&
         ((CF._everLocked && !document.pointerLockElement) || (CF.ui && CF.ui.open)));
       if (CF._pauseEl) {
-        const intro = !CF._everLocked; // boot hint (sim keeps running, overlay is pointer-transparent)
+        const intro = !CF._everLocked && !(p && p.input.scripted) && !CF.freeCam; // boot hint for REAL players only (shots/tests never show it)
         CF._pauseEl.style.display = CF.paused || intro ? 'flex' : 'none';
         if (CF._pauseEl.firstChild) CF._pauseEl.firstChild.textContent = CF.paused ? 'Game Paused' : 'Cubeforge';
       }

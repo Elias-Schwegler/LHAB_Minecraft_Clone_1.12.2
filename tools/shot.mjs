@@ -11,6 +11,6 @@ const dir = p('qa', today());
 mkdirSync(dir, { recursive: true });
 const out = `${dir}\\${name}.png`;
 const q = qs.length ? '?' + qs.join('&') : '';
-runBrowser({ url: toFileUrl(p('game', 'index.html')) + q + `#shot=${name}`, screenshot: out, budget: 12000, timeout: 90000 });
+runBrowser({ url: toFileUrl(p('game', 'index.html')) + q + `#shot=${name}`, screenshot: out, budget: +(process.env.CF_BUDGET || 12000), timeout: +(process.env.CF_TIMEOUT || 90000) });
 if (!existsSync(out) || statSync(out).size < 500) { console.error(`FAIL: screenshot missing/too small: ${out}`); process.exit(1); }
 console.log(`shot OK -> ${out} (${statSync(out).size} bytes) — run vision check per DoD before DONE`);
