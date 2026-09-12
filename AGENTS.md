@@ -1,11 +1,12 @@
 # AGENTS.md — project STATE memory (1-minute grounding)
 Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each session) · Spec: docs/REFERENCE.md
 
-## Current state (2026-09-12, SPRINT 04 ACTIVE - it29)
-- Tags: v0.0.0 scaffold → v0.1.0 sprint01+fixes → v0.2.0 sprint02 closed -> v0.3.0 SPRINT 03 CLOSED (audit #6 READY-WITH-NOTES, 7 P3 fixed same-close).
+## Current state (2026-09-12, SPRINT 04 CLOSED - sprint 05 NEXT)
+- Tags: v0.0.0 scaffold → v0.1.0 sprint01+fixes → v0.2.0 sprint02 closed -> v0.3.0 SPRINT 03 CLOSED (audit #6 READY-WITH-NOTES, 7 P3 fixed same-close) -> v0.4.0 SPRINT 04 CLOSED (audit #7 READY-WITH-NOTES, 0 P0/P1).
 - Sprint 03 CLOSED: #033 #035 #032 #036 #037 #038 #042 #039 #040 #041 #046 #047 #043 #034 ALL DONE (#043 closed
   #031 + fixed P1 atlas icon-stride bug; README+GitHub origin+issue mirror done).
-  SPRINT 04 PLANNED+ACTIVE (docs/sprints/04.md, issues 049-059 mirrored): nether/dimension FEAT (SPK-7 GO design!), #044 mob polish, #045 3x3 GUI,
+  SPRINT 04 CLOSED: audit #7 READY-WITH-NOTES (0 P0/P1, 1 P2 + 5 P3 - F1 test.mjs budget-retry + F6 workbench
+  title fixed same-close; F4 -> #061; F5 -> #048). (docs/sprints/04.md, issues 049-060 mirrored): nether/dimension FEAT (SPK-7 GO design!), #044 mob polish, #045 3x3 GUI,
   #048 fidelity (+F7 black patch), spider/enderman, redstone SPK (Tier-2 gate), infinite-streaming verify, recipe book.
     #049 #050 #051 #052 DONE (wood 29/399, wool 45, storage 50, SLABS multi-box model 53/399=13.3%).
     URGENT user reports #105 (torch upside-down = 3 bugs: chunk-local cross verts, emitter overwrote packed
@@ -41,10 +42,13 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
     #057 DONE (SPK-8 GO - docs/spikes/SPK-8-redstone.md, src untouched): full re-flood per change = 0.07-2.6ms at
     bell->village scale (relight pattern, idle 0ms, power is DERIVED -> zero persistence work); dirty-graph not
     needed; sprint-05 redstone FEAT chain UNBLOCKED (dust/torch, repeater+fReady-style delay queue, lamp, piston-lite).
-    SPRINT-04 CODE COMPLETE -> close: review/retro/METRICS + audit #7 + tag v0.4.0; backlog #044/#048 carry to 05
-    (+poisonous_potato, +F7-black leftovers + torch flame tile art + mob drops/chain icons). - Gate: TEST GREEN 241 full / 225 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 58/399 (TNT/chest/bed/portal functional:false -
+    SPRINT 04 CLOSED: audit #7 READY-WITH-NOTES (0 P0/P1, 1 P2 + 5 P3 - F1 gate-flake retried in test.mjs + F6
+    workbench title fixed same-close; F2/F3 doc drift fixed here; F4 -> #061 suite-coupling, F5 quartz sheet -> #048).
+    Backlog to 05: #044/#048/#061 (+poisonous_potato, +F7-black leftovers + torch flame tile art + mob drops/chain
+    icons). - Gate: TEST GREEN 241 full / 225 quick (WALL ~180s since two-sided mesher - sim-time lies), 0 errors.
+    Parity: 58/399 (TNT/chest/bed/portal functional:false -
   procedural tiles, not Blender; mechanics shipped+tested, not counted: honest)
-  proof-bound (t1 20/125): 15 core+torch+glowstone+furnace + water+lava (#043 buckets).
+  proof-bound: t1 43/125 (wood/wool/storage/slabs/stairs/farm-items era), t2 15/163 (+netherrack+quartz #056).
 - Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy TWO-SIDED faces+AO-less shaded+light+fog),
   break/place/drops/tiers+crafting+smelting, items/inventory/UI, physics(snap-ratchet fixed #046), day/night, block+sky light,
   fluids v1, survival stats+HUD, save/load, F3 v2, torch per-face, MOB CORE v1 (entity physics, light<=7
@@ -58,6 +62,11 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- SPRINT 04 CLOSE (this commit): audit #7 READY-WITH-NOTES (0 P0/P1; gate 241/225 + parity 58/399 independently
+  reproduced by auditor). Same-close fixes: F1 test.mjs auto-retry w/ doubled virtual budget (boot starvation
+  flake), F6 workbench panel title 'Crafting (E to close)' (ui.js titleEl + refresh, ui-book.png re-shot vision
+  PASS), F2/F3 AGENTS parity/wall drift, #061 opened (suite order-coupling), F5 noted on #048. Review/retro in
+  sprints/04.md; METRICS row 04 added. TAG v0.4.0.
 - #057 SPK-8 redstone budget (docs+spike only, src untouched): pure-Node bench (spike/redstone-sim.mjs) of
   full re-flood (relight pattern) vs dirty-graph at chain-30/chain-200/village-2.4k scales. GO: A = 0.07-2.6ms/event,
   worst-case B == A, idle 0ms, power DERIVED -> NO persistence work (same trick as light). Escape hatch:

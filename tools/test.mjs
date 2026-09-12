@@ -19,9 +19,18 @@ const budget = spec === 'all' ? 16000 : 8000;
 if (!existsSync(p('game', 'index.html'))) { console.error('run tools/build.mjs first'); process.exit(2); }
 
 const url = toFileUrl(p('game', 'index.html')) + '#test=' + encodeURIComponent(spec);
-const dom = runBrowser({ url, dumpDom: true, budget, timeout });
-const m = dom.match(/<title>TESTRESULT:([^<]*)<\/title>/);
-if (!m) { console.error('FAIL: no TESTRESULT in title (harness did not finish)'); process.exit(1); }
+// audit#7 F1: virtual-time budget can starve on loaded machines (boot never reaches TESTRESULT -
+// "title stuck Cubeforge") and the 240s kill occasionally trips. Retry with a doubled budget
+// instead of failing the gate on a flake (the ASSERT data itself was never in question).
+let dom = null, m = null;
+for (let attempt = 0; attempt < 3 && !m; attempt++) {
+  const b = budget << attempt;
+  try { dom = runBrowser({ url, dumpDom: true, budget: b, timeout }); }
+  catch (e) { console.error(`  attempt ${attempt + 1} died (${String(e.message).slice(0, 60)}) - retrying budget=${b * 2}`); continue; }
+  m = dom.match(/<title>TESTRESULT:([^<]*)<\/title>/);
+  if (!m && attempt < 2) console.error(`  attempt ${attempt + 1} (budget=${b}) produced no TESTRESULT - retrying budget=${b * 2}`);
+}
+if (!m) { console.error('FAIL: no TESTRESULT in title after 3 attempts (harness did not finish)'); process.exit(1); }
 const r = JSON.parse(decodeURIComponent(m[1]));
 const ok = r.fail.length === 0 && r.errors.length === 0;
 console.log(ok ? 'TEST GREEN' : 'TEST RED', `(spec: ${spec})`);
