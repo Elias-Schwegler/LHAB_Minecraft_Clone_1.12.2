@@ -1,7 +1,7 @@
 # AGENTS.md — project STATE memory (1-minute grounding)
 Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each session) · Spec: docs/REFERENCE.md
 
-## Current state (2026-09-09, SPRINT 04 ACTIVE - it25)
+## Current state (2026-09-12, SPRINT 04 ACTIVE - it29)
 - Tags: v0.0.0 scaffold → v0.1.0 sprint01+fixes → v0.2.0 sprint02 closed -> v0.3.0 SPRINT 03 CLOSED (audit #6 READY-WITH-NOTES, 7 P3 fixed same-close).
 - Sprint 03 CLOSED: #033 #035 #032 #036 #037 #038 #042 #039 #040 #041 #046 #047 #043 #034 ALL DONE (#043 closed
   #031 + fixed P1 atlas icon-stride bug; README+GitHub origin+issue mirror done).
@@ -28,8 +28,13 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
     materials-filtered click-to-fill list; TDZ boot-killer + len-4 craft reset found; ui.book assert; overlay gated for shots)
     #058 DONE (streaming VERIFY - found NOTHING was ever evicted! R_KEEP=7 clean-chunk eviction + GL buffer free + dirty/genQueue/lightDone prune; stream-bounded
     (1920-block replay, resident<=225, queue drains) + stream-save (far tower roundtrip) asserts; far-field.png PASS; Tier-1 worldgen row flipped [x]).
-    NEXT: #055+#056 NETHER (centerpiece), #057 redstone SPK;
-    backlog #044/#045/#048 (+poisonous_potato, +F7-black leftovers + torch flame tile art). Audit #7 at close. - Gate: TEST GREEN 235 full / 219 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 56/399 (TNT/chest/bed functional:false -
+    #055 DONE (NETHER PORTAL centerpieces, SPK-7 design executed): portal block (light11 cross, functional:false) +
+    1.12 frame validation (corners OPTIONAL!) + flint&steel ignite ahead of TNT + CF.warp 8:1 (dims/BE-swap/
+    renderReset/entity-wipes/search-or-build destination/warpArmed cooldown, trackWorld-before-edits re-earned)
+    + PERSIST V2 {active,dims} w/ v1 auto-migration; +3 asserts (portal-frame/warp/save.v2), nether-warp.png
+    reload-past-warp vision PASS; nether terrain = placeholder until #056. #045 closed via #059 (3x3 GUI).
+    NEXT: #056 NETHER GEN (netherrack/quartz/lava-seas/no-skylight + bed-explodes rule), #057 redstone SPK;
+    backlog #044/#048 (+poisonous_potato, +F7-black leftovers + torch flame tile art). Audit #7 at close. - Gate: TEST GREEN 238 full / 222 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 56/399 (TNT/chest/bed/portal functional:false -
   procedural tiles, not Blender; mechanics shipped+tested, not counted: honest)
   proof-bound (t1 20/125): 15 core+torch+glowstone+furnace + water+lava (#043 buckets).
 - Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy TWO-SIDED faces+AO-less shaded+light+fog),
@@ -38,13 +43,23 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   night/cave spawning survival-gated, sun burn, player-kill loot; mobs render as palette-lit boxes),
   MOB AI v1 (heap-A* chase + 1.12 melee + player 1.9 charge-meter combat, knockback, entity-over-mining),
   MOB ROSTER v2 (skeleton ranged+arrows, creeper fuse+1.12 ray-marched crater via src/explode.js).
-  Remaining Tier-1: infinite-streaming verify, recipe-book UI.
-  (mob roster + combat + spawn rules + TNT + chests + beds/sleep + weather all DONE)
+  Remaining Tier-1: NONE (streaming verify #058 + recipe book #059 shipped; redstone-gated items are Tier-2).
+  (mob roster + combat + spawn rules + TNT + chests + beds/sleep + weather + farming + nether-warp plumbing all DONE)
 - Carried FIXes: #031 CLOSED via #046+#043 (banding 3 causes + buckets). #032 CLOSED it9.
 - Nice dev seed: 5 = plains (all baselines use it). Play mode = open game/index.html (F4 survival, E inv,
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #055 NETHER PORTAL + warp + persist v2 (SPK-7 design executed): portal block (light 11, cross tile_portal, functional:false)
+  + 1.12 frame validation (2x3 interior, obsidian sill/cap/pillars, CORNERS OPTIONAL - issue body over-strict, 1.12 wins)
+  + flint&steel ignite brute-forcing 6 origins, routed ahead of TNT in useFlintSteel; CF.warp = dim map + per-dim BE
+  swap + renderReset + mob/tnt/itemEnt/projectile wipes + 8:1 both ways + destination portal SEARCH (r<=16) else
+  deterministic BUILD (base>=64; needs ensureAround+drain first - set() is silent no-op on ungenerated chunks) +
+  warpArmed cooldown; nether world = seed^0x5EED made lazily w/ CF.trackWorld BEFORE first edit. PERSIST V2:
+  {active, dims:{over,nether}} per-dim chunks/flats/bes, player on active dim, v1 blobs auto-migrate
+  (loadNow._migrated), per-dim BE orphan prune. +3 asserts (interact.portal-frame, game.warp, save.v2), 238/222;
+  nether-warp.png (ignite->warp->save->reload->sill camera w/ LOS carve; title probe proves pos+dim survive) vision PASS.
+  Nether terrain still overworld-placeholder -> #056. #045 (3x3 GUI) verified closed via #059.
 - #059 recipe book UI + THE 3x3 WORKBENCH GUI it exposed missing: right-click crafting_table -> uiOpenWorkbench (9-slot
   CF.ui.craft, 2x2 mode = lattice 0/1/3/4 hidden+guarded, close returns all); book = panel of recipes the current
   inventory can pay for AND that fit the lattice (2x2 correctly hides tool shapes - matches MC), click = bookFill

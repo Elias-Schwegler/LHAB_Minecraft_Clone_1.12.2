@@ -587,176 +587,183 @@
   "h": 16,
   "src": "blender:gen.py:icons"
  },
- "item_bread": {
+ "tile_portal": {
   "x": 0,
+  "y": 112,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py:icons"
+ },
+ "item_bread": {
+  "x": 16,
   "y": 112,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "item_wheat_seeds": {
-  "x": 16,
+  "x": 32,
   "y": 112,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "item_carrot": {
-  "x": 32,
+  "x": 48,
   "y": 112,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "item_potato": {
-  "x": 48,
+  "x": 64,
   "y": 112,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "item_wood_pickaxe": {
-  "x": 64,
+  "x": 80,
   "y": 112,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "item_wood_axe": {
-  "x": 80,
+  "x": 96,
   "y": 112,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "item_wood_shovel": {
-  "x": 96,
+  "x": 112,
   "y": 112,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "item_wood_sword": {
-  "x": 112,
+  "x": 128,
   "y": 112,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "item_wood_hoe": {
-  "x": 128,
+  "x": 144,
   "y": 112,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "item_stone_pickaxe": {
-  "x": 144,
+  "x": 160,
   "y": 112,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "item_stone_axe": {
-  "x": 160,
+  "x": 176,
   "y": 112,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
  "item_stone_shovel": {
-  "x": 176,
-  "y": 112,
-  "w": 16,
-  "h": 16,
-  "src": "blender:gen.py:icons"
- },
- "item_stone_sword": {
   "x": 0,
   "y": 128,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
- "item_stone_hoe": {
+ "item_stone_sword": {
   "x": 16,
   "y": 128,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
- "item_iron_pickaxe": {
+ "item_stone_hoe": {
   "x": 32,
   "y": 128,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
- "item_iron_axe": {
+ "item_iron_pickaxe": {
   "x": 48,
   "y": 128,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
- "item_iron_shovel": {
+ "item_iron_axe": {
   "x": 64,
   "y": 128,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
- "item_iron_sword": {
+ "item_iron_shovel": {
   "x": 80,
   "y": 128,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
- "item_iron_hoe": {
+ "item_iron_sword": {
   "x": 96,
   "y": 128,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
- "item_diamond_pickaxe": {
+ "item_iron_hoe": {
   "x": 112,
   "y": 128,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
- "item_diamond_axe": {
+ "item_diamond_pickaxe": {
   "x": 128,
   "y": 128,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
- "item_diamond_shovel": {
+ "item_diamond_axe": {
   "x": 144,
   "y": 128,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
- "item_diamond_sword": {
+ "item_diamond_shovel": {
   "x": 160,
   "y": 128,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
- "item_diamond_hoe": {
+ "item_diamond_sword": {
   "x": 176,
   "y": 128,
   "w": 16,
   "h": 16,
   "src": "blender:gen.py:icons"
  },
- "item_shears": {
+ "item_diamond_hoe": {
   "x": 0,
+  "y": 144,
+  "w": 16,
+  "h": 16,
+  "src": "blender:gen.py:icons"
+ },
+ "item_shears": {
+  "x": 16,
   "y": 144,
   "w": 16,
   "h": 16,

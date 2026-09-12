@@ -1,5 +1,5 @@
 # Issue: 045 — Crafting-table GUI (3x3 grid)
-- Type: FIX (gap) | Status: DRAFT | Epic: Containers | Sprint: — (backlog, picked up with #040 chest GUI work)
+- Type: FIX (gap) | Status: DONE (shipped inside #059) | Epic: Containers | Sprint: 04 (backlog, picked up with #040 chest GUI work)
 - Depends on: #032 (container slots DONE)
 
 ## Why
@@ -14,5 +14,13 @@ crafting_table block is registered but its `useBlock` currently does nothing (no
 - Then un-hide TNT/flint-steel crafting in play; add a shot + `ui.craft3x3-*` asserts.
 
 ## Acceptance
-- [ ] AC1 placing a crafting_table + RMB opens 3x3; crafting TNT from gunpowder+sand in the UI works -> ui.craft3-*.
-- [ ] AC2 zero regression.
+- [x] AC1 placing a crafting_table + RMB opens 3x3; crafting TNT from gunpowder+sand in the UI works -> ui.craft3-*.
+- [x] AC2 zero regression.
+
+## Evidence (2026-09-12, shipped inside #059)
+- RMB crafting_table -> CF.uiOpenWorkbench: 9-slot CF.ui.craft grid + result, 2x2 hand grid preserved (lattice
+  0/1/3/4 mapped+guarded when craftSize=2). Recipe book (materials+fit filtered, click-to-fill) ships alongside -
+  2x2 correctly hides 3-wide tool shapes (MC-matching). Assert `ui.book` (book fill->craft round-trip incl. a
+  3-wide recipe); TNT (5 gunpowder/4 sand) fits the 3x3 and the book lists it when paid.
+- Outed by this work: pre-#059 tools were NOT craftable in-game at all (2x2-only UI; items tests called
+  tryCraft directly) - parity crafting row annotated honestly. 235/219 GREEN at #059 merge; ui-book.png vision PASS.

@@ -42,43 +42,72 @@ window.CF = window.CF || {};
     if (origF) w.flatSet = function (x, y, z, fm) { origF(x, y, z, fm); w.edited.add(Math.floor(x / 16) + ',' + Math.floor(z / 16)); };
   }
 
-  function saveNow() {
-    const w = CF.world;
-    if (!w) return null;
+  function packDim(w, besMap) { // #055 v2: per-dimension chunks/flats/bes payload
     initEditTracking(w);
-    const save = { v: 1, seed: w.seed, time: CF.ticks, player: CF.player ? {
-      pos: CF.player.pos.map((v) => +v.toFixed(2)), yaw: CF.player.yaw, pitch: CF.player.pitch, sel: CF.sel } : null,
-      chunks: {}, bes: CF.blockEntities || {} }; // #040: chests+furnaces persist (was furnace-losing-on-reload before)
-    let bytes = 0;
+    const e = { chunks: {}, flats: {} };
     const keys = [...w.edited];
-    keys.sort((a, b) => { // far chunks saved last so eviction drops them first
+    keys.sort((a, b) => {
       const [ax, az] = a.split(',').map(Number), [bx, bz] = b.split(',').map(Number);
       return Math.hypot(bx * 16, bz * 16) - Math.hypot(ax * 16, az * 16);
     });
     for (const k of keys) {
       const c = w.chunks.get(k);
       if (!c) continue;
-      const enc = rleEncode(c.arr);
-      save.chunks[k] = b64e(enc);
-      bytes += save.chunks[k].length;
-      if (c.flat) { // #053: flat model-meta bits (slab/stairs/torch/bed) ride along (RLE = tiny)
+      e.chunks[k] = b64e(rleEncode(c.arr));
+      if (c.flat) {
         let any = false;
         for (let i = 0; i < c.flat.length && !any; i++) if (c.flat[i]) any = true;
-        if (any) { if (!save.flats) save.flats = {}; save.flats[k] = b64e(rleEncode(c.flat)); }
+        if (any) e.flats[k] = b64e(rleEncode(c.flat));
       }
+    }
+    e.bes = besMap || {};
+    return e;
+  }
+
+  function saveNow() {
+    const w = CF.world;
+    if (!w) return null;
+    if (CF.dims) CF.dims[CF.activeDim || 'over'] = w; // live pointer (warp/load keep dims fresh)
+    const active = CF.activeDim || 'over';
+    const src = CF.dims ? CF.dims : { over: w };
+    const save = { v: 2, seed: w.seed, time: CF.ticks, active, dims: {} };
+    let total = 0;
+    for (const key of Object.keys(src)) {
+      const dw = src[key];
+      if (!dw) continue;
+      const besMap = CF.dimBes ? CF.dimBes[key] : (key === active ? CF.blockEntities : {});
+      const e = packDim(dw, besMap);
+      if (key === active && CF.player) e.player = { pos: CF.player.pos.map((v) => +v.toFixed(2)), yaw: CF.player.yaw, pitch: CF.player.pitch, sel: CF.sel };
+      save.dims[key] = e;
+      total += Object.keys(e.chunks).length;
     }
     let warn = null;
     for (;;) {
       try { localStorage.setItem(KEY, JSON.stringify(save)); break; }
-      catch (e) {
-        const ks = Object.keys(save.chunks);
+      catch (err) {
+        const es = save.dims[active];
+        const ks = es ? Object.keys(es.chunks) : [];
         if (!ks.length) { warn = 'quota: nothing left'; break; }
-        delete save.chunks[ks[ks.length - 1]]; // evict farthest
+        delete es.chunks[ks[ks.length - 1]]; // evict farthest active-dim chunk
         warn = 'quota: evicted far edited chunk';
       }
     }
-    CF.saveInfo = { bytes: JSON.stringify(save).length, chunks: Object.keys(save.chunks).length, warn };
+    CF.saveInfo = { bytes: JSON.stringify(save).length, chunks: total, warn };
     return CF.saveInfo;
+  }
+
+  function applyDim(seed, key, d) { // build/rehydrate one dimension; returns world or null
+    if (!d && key === 'nether') return null;
+    const dw = CF.makeWorld(key === 'nether' ? ((seed ^ 0x5EED) >>> 0) : seed);
+    initEditTracking(dw);
+    for (const [k, b] of Object.entries((d && d.chunks) || {})) {
+      const [cx, cz] = k.split(',').map(Number);
+      dw.generate(cx, cz);
+      const c = dw.chunks.get(k);
+      if (c) { c.arr.set(rleDecode(b64d(b), c.arr.length)); dw.edited.add(k); dw.dirty.add(k); }
+      if (c && d.flats && d.flats[k]) { if (!c.flat) c.flat = new Uint8Array(16 * 128 * 16); c.flat.set(rleDecode(b64d(d.flats[k]), c.flat.length)); dw.dirty.add(k); } // #053 meta bits (lazy flat!)
+    }
+    return dw;
   }
 
   function loadNow() {
@@ -88,37 +117,61 @@ window.CF = window.CF || {};
     loadNow._raw = String(raw).slice(0, 12);
     let save = null;
     try { save = JSON.parse(raw); } catch (e) { loadNow._rej = 'parse'; localStorage.removeItem(KEY); return false; }
-    if (!save || save.v !== 1) { loadNow._rej = 'ver'; localStorage.removeItem(KEY); return false; }
-    CF.world = CF.makeWorld(save.seed);
+    if (!save || (save.v !== 1 && save.v !== 2)) { loadNow._rej = 'ver'; localStorage.removeItem(KEY); return false; }
+    loadNow._migrated = save.v === 1; // #055 v1 -> v2: one world + top-level chunks/flats/bes becomes dims.over
+    let dims, active, bes;
+    if (save.v === 1) {
+      dims = { over: null, nether: null };
+      active = 'over';
+      bes = { over: save.bes || {}, nether: {} };
+      const dw = applyDim(save.seed, 'over', { chunks: save.chunks, flats: save.flats });
+      dims.over = dw;
+      if (save.player && CF.player) { CF.player.tp(...save.player.pos); CF.player.yaw = save.player.yaw; CF.player.pitch = save.player.pitch; }
+      if (CF.player) CF.sel = save.player ? save.player.sel || 0 : 0;
+    } else {
+      dims = { over: null, nether: null };
+      active = save.active === 'nether' ? 'nether' : 'over';
+      bes = { over: {}, nether: {} };
+      for (const key of ['over', 'nether']) {
+        const d = save.dims && save.dims[key];
+        if (!d && !save.dims) continue;
+        dims[key] = applyDim(save.seed, key, d);
+        if (d) bes[key] = d.bes || {};
+        if (d && d.player && key === active && CF.player) {
+          CF.player.tp(...d.player.pos); CF.player.yaw = d.player.yaw; CF.player.pitch = d.player.pitch; CF.sel = d.player.sel || 0;
+        }
+      }
+    }
+    if (!dims.over) dims.over = applyDim(save.seed, 'over', null);
+    CF.world = dims[active] || dims.over;
+    CF.activeDim = dims[active] ? active : 'over';
+    CF.dims = dims;
+    CF.dimBes = bes;
+    CF.blockEntities = bes[CF.activeDim] || (bes[CF.activeDim] = {});
     CF.renderReset && CF.renderReset();
     CF.mobs && CF.mobs.clear(); // mobs are transient (persistence = backlog #044)
     if (CF.tnts) CF.tnts.length = 0; // primed TNT not persisted either
-    initEditTracking(CF.world);
-    for (const [k, b] of Object.entries(save.chunks || {})) {
-      const [cx, cz] = k.split(',').map(Number);
-      CF.world.generate(cx, cz);
-      const c = CF.world.chunks.get(k);
-      if (c) { c.arr.set(rleDecode(b64d(b), c.arr.length)); CF.world.edited.add(k); CF.world.dirty.add(k); }
-      if (c && save.flats && save.flats[k]) { if (!c.flat) c.flat = new Uint8Array(16 * 128 * 16); c.flat.set(rleDecode(b64d(save.flats[k]), c.flat.length)); CF.world.dirty.add(k); } // #053 meta bits (lazy flat!)
-    }
-    if (save.player && CF.player) {
-      CF.player.tp(...save.player.pos);
-      CF.player.yaw = save.player.yaw; CF.player.pitch = save.player.pitch;
-      CF.sel = save.player.sel || 0;
-    }
+    if (CF.itemEnts) CF.itemEnts.length = 0; // #060 dropped items are transient
     CF.ticks = save.time || 0;
-    // #040: restore container BEs (drop orphans whose block is gone, e.g. blown up before saving)
-    CF.blockEntities = {};
-    for (const [k, b] of Object.entries(save.bes || {})) {
-      const [bx, by, bz] = k.split(',').map(Number);
-      const nm = CF.BY_ID[CF.world.get(bx, by, bz)];
-      if (nm && ((nm.name === 'chest' && b.type === 'chest') || (nm.name === 'furnace' && b.type === 'furnace'))) CF.blockEntities[k] = b;
+    // #040: restore container BEs per dim (drop orphans whose block is gone, e.g. blown up before saving)
+    for (const key of ['over', 'nether']) {
+      const dw = dims[key];
+      if (!dw) { bes[key] = {}; continue; }
+      const kept = {};
+      for (const [k, b] of Object.entries(bes[key] || {})) {
+        const [bx, by, bz] = k.split(',').map(Number);
+        const nm = CF.BY_ID[dw.get(bx, by, bz)];
+        if (nm && ((nm.name === 'chest' && b.type === 'chest') || (nm.name === 'furnace' && b.type === 'furnace'))) kept[k] = b;
+      }
+      bes[key] = kept;
     }
+    CF.blockEntities = bes[CF.activeDim];
     CF.loaded = true;
     return true;
   }
 
   CF.saveNow = saveNow;
+  CF.trackWorld = initEditTracking; // #055: newly created worlds (warp nether!) must be tracked BEFORE their first edit or changes never save
   CF.loadNow = loadNow;
   if (CF.world) initEditTracking(CF.world);
 
@@ -163,5 +216,37 @@ window.CF = window.CF || {};
       bad === false && !!CF.world && CF.world.heightAt(0, 0) > 0);
     localStorage.removeItem('cf-save-1');
     CF.autosavePaused = false;
+    // #055 persist v2: markers in BOTH dims survive save->load; a v1 blob auto-migrates into dims.over
+    {
+      CF.autosavePaused = true;
+      const dw0 = CF.dims, overW = CF.world, nW = dw0 && dw0.nether;
+      const ox = 12, oz = 12, oy = overW.heightAt(ox, oz);
+      overW.set(ox, oy, oz, CF.IDOF['stone']);
+      CF.player.tp(ox + 0.5, oy + 3, oz + 5);
+      let okN = false;
+      if (nW) {
+        const nx = 20, nz = 20;
+        nW.ensureAround(nx, nz, 1);
+        for (let i = 0; i < 40 && nW.stats().queue; i++) nW.tick();
+        const ny = nW.heightAt(nx, nz);
+        nW.set(nx, ny, nz, CF.IDOF['gold_block']);
+        CF.saveNow(); CF.loadNow();
+        const nw2 = CF.dims.nether;
+        if (nw2) {
+          nw2.ensureAround(nx, nz, 1);
+          for (let i = 0; i < 40 && nw2.stats().queue; i++) nw2.tick();
+          okN = nw2.get(nx, ny, nz) === CF.IDOF['gold_block'];
+        }
+      }
+      const okOver = CF.dims.over.get(ox, oy, oz) === CF.IDOF['stone'];
+      // hand-built v1 blob migrates: over-only, player/sel/time land
+      const seedV1 = CF.dims.over.seed;
+      localStorage.setItem('cf-save-1', JSON.stringify({ v: 1, seed: seedV1, time: 999, player: { pos: [8.5, 80, 8.5], yaw: 0.5, pitch: -0.2, sel: 4 }, chunks: {}, bes: {} }));
+      const mok = CF.loadNow();
+      const migOk = mok === true && CF.loadNow._migrated === true && CF.activeDim === 'over' && CF.ticks === 999 && CF.sel === 4 && Math.abs(CF.player.yaw - 0.5) < 1e-9;
+      localStorage.removeItem('cf-save-1');
+      CF.autosavePaused = false;
+      CF.assert(r, 'save.v2(' + okOver + ',' + okN + ',mig=' + migOk + ')', okOver && okN && migOk);
+    }
   };
 })();

@@ -356,6 +356,66 @@ window.CF = window.CF || {};
       CF.drops.length = 0; CF.world.set(70, h, 70, 0); CF.world.set(70, h + 1, 70, 0); CF.world.flatSet(70, h, 70, 0);
       CF.inv.fill(null); for (const s of invSave) if (s) CF.give(s.name, s.count); CF.sel = selSave; CF.player.yaw = yawSave; CF.uiRefresh && CF.uiRefresh();
     }
+    // #055 portal: 1.12 frame validation (+missing-corner leniency), flint&steel ignition, light 11
+    {
+      const px = 56, pz = 56;
+      CF.world.ensureAround(px, pz, 1);
+      for (let i = 0; i < 20 && CF.world.stats().queue; i++) CF.world.tick();
+      const g = CF.world.heightAt(px, pz); // air row starts at g
+      for (let x = px - 2; x <= px + 4; x++) for (let z = pz - 2; z <= pz + 2; z++) {
+        for (let y = g; y < g + 8; y++) CF.world.set(x, y, z, 0);
+        CF.world.set(x, g - 1, z, CF.IDOF['stone']);
+      }
+      const OBS = CF.IDOF['obsidian'], PT = CF.IDOF['portal'];
+      const frame = () => {
+        for (const x of [px, px + 1]) { CF.world.set(x, g - 1, pz, OBS); CF.world.set(x, g + 3, pz, OBS); }
+        for (let y = g; y <= g + 2; y++) { CF.world.set(px - 1, y, pz, OBS); CF.world.set(px + 2, y, pz, OBS); }
+      };
+      frame();
+      const invSave = CF.inv.map((s) => (s ? { name: s.name, count: s.count } : null)), selSave = CF.sel;
+      CF.inv.fill(null); CF.inv[0] = { name: 'flint_and_steel', count: 1 }; CF.sel = 0;
+      const invalidBefore = CF.portalTryIgnite({ x: px + 5, y: g - 1, z: pz, face: [0, 1, 0] }); // far air, no frame
+      CF.world.set(px + 2, g + 1, pz, 0); // break the pillar (missing middle, not corner)
+      const invalidMid = CF.portalTryIgnite({ x: px, y: g - 1, z: pz, face: [0, 1, 0] });
+      CF.world.set(px + 2, g + 1, pz, OBS); // restore
+      CF.world.set(px - 1, g - 1, pz, 0); CF.world.set(px + 2, g - 1, pz, 0); CF.world.set(px - 1, g + 3, pz, 0); CF.world.set(px + 2, g + 3, pz, 0); // CORNERS EMPTY: 1.12 accepts
+      const ign = CF.portalTryIgnite({ x: px, y: g - 1, z: pz, face: [0, 1, 0] });
+      let cells = 0;
+      for (let x = px; x <= px + 1; x++) for (let y = g; y <= g + 2; y++) if (CF.world.get(x, y, pz) === PT) cells++;
+      CF.world.ensureLight(px >> 4, pz >> 4);
+      for (let i = 0; i < 6 && (CF.world.stats().queue || CF.world.dirty.size); i++) { CF.world.tick(); CF.renderTick(); }
+      const li = CF.world.lightAt(px, g + 1, pz);
+      CF.assert(r, 'interact.portal-frame(' + invalidBefore + ',' + invalidMid + ',' + ign + ',' + cells + ',li=' + li + ')',
+        invalidBefore === false && invalidMid === false && ign === true && cells === 6 && (li & 15) === 11);
+      // leave the lit portal standing for game.warp below
+      CF.inv.fill(null); for (const s of invSave) if (s) CF.give(s.name, s.count); CF.sel = selSave; CF.uiRefresh && CF.uiRefresh();
+    }
+    // #055 warp: step in -> nether instance (8:1), step back -> overworld intact (SPK-7 purity style)
+    {
+      const PT = CF.IDOF['portal'], P = CF.player;
+      const overW = CF.world, markerY = CF.world.heightAt(56, 56) + 6;
+      CF.world.set(56, markerY, 56, CF.IDOF['stone']); // fingerprint ONLY overworld should have
+      const posSave = P.pos.slice();
+      CF.freeCam = false;
+      P.tp(56.5, markerY - 5, 56.5);
+      P.tp(56.5, CF.world.heightAt(56, 56) + 0.95, 56.5); // stand inside portal base cell
+      CF.warpArmed = true;
+      const w1 = CF.portalStepTick(); // -> nether
+      const dimOk = CF.activeDim === 'nether' && CF.world === CF.dims.nether && CF.world !== overW;
+      const scaleOk = Math.abs(CF.world.heightAt(Math.floor(P.pos[0]), Math.floor(P.pos[2])) - (P.pos[1] - 0.9)) < 6; // on solid ground
+      const nPortal = CF.world.get(Math.floor(P.pos[0]), Math.floor(P.pos[1] - 0.9 + 0.4), Math.floor(P.pos[2])) === PT ||
+        (() => { for (let y = 4; y < 110; y++) if (CF.world.get(56, y, 56) === PT || CF.world.get(57, y, 56) === PT) return true; return false; })();
+      const near = CF.warp('over', [P.pos[0], P.pos[1] - 1.2, P.pos[2]]); // pair back to the original over portal (MC linkage)
+      const backOk = near && CF.activeDim === 'over' && CF.world === overW && overW.get(56, markerY, 56) === CF.IDOF['stone'];
+      const dbgNP = (() => { let n = 0, first = null; const nw = CF.dims.nether; for (let x = 0; x < 16; x++) for (let z = 0; z < 16; z++) for (let y = 4; y < 110; y++) if (nw.get(x, y, z) === PT) { n++; if (!first) first = [x, y, z]; } return n + '/' + JSON.stringify(first); })();
+      const dbgOP = (() => { let n = 0; for (let y = 4; y < 110; y++) for (let x = 40; x <= 72; x++) for (let z = 40; z <= 72; z++) if (overW.get(x, y, z) === PT) n++; return n; })();
+      const pairFound = dbgOP >= 6; // over portal survived the round trip (counted over the whole window, rows split 2/row)
+      P.tp(posSave[0], posSave[1], posSave[2]); P.vel[0] = P.vel[1] = P.vel[2] = 0; P.prevPos = posSave.slice();
+      CF.world.set(56, markerY, 56, 0);
+      for (let x = 54; x <= 58; x++) for (let z = 54; z <= 58; z++) for (let y = 4; y < 80; y++) if (CF.world.get(x, y, z) === PT) CF.world.set(x, y, z, 0);
+      CF.assert(r, 'game.warp(dim=' + dimOk + ',scale=' + scaleOk + ',nPortal=' + nPortal + ',back=' + backOk + ',pair=' + pairFound + ',np=' + dbgNP + ',op=' + dbgOP + ',w=' + JSON.stringify(CF.__WDBG) + ')',
+        dimOk && scaleOk && nPortal && backOk && pairFound);
+    }
     // #054: hoe tills grass/dirt (refuses stone/covered); crops harvest by stage
     {
       const h = CF.world.heightAt(82, 82);

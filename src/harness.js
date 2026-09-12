@@ -441,6 +441,51 @@
     }));
     await new Promise((res) => setTimeout(res, 300));
   };
+  CF.shotScenarios['nether-warp'] = async () => { // #055 AC: stand at portal in nether, SAVE, RELOAD, same position
+    const W = CF.world, P = CF.player;
+    CF.freeCam = false;
+    const px = 40, pz = 40;
+    W.ensureAround(px, pz, 2);
+    for (let i = 0; i < 60 && W.stats().queue; i++) W.tick();
+    const g = W.heightAt(px, pz);
+    for (let x = px - 3; x <= px + 5; x++) for (let z = pz - 2; z <= pz + 2; z++) for (let y = g; y < g + 9; y++) W.set(x, y, z, 0);
+    const OBS = CF.IDOF['obsidian'];
+    for (const x of [px, px + 1]) { W.set(x, g - 1, pz, OBS); W.set(x, g + 3, pz, OBS); }
+    for (let y = g; y <= g + 2; y++) { W.set(px - 1, y, pz, OBS); W.set(px + 2, y, pz, OBS); }
+    const invSave = CF.inv.map((s) => (s ? { name: s.name, count: s.count } : null)), selSave = CF.sel;
+    CF.inv.fill(null); CF.inv[0] = { name: 'flint_and_steel', count: 1 }; CF.sel = 0;
+    CF.portalTryIgnite({ x: px, y: g - 1, z: pz, face: [0, 1, 0] });
+    P.tp(px + 0.5, g + 0.95, pz + 0.5);
+    CF.warpArmed = true; CF.portalStepTick(); // -> nether
+    for (let i = 0; i < 40 && CF.world.dirty.size; i++) { CF.world.tick(); CF.renderTick(); }
+    const before = { dim: CF.activeDim, pos: P.pos.map((v) => Math.round(v * 10) / 10) };
+    CF.saveNow();
+    CF.loadNow();
+    for (let i = 0; i < 60 && (CF.world.stats().queue || CF.world.dirty.size); i++) { CF.world.tick(); CF.renderTick(); }
+    const after = { dim: CF.activeDim, pos: P.pos.map((v) => Math.round(v * 10) / 10) };
+    for (let i = 0; i < 40; i++) CF.renderTick();
+    CF.freeCam = true;
+    let pc = null;
+    const nw = CF.world;
+    for (let x = 0; x < 24 && !pc; x++) for (let z = 0; z < 24 && !pc; z++) for (let y = 55; y < 100 && !pc; y++) if (nw.get(x, y, z) === CF.IDOF['portal']) pc = [x, y, z];
+    if (!pc) pc = [Math.floor(P.pos[0]), Math.floor(P.pos[1] - 0.9), Math.floor(P.pos[2])]; // never throw mid-shot
+    const look = [pc[0] + 1, pc[1] + 1.5, pc[2] + 0.5];
+    const cpos = [look[0] + 3.5, look[1] + 1.8, look[2] + 3.5];
+    const dxy = Math.hypot(look[0] - cpos[0], look[2] - cpos[2]);
+    for (let t = 0; t <= 20; t++) { // carve the line-of-sight corridor (post-save; persisted state untouched)
+      const cx3 = Math.round(cpos[0] + (look[0] - cpos[0]) * t / 20), cy3 = Math.round(cpos[1] + (look[1] - cpos[1]) * t / 20), cz3 = Math.round(cpos[2] + (look[2] - cpos[2]) * t / 20);
+      for (let x = cx3 - 1; x <= cx3 + 1; x++) for (let y = cy3 - 1; y <= cy3 + 2; y++) for (let z = cz3 - 1; z <= cz3 + 1; z++) {
+        const id = nw.get(x, y, z);
+        if (id && id !== CF.IDOF['obsidian'] && id !== CF.IDOF['portal']) nw.set(x, y, z, 0);
+      }
+    }
+    for (let i = 0; i < 80 && nw.dirty.size; i++) { nw.tick(); CF.renderTick(); }
+    CF.camera = { pos: cpos, yaw: Math.atan2(look[0] - cpos[0], look[2] - cpos[2]), pitch: Math.atan2(look[1] - cpos[1], dxy) };
+    CF.renderDraw(CF.camera);
+    document.title = 'NW:' + encodeURIComponent(JSON.stringify({ before, after, same: JSON.stringify(before) === JSON.stringify(after), pc }));
+    CF.inv.fill(null); for (const s of invSave) if (s) CF.give(s.name, s.count); CF.sel = selSave;
+    await new Promise((res) => setTimeout(res, 300));
+  };
   CF.shotScenarios['storage-wall'] = async () => { // #051: gold/iron/diamond/brick/clay row
     CF.freeCam = true;
     const W = CF.world, rx = 120, rz = 120;

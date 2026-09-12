@@ -34,6 +34,7 @@ window.CF = window.CF || {};
     if (!hit) return false;
     const held = CF.held && CF.held();
     if (held !== 'flint_and_steel') return false;
+    if (CF.portalTryIgnite && CF.portalTryIgnite(hit)) return true; // #055 igniting an obsidian frame beats TNT (no obsidian->TNT ambiguity)
     return CF.primeTNT(hit.x, hit.y, hit.z);
   };
 
