@@ -11,18 +11,20 @@ shot.mjs PNG + vision verdict. `parity.mjs` counts a variant ONLY if the game re
 marks it `functional:true` AND `qa/blocks/<variant>.png` exists AND a texture tile is
 Blender-sourced (`tools/tex` manifest). No self-declared counts.
 
-## Block % (tiered) — live from parity.mjs (2026-09-08 #053 close; was stale at 29 through sprint-04, brought current)
+## Block % (tiered) — live from parity.mjs (2026-09-12 #056 close)
 | Tier | variants total | functional | % |
 |------|---------------|-----------|---|
 | 1 | 125 | 43 | 34.4% |
-| 2 | 163 | 13 | 8.0% |
+| 2 | 163 | 15 | 9.2% |
 | 3 | 111 | 0 | 0% |
-| **all** | **399** | **56** | **14.0%** |
+| **all** | **399** | **58** | **14.5%** |
 
 Sprint-04 additions on the #043 baseline (20): wood II (#049 +9), wool (#050 +16), storage/brick/clay
 (#051 +5, mossy deferred->vines), slabs (#052 +3), stairs (#053 +3: oak 53 / stone_stairs=COBBLE 67 /
 brick 108; registry.stairs-model + physics.stairs-walkup + interact.stairs-facing + items.stairs-craft +
-save.flat asserts; qa/blocks/*_stairs.png + stair-run vision PASS). Table had been left stale at 29.
+save.flat asserts; qa/blocks/*_stairs.png + stair-run vision PASS), nether blocks (#056 +2: netherrack 87
+hand-harvest + quartz_ore 24 pick->quartz item; world.nether-gen + registry.nether asserts; qa/blocks sheets
++ nether-view/nether-warp shots; blockshots harness .id->IDOF fix rode along). Table had been left stale at 29.
 
 Counted (evidence: qa/blocks/*.png + blender tiles + functional flag + test asserts):
 stone, grass, dirt, cobblestone, planks:oak, log:oak, leaves:oak, sand, gravel, glass,
@@ -70,5 +72,11 @@ wood variants (no tiles), all Tier-2/3 families.
     (items.hoe-craft/bread-craft, world.crop-grow, interact.till/harvest, physics.farmland-trample, surv.bread
     asserts + farm-scene.png vision PASS). Crop/farmland blocks functional:false (procedural tiles; Blender
     art -> #048). poisonous_potato + hydration/neighbor boost deferred.
+[x] nether dimension: obsidian-frame + flint&steel ignite -> portal (light 11), CF.warp 8:1 w/ entity+BE swap,
+    destination search-or-BUILD (grounded), nether gen (netherrack shell, static lava seas y<=31, quartz_ore,
+    glowstone ceiling clusters, bedrock plates, NO skylight, red fog), bed-in-nether explodes (power 5),
+    persist v2 {dims} w/ v1 migration  <- #055+#056 (interact.portal-frame, game.warp, save.v2, world.nether-gen,
+    registry.nether, bed.nether-explode asserts; nether-warp.png reload-past-warp + nether-view.png vision PASS).
+    Ghast/zombie pigmen + nether-fortress = deferred (spider/enderman-style roster work).
 
-Last auto-run: 2026-09-08 (56/399 at #053 close) - parity.mjs writes qa/parity-latest.json; this doc's table is updated MANUALLY at each merge (audit #6 F5)
+Last auto-run: 2026-09-12 (58/399 at #056 close) - parity.mjs writes qa/parity-latest.json; this doc's table is updated MANUALLY at each merge (audit #6 F5)

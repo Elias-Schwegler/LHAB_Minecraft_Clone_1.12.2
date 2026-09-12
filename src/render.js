@@ -486,6 +486,7 @@ void main(){ vec4 t = texture(T, uv); float cut = 1.0 - smoothstep(0.30, 0.62, t
       sky = sky.map((v, i) => v * k + [0.28, 0.3, 0.34][i] * g);
     }
     if (CF.lightFlash > 0) sky = [0.9, 0.92, 1]; // lightning frames the world white
+    if (CF.activeDim === 'nether') sky = [0.24, 0.05, 0.05]; // #056: 1.12 nether = thick red fog, no sun cycle
     gl.clearColor(sky[0], sky[1], sky[2], 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(prog);

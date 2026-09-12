@@ -98,7 +98,7 @@ window.CF = window.CF || {};
 
   function applyDim(seed, key, d) { // build/rehydrate one dimension; returns world or null
     if (!d && key === 'nether') return null;
-    const dw = CF.makeWorld(key === 'nether' ? ((seed ^ 0x5EED) >>> 0) : seed);
+    const dw = CF.makeWorld(key === 'nether' ? ((seed ^ 0x5EED) >>> 0) : seed, key === 'nether' ? { nether: true } : undefined); // #056: rehydrate nether with REAL nether gen
     initEditTracking(dw);
     for (const [k, b] of Object.entries((d && d.chunks) || {})) {
       const [cx, cz] = k.split(',').map(Number);

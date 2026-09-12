@@ -373,6 +373,18 @@ def gen_tiles():
         nt.links.new(pl, outc.inputs[6]); outc.inputs[7].default_value = hexc("#5b431f")
         nt.links.new(outc.outputs[2], em.inputs["Color"])
     add("crafting_table", workbench)
+    # ---- #056 NETHER: netherrack bulk rock + quartz_ore veins (node tiles, Blender-sourced) ----
+    def nr_base(nt):  # EMIT pipeline runs ~0.45x on mid-tones (empirical, cf. stone/dirt inputs being brighter than output)
+        return ramp(nt, noise(nt, 13.0), [hexc("#b34f42"), hexc("#d06a56"), hexc("#e8907a"), hexc("#8f3c33")])
+    def netherrack(m, nt, em):
+        nt.links.new(nr_base(nt), em.inputs["Color"])
+    add("netherrack", netherrack)
+    def quartz_ore(m, nt, em):
+        st = nr_base(nt)
+        mask = nt.nodes.new("ShaderNodeMath"); mask.operation = 'GREATER_THAN'; mask.inputs[1].default_value = 0.62
+        nt.links.new(voronoi(nt, 4.0), mask.inputs[0])
+        nt.links.new(mix(nt, mask.outputs[0], st, hexc("#ffffff")), em.inputs["Color"])
+    add("quartz_ore", quartz_ore)
     return T
 
 ICONS = {
@@ -407,6 +419,7 @@ ICONS = {
     "tile_portal":         ([(0,0,16,16)], "#8a2be2"),  # #055: purple swirl base (details in icon_quads special)
     "item_bread":          ([(3,6,10,7)], "#c89050"),
     "item_wheat_seeds":    ([(5,6,2,2),(8,5,2,2),(6,9,2,2),(10,8,2,2)], "#c8c078"),
+    "item_quartz":         ([(6,4,4,3),(5,7,6,3),(6,10,4,3)], "#efe6da"),  # #056 nether quartz (quartz_ore drop)
     "item_carrot":         ([(7,3,3,10),(6,2,2,2)], "#e07820"),
     "item_potato":         ([(4,6,9,7)], "#c8a060"),
 }

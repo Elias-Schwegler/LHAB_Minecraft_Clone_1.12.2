@@ -17,8 +17,9 @@ window.CF = window.CF || {};
   }
   const ID = (s) => CF.IDOF[s] || 0;
 
-  function makeWorld(seed) {
+  function makeWorld(seed, opts) { // #056: opts {nether:true} -> 1.12 nether generation
     const n1 = makeNoise(seed), n2 = makeNoise(seed + 1), n3 = makeNoise(seed + 2), nT = makeNoise(seed + 3);
+    const NETHER = !!(opts && opts.nether);
     const IDOF = CF.IDOF;
     const chunks = new Map();
     const dirty = new Set();
@@ -26,11 +27,28 @@ window.CF = window.CF || {};
     let generated = 0;
 
     function colHeight(x, z) {
+      if (NETHER) return Math.round(32 + (n1(x * 0.012, 0, z * 0.012) - 0.5) * 20); // #056: nether FLOOR ~27..37 (value-noise centers on 0.5) - dips below the y31 lava sea
       return Math.max(5, Math.min(110, Math.round(SEA + (n1(x * 0.008, 0, z * 0.008) - 0.5) * 26 + (n2(x * 0.03, 5, z * 0.03) - 0.5) * 10)));
     }
     function biome(x, z) { const t = nT(x * 0.0015, 9, z * 0.0015); return t < 0.36 ? 'desert' : t > 0.66 ? 'frozen' : 'plains'; }
     function generate(cx, cz) {
       const arr = new Uint8Array(CX * CH * CZ);
+      if (NETHER) { // #056 1.12 nether: netherrack floor+ceiling shell w/ noise caves, lava seas <=31, bedrock plates, NO skylight/trees
+        for (let lx = 0; lx < CX; lx++) for (let lz = 0; lz < CZ; lz++) {
+          const x = cx * CX + lx, z = cz * CZ + lz;
+          const fh = colHeight(x, z);
+          const ch = Math.round(96 + (n2(x * 0.012, 3, z * 0.012) - 0.5) * 16); // ceiling underside ~88..104
+          for (let y = 1; y < CH - 1; y++) {
+            const idx = (y * CZ + lz) * CX + lx;
+            const sY = (yy) => yy <= fh || yy >= ch || n3(x * 0.05, yy * 0.07, z * 0.05) > 0.6;
+            if (sY(y)) arr[idx] = hash(x * 911 + y * 7919 + z * 104729 + seed) < 0.014 ? IDOF['quartz_ore'] : IDOF['netherrack'];
+            else if (y <= 31) arr[idx] = IDOF['lava']; // static sources: spread only ticks on edits, 1.12 nether seas don't churn
+            else if (sY(y + 1) && hash(x * 1123 + y * 211 + z * 577 + seed * 7) < 0.005) arr[idx] = IDOF['glowstone']; // ceiling-cluster rule must LOOK AHEAD (bottom-up loop, arr[y+1] unwritten yet)
+          }
+          arr[lz * CX + lx] = IDOF['bedrock'];
+          arr[((CH - 1) * CZ + lz) * CX + lx] = IDOF['bedrock'];
+        }
+      } else {
       for (let lx = 0; lx < CX; lx++) for (let lz = 0; lz < CZ; lz++) {
         const x = cx * CX + lx, z = cz * CZ + lz;
         const h = colHeight(x, z), bm = biome(x, z);
@@ -52,6 +70,7 @@ window.CF = window.CF || {};
           }
           arr[(y * CZ + lz) * CX + lx] = id;
         }
+      }
       }
       chunks.set(cx + ',' + cz, { cx, cz, arr, hmap: null });
       generated++;
@@ -214,7 +233,7 @@ window.CF = window.CF || {};
       // seeds: light sources + ring + sky columns (top-down no-decay while air)
       for (const c of box) {
         for (let lx = 0; lx < CX; lx++) for (let lz = 0; lz < CZ; lz++) {
-          let sky = 15;
+          let sky = NETHER ? 0 : 15; // #056: no sunlight in the nether, even through holes (1.12 rule)
           for (let y = CH - 1; y >= 1; y--) {
             const id = c.arr[(y * CZ + lz) * CX + lx];
             const liq = id && CF.BY_ID[id] && CF.BY_ID[id].liquid;
@@ -510,7 +529,7 @@ window.CF = window.CF || {};
       }
     }
     function stats() { return { chunks: chunks.size, generated, queue: genQueue.length, dirty: dirty.size, spreadEv }; }    function heightAt(x, z) { const h = colHeight(x, z); return h; }
-    return api = { get, set, tick, ensureAround, stats, generate, chunks, dirty, heightAt, biome, seed, decayLeavesNear, growSapling, growCrop, lightAt, ensureLight, flatAt, flatSet: setFlat, fluidStat };
+    return api = { get, set, tick, ensureAround, stats, generate, chunks, dirty, heightAt, biome, seed, nether: NETHER, decayLeavesNear, growSapling, growCrop, lightAt, ensureLight, flatAt, flatSet: setFlat, fluidStat };
   }
   CF.makeWorld = makeWorld;
   // #021 day/night: 24000-tick cycle; daylight factor curve (moonlight floor handled in shader).
@@ -707,6 +726,33 @@ window.CF = window.CF || {};
       }
       CF.assert(r, 'world.stream-bounded(max=' + maxC + ',end=' + endC + ',ed=' + edCount + ',walk=' + walked.toFixed(0) + ',qhi=' + qHi + ',endQ=' + endQ + ')',
         maxC - edCount <= 260 && endC - edCount <= 225 && walked > 60 && endQ === 0);
+    }
+    // #056 nether gen: separate makeWorld(5,{nether:true}) instance - CF globals untouched (factory-purity lesson)
+    {
+      const ID = CF.IDOF;
+      const N = CF.makeWorld(5, { nether: true });
+      for (let cx = 0; cx <= 1; cx++) for (let cz = 0; cz <= 1; cz++) N.generate(cx, cz);
+      N.ensureLight(0, 0);
+      for (let i = 0; i < 60 && (N.stats().queue || N.dirty.size); i++) N.tick();
+      let nr = 0, lava = 0, quartz = 0, glow = 0, bedrockBad = 0, airUnderSea = 0, lavaAboveSea = 0, skyBad = 0;
+      for (let x = 0; x < 32; x++) for (let z = 0; z < 32; z++) {
+        if (N.get(x, 0, z) !== ID['bedrock'] || N.get(x, 127, z) !== ID['bedrock']) bedrockBad++;
+        for (let y = 1; y < 127; y++) {
+          const id = N.get(x, y, z);
+          if (id === ID['netherrack']) nr++;
+          else if (id === ID['quartz_ore']) quartz++;
+          else if (id === ID['glowstone']) glow++;
+          else if (id === ID['lava']) { lava++; if (y > 31) lavaAboveSea++; }
+          else if (!id && y <= 31) airUnderSea++;
+        }
+        if ((N.lightAt(x, 60, z) >> 4) !== 0) skyBad++;
+      }
+      const N2 = CF.makeWorld(5, { nether: true });
+      for (let cx = 0; cx <= 1; cx++) for (let cz = 0; cz <= 1; cz++) N2.generate(cx, cz);
+      let det = N.heightAt(4, 4) === N2.heightAt(4, 4);
+      for (let i = 0; i < 400 && det; i++) { const x = (i * 13) & 31, z = (i * 29) & 31, y = 1 + ((i * 7) % 126); if (N2.get(x, y, z) !== N.get(x, y, z)) det = false; }
+      CF.assert(r, 'world.nether-gen(nr=' + nr + ',lava=' + lava + ',q=' + quartz + ',glow=' + glow + ',plate=' + bedrockBad + ',airSub=' + airUnderSea + ',seaHi=' + lavaAboveSea + ',sky=' + skyBad + ',det=' + det + ')',
+        nr > 40000 && lava > 200 && quartz > 50 && glow > 0 && bedrockBad === 0 && airUnderSea === 0 && lavaAboveSea === 0 && skyBad === 0 && det && N.nether === true);
     }
   };
   CF.grassTests = async (r) => {

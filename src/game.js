@@ -122,7 +122,7 @@ window.CF = window.CF || {};
     const OBS = CF.IDOF['obsidian'], P = CF.IDOF['portal'];
     w.ensureAround(sx, sz, 2); // set() is a silent no-op on UNGENERATED chunks - generate first
     for (let i = 0; i < 80 && w.stats().queue; i++) w.tick();
-    const ix = sx + 1, base = Math.max(w.heightAt(sx, sz), 64); // air cell row to build in (>=64 keeps it out of lava/water seas)
+    const ix = sx + 1, base = Math.max(w.heightAt(sx, sz) + 1, 5); // #056: stand the portal ON the terrain floor (was >=64 float when nether gen landed at 32..37)
     for (let x = ix - 1; x <= ix + 2; x++) for (let y = base - 1; y <= base + 3; y++) for (let z = sz - 1; z <= sz + 1; z++) if (w.get(x, y, z)) w.set(x, y, z, 0);
     for (const x of [ix, ix + 1]) { w.set(x, base - 1, sz, OBS); w.set(x, base + 3, sz, OBS); } // sill + cap
     for (let y = base; y <= base + 2; y++) { w.set(ix - 1, y, sz, OBS); w.set(ix + 2, y, sz, OBS); } // pillars
@@ -136,7 +136,7 @@ window.CF = window.CF || {};
     let target;
     if (toKey === 'nether') {
       if (!CF.dims.nether) {
-        CF.dims.nether = CF.makeWorld((CF.dims.over.seed ^ 0x5EED) >>> 0);
+        CF.dims.nether = CF.makeWorld((CF.dims.over.seed ^ 0x5EED) >>> 0, { nether: true }); // #056 real nether gen
         CF.trackWorld && CF.trackWorld(CF.dims.nether); // #055: track BEFORE first edit (PLAYBOOK lesson re-applied)
       }
       target = CF.dims.nether;

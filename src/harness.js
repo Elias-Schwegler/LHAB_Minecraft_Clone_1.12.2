@@ -107,20 +107,21 @@
     for (let i = 0; i < 20 && W.stats().queue; i++) W.tick();
     const reg = CF.REGISTRY[name];
     const key = vk && reg.variants[vk] ? vk : Object.keys(reg.variants)[0];
-    const id = reg.variants[key].id;
+    // #056 FIX: sequential IDs are insertion-order, NOT the 1.12 id field (worked by coincidence until mid-JSON inserts)
+    const id = key === 'default' ? CF.IDOF[name] : CF.IDOF[name + ':' + key];
     document.title = 'BS:1-' + name;
     const by = 70;
     for (let x = 7; x <= 13; x++) for (let z = 7; z <= 13; z++) for (let y = by - 2; y < by + 8; y++) W.set(x, y, z, 0);
     for (let x = 7; x <= 13; x++) for (let z = 7; z <= 13; z++) W.set(x, by, z, CF.IDOF['stone']);
     W.set(10, by + 1, 10, id);
-    document.title = 'BS:2';
+    document.title = 'BS:2(' + id + ',' + (CF.BY_ID[id] ? CF.BY_ID[id].tiles[0] : '?') + ',' + JSON.stringify((window.__TEXMETA || {})[CF.BY_ID[id] ? CF.BY_ID[id].tiles[0] : 0]) + ')';
     for (let i = 0; i < 100; i++) CF.renderTick();
     document.title = 'BS:3';
     const camx = 13.4, camy = by + 2.6, camz = 13.4, tx = 10.5, ty = by + 1.5, tz = 10.5;
     const horiz = Math.hypot(camx - tx, camz - tz);
     CF.camera = { pos: [camx, camy, camz], yaw: Math.atan2(tx - camx, tz - camz), pitch: -Math.atan2(camy - ty, horiz) };
     CF.renderDraw(CF.camera);
-    document.title = 'BS:4';
+    document.title = 'BS:4(id=' + id + ',t=' + (CF.BY_ID[id] ? CF.BY_ID[id].tiles[0] : '?') + ',meta=' + JSON.stringify((window.__TEXMETA || {})[CF.BY_ID[id] ? CF.BY_ID[id].tiles[0] : 0]) + ',it=' + CF.IDOF['item_quartz'] + ')';
     await new Promise((r) => setTimeout(r, 300));
   };
   CF.shotScenarios['walking'] = async () => {
@@ -467,7 +468,7 @@
     CF.freeCam = true;
     let pc = null;
     const nw = CF.world;
-    for (let x = 0; x < 24 && !pc; x++) for (let z = 0; z < 24 && !pc; z++) for (let y = 55; y < 100 && !pc; y++) if (nw.get(x, y, z) === CF.IDOF['portal']) pc = [x, y, z];
+    for (let x = 0; x < 24 && !pc; x++) for (let z = 0; z < 24 && !pc; z++) for (let y = 20; y < 80 && !pc; y++) if (nw.get(x, y, z) === CF.IDOF['portal']) pc = [x, y, z]; // #056: grounded portals live at floor+1 (~28..38)
     if (!pc) pc = [Math.floor(P.pos[0]), Math.floor(P.pos[1] - 0.9), Math.floor(P.pos[2])]; // never throw mid-shot
     const look = [pc[0] + 1, pc[1] + 1.5, pc[2] + 0.5];
     const cpos = [look[0] + 3.5, look[1] + 1.8, look[2] + 3.5];
@@ -483,6 +484,51 @@
     CF.camera = { pos: cpos, yaw: Math.atan2(look[0] - cpos[0], look[2] - cpos[2]), pitch: Math.atan2(look[1] - cpos[1], dxy) };
     CF.renderDraw(CF.camera);
     document.title = 'NW:' + encodeURIComponent(JSON.stringify({ before, after, same: JSON.stringify(before) === JSON.stringify(after), pc }));
+    CF.inv.fill(null); for (const s of invSave) if (s) CF.give(s.name, s.count); CF.sel = selSave;
+    await new Promise((res) => setTimeout(res, 300));
+  };
+  CF.shotScenarios['nether-view'] = async () => { // #056: real nether terrain - red fog, netherrack cave, glowstone ceiling, grounded portal
+    const W = CF.world, P = CF.player;
+    CF.freeCam = false;
+    const px = 40, pz = 40;
+    W.ensureAround(px, pz, 2);
+    for (let i = 0; i < 60 && W.stats().queue; i++) W.tick();
+    const g = W.heightAt(px, pz);
+    for (let x = px - 3; x <= px + 5; x++) for (let z = pz - 2; z <= pz + 2; z++) for (let y = g; y < g + 9; y++) W.set(x, y, z, 0);
+    const OBS = CF.IDOF['obsidian'];
+    for (const x of [px, px + 1]) { W.set(x, g - 1, pz, OBS); W.set(x, g + 3, pz, OBS); }
+    for (let y = g; y <= g + 2; y++) { W.set(px - 1, y, pz, OBS); W.set(px + 2, y, pz, OBS); }
+    const invSave = CF.inv.map((s) => (s ? { name: s.name, count: s.count } : null)), selSave = CF.sel;
+    CF.inv.fill(null); CF.inv[0] = { name: 'flint_and_steel', count: 1 }; CF.sel = 0;
+    CF.portalTryIgnite({ x: px, y: g - 1, z: pz, face: [0, 1, 0] });
+    P.tp(px + 0.5, g + 0.95, pz + 0.5);
+    CF.warpArmed = true; CF.portalStepTick(); // -> nether (REAL nether gen since #056)
+    const nw = CF.world;
+    for (let i = 0; i < 60 && (nw.stats().queue || nw.dirty.size); i++) { nw.tick(); CF.renderTick(); }
+    const onFloor = nw.get(Math.floor(P.pos[0]), Math.floor(P.pos[1] - 2), Math.floor(P.pos[2]));
+    CF.freeCam = true;
+    let pc = null;
+    for (let x = 0; x < 24 && !pc; x++) for (let z = 0; z < 24 && !pc; z++) for (let y = 20; y < 80 && !pc; y++) if (nw.get(x, y, z) === CF.IDOF['portal']) pc = [x, y, z];
+    if (!pc) pc = [Math.floor(P.pos[0]), Math.floor(P.pos[1] - 0.9), Math.floor(P.pos[2])];
+    const look = [pc[0] + 1, pc[1] + 1.5, pc[2] + 0.5];
+    const cpos = [look[0] + 4.5, look[1] + 1.2, look[2] + 4.5];
+    const dxy = Math.hypot(look[0] - cpos[0], look[2] - cpos[2]);
+    for (let t = 0; t <= 24; t++) { // corridor through the netherrack between camera and portal (obsidian/portal stay)
+      const cx3 = Math.round(cpos[0] + (look[0] - cpos[0]) * t / 24), cy3 = Math.round(cpos[1] + (look[1] - cpos[1]) * t / 24), cz3 = Math.round(cpos[2] + (look[2] - cpos[2]) * t / 24);
+      for (let x = cx3 - 1; x <= cx3 + 1; x++) for (let y = cy3 - 2; y <= cy3 + 4; y++) for (let z = cz3 - 1; z <= cz3 + 1; z++) {
+        const id = nw.get(x, y, z);
+        if (id && id !== OBS && id !== CF.IDOF['portal'] && !(id === CF.IDOF['lava'] && y < 36)) nw.set(x, y, z, 0); // CARVE everything (incl. netherrack!) but obsidian/portal; keep the lava sea surface in frame
+      }
+    }
+    for (let x = pc[0] - 1; x <= pc[0] + 3; x++) for (let z = pc[2] - 2; z <= pc[2] + 3; z++) for (let y = pc[1] + 4; y < 106; y++) { // carve a SHAFT behind the portal -> glowstone ceiling in frame
+      const id = nw.get(x, y, z);
+      if (id && id !== CF.IDOF['glowstone']) nw.set(x, y, z, 0);
+    }
+    for (let i = 0; i < 300 && nw.dirty.size; i++) { nw.tick(); CF.renderTick(); }
+    for (let i = 0; i < 10; i++) CF.renderTick();
+    CF.camera = { pos: cpos, yaw: Math.atan2(look[0] - cpos[0], look[2] - cpos[2]), pitch: Math.atan2(look[1] - cpos[1] + 2.5, dxy) }; // gentle tilt UP -> shaft opening + some ceiling glow behind the portal
+    CF.renderDraw(CF.camera);
+    document.title = 'NV:' + encodeURIComponent(JSON.stringify({ dim: CF.activeDim, pc, floor: onFloor === CF.IDOF['netherrack'], nr: CF.IDOF['netherrack'], li: nw.lightAt(pc[0], pc[1], pc[2]) & 15, li2: nw.lightAt(pc[0] + 1, pc[1], pc[2] + 2) & 15, dirty: nw.dirty.size, st: nw.stats() }));
     CF.inv.fill(null); for (const s of invSave) if (s) CF.give(s.name, s.count); CF.sel = selSave;
     await new Promise((res) => setTimeout(res, 300));
   };
