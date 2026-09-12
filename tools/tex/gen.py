@@ -404,6 +404,7 @@ ICONS = {
     "tile_potato_1":       ([(5,8,2,7),(9,8,2,7),(7,7,2,8)], "#2f6b1c"),
     "tile_potato_2":       ([(4,6,2,9),(8,5,2,10),(11,7,2,8),(5,4,2,2)], "#2f6b1c"),
     "item_wheat":          ([(6,1,4,10),(7,11,2,4)], "#d8bc50"),
+    "tile_portal":         ([(0,0,16,16)], "#8a2be2"),  # #055: purple swirl base (details in icon_quads special)
     "item_bread":          ([(3,6,10,7)], "#c89050"),
     "item_wheat_seeds":    ([(5,6,2,2),(8,5,2,2),(6,9,2,2),(10,8,2,2)], "#c8c078"),
     "item_carrot":         ([(7,3,3,10),(6,2,2,2)], "#e07820"),
@@ -453,6 +454,9 @@ def icon_quads(name):
             out += [(9,3,2,2,"#a070c8"),(3,5,2,1,"#a070c8")]  # potato flowers
         if name == "item_wheat":
             out += [(4,2,2,3,"#e8d878"),(10,4,2,3,"#e8d878"),(4,6,2,3,"#e8d878"),(10,8,2,3,"#e8d878")]
+        if name == "tile_portal":  # swirling violet-blue vortex
+            out += [(2,2,12,12,"#5a1ab0"),(4,4,8,8,"#7a3ae0"),(6,2,4,2,"#c86aff"),(2,6,2,4,"#c86aff"),
+                    (12,8,2,4,"#4a2ae0"),(8,12,4,2,"#c86aff"),(7,7,2,2,"#e8c8ff"),(9,9,2,2,"#b47aff")]
         if name == "item_bread":
             out += [(4,5,8,1,"#e8b878"),(5,4,6,1,"#e8b878"),(6,8,1,3,"#8a5a28"),(9,8,1,3,"#8a5a28")]
         if name == "item_carrot":

@@ -1818,6 +1818,38 @@ window.CF.REGISTRY = /*REGISTRY-START*/{
     }
    }
   },
+  "portal": {
+   "id": 90,
+   "tier": 2,
+   "variants": {
+    "default": {
+     "functional": false,
+     "tiles": [
+      "tile_portal",
+      "tile_portal",
+      "tile_portal",
+      "tile_portal",
+      "tile_portal",
+      "tile_portal"
+     ],
+     "hardness": -1,
+     "drop": null,
+     "tool": null,
+     "minTier": 0,
+     "solid": false,
+     "light": 11,
+     "cross": true,
+     "portal": true,
+     "proof": {
+      "issue": "#055",
+      "tests": [
+       "interact.portal-frame",
+       "game.warp"
+      ]
+     }
+    }
+   }
+  },
   "oak_stairs": {
    "id": 53,
    "tier": 1,
