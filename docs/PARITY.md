@@ -67,6 +67,8 @@ wood variants (no tiles), all Tier-2/3 families.
 [x] F3 debug                                             <- #009 asserts
 
 ### Tier-2 / Tier-3: see REFERENCE.md §tiers + backlog epics; parity.mjs prints live table.
+(SPK-8 #057 CLOSED the Tier-2 redstone GATE: full re-flood model measured 0.07-2.6ms at village scale,
+ power = derived state (no persistence) - redstone FEAT chain approved for sprint-05.)
 [x] farming v1: hoe(4 mats) till grass/dirt -> farmland(+trample revert), wheat 8-stage randomTick growth on
     farmland, harvest 1-3 grain + seeds, bread (3->1, +5 food), carrot/potato 2-4 drops  <- #054
     (items.hoe-craft/bread-craft, world.crop-grow, interact.till/harvest, physics.farmland-trample, surv.bread

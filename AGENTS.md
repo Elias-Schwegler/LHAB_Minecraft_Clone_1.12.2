@@ -38,8 +38,11 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
     portal BUILD (base=floor+1, was >=64 float) + red fog + bed-explodes(power5) + quartz item; CAUGHT
     blockshots harness using 1.12 id FIELD not sequential IDOF (mid-JSON inserts rendered WRONG blocks - sheets
     re-shot; PLAYBOOK); nether-view+nether-warp vision PASS; +3 asserts 241/225, 44 blocks.
-    NEXT: #057 redstone SPK (Tier-2 gate); backlog #044/#048 (+poisonous_potato, +F7-black leftovers + torch
-    flame tile art + mob drops/chain icons). Audit #7 at close. - Gate: TEST GREEN 241 full / 225 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 58/399 (TNT/chest/bed/portal functional:false -
+    #057 DONE (SPK-8 GO - docs/spikes/SPK-8-redstone.md, src untouched): full re-flood per change = 0.07-2.6ms at
+    bell->village scale (relight pattern, idle 0ms, power is DERIVED -> zero persistence work); dirty-graph not
+    needed; sprint-05 redstone FEAT chain UNBLOCKED (dust/torch, repeater+fReady-style delay queue, lamp, piston-lite).
+    SPRINT-04 CODE COMPLETE -> close: review/retro/METRICS + audit #7 + tag v0.4.0; backlog #044/#048 carry to 05
+    (+poisonous_potato, +F7-black leftovers + torch flame tile art + mob drops/chain icons). - Gate: TEST GREEN 241 full / 225 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 58/399 (TNT/chest/bed/portal functional:false -
   procedural tiles, not Blender; mechanics shipped+tested, not counted: honest)
   proof-bound (t1 20/125): 15 core+torch+glowstone+furnace + water+lava (#043 buckets).
 - Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy TWO-SIDED faces+AO-less shaded+light+fog),
@@ -55,6 +58,11 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #057 SPK-8 redstone budget (docs+spike only, src untouched): pure-Node bench (spike/redstone-sim.mjs) of
+  full re-flood (relight pattern) vs dirty-graph at chain-30/chain-200/village-2.4k scales. GO: A = 0.07-2.6ms/event,
+  worst-case B == A, idle 0ms, power DERIVED -> NO persistence work (same trick as light). Escape hatch:
+  per-region re-flood. Verdict + sprint-05 FEAT chain (dust/torch, repeater+delay queue, lamp, piston-lite) in
+  docs/spikes/SPK-8-redstone.md. Tier-2 gate OPEN.
 - #056 REAL NETHER GEN (+2 parity 58/399, 44 blocks): makeWorld(seed,{nether:true}) - netherrack floor/ceiling shell w/
   noise blobs, static lava seas (open cells <=31; un-edited chunks never tick fluids so seas don't churn), quartz_ore 1.4%,
   glowstone clusters hanging UNDER solids (look-ahead helper - bottom-up gen loop must NOT read arr[y+1]: first build had
