@@ -33,8 +33,13 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
     renderReset/entity-wipes/search-or-build destination/warpArmed cooldown, trackWorld-before-edits re-earned)
     + PERSIST V2 {active,dims} w/ v1 auto-migration; +3 asserts (portal-frame/warp/save.v2), nether-warp.png
     reload-past-warp vision PASS; nether terrain = placeholder until #056. #045 closed via #059 (3x3 GUI).
-    NEXT: #056 NETHER GEN (netherrack/quartz/lava-seas/no-skylight + bed-explodes rule), #057 redstone SPK;
-    backlog #044/#048 (+poisonous_potato, +F7-black leftovers + torch flame tile art). Audit #7 at close. - Gate: TEST GREEN 238 full / 222 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 56/399 (TNT/chest/bed/portal functional:false -
+    #056 DONE (REAL nether gen +2 parity=58/399): makeWorld{ nether } netherrack shell/lava-seas<=31/quartz/
+    glowstone-hang (look-ahead - bottom-up loop can't read arr[y+1])/bedrock plates/NO sky/NO spawns + grounded
+    portal BUILD (base=floor+1, was >=64 float) + red fog + bed-explodes(power5) + quartz item; CAUGHT
+    blockshots harness using 1.12 id FIELD not sequential IDOF (mid-JSON inserts rendered WRONG blocks - sheets
+    re-shot; PLAYBOOK); nether-view+nether-warp vision PASS; +3 asserts 241/225, 44 blocks.
+    NEXT: #057 redstone SPK (Tier-2 gate); backlog #044/#048 (+poisonous_potato, +F7-black leftovers + torch
+    flame tile art + mob drops/chain icons). Audit #7 at close. - Gate: TEST GREEN 241 full / 225 quick (WALL ~144s since two-sided mesher - sim-time lies), 0 errors. Parity: 58/399 (TNT/chest/bed/portal functional:false -
   procedural tiles, not Blender; mechanics shipped+tested, not counted: honest)
   proof-bound (t1 20/125): 15 core+torch+glowstone+furnace + water+lava (#043 buckets).
 - Tier-1 mechanics done: worldgen/biomes/ores/caves/trees, render(greedy TWO-SIDED faces+AO-less shaded+light+fog),
@@ -50,6 +55,18 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #056 REAL NETHER GEN (+2 parity 58/399, 44 blocks): makeWorld(seed,{nether:true}) - netherrack floor/ceiling shell w/
+  noise blobs, static lava seas (open cells <=31; un-edited chunks never tick fluids so seas don't churn), quartz_ore 1.4%,
+  glowstone clusters hanging UNDER solids (look-ahead helper - bottom-up gen loop must NOT read arr[y+1]: first build had
+  glow=0/lava=0/plates-broken, 3 bugs found by the world.nether-gen assert ITSELF), bedrock plates y0+y127, skylight
+  seed =0 (1.12: no sun even through holes), no trees, natural mob spawns disabled. Portal build GROUNDED
+  (base=max(heightAt+1,5); #055's >=64 float was built for placeholder terrain - nether-warp.png now shows sill on the
+  floor w/ sea behind). Red fog override (activeDim) + bed-in-nether power-5 explode guard in trySleep. Blocks:
+  netherrack (hand-harvest) + quartz_ore (pickaxe->NEW quartz item). HARNESS BUG CAUGHT: blockshots pedestal used the
+  JSON id FIELD (matched sequential only by luck for old entries; my mid-JSON inserts rendered wool:red as quartz_ore!)
+  -> now IDOF[name(:variant)] + debug titles; blockshots.mjs gained positional name filter. Palette calibrated ~2.2x
+  (EMIT pipeline crush). +3 asserts (world.nether-gen, registry.nether, bed.nether-explode), 241/225 GREEN;
+  nether-view.png + nether-warp.png re-shot vision PASS; qa/blocks/{netherrack,quartz_ore}.png counted honestly.
 - #055 NETHER PORTAL + warp + persist v2 (SPK-7 design executed): portal block (light 11, cross tile_portal, functional:false)
   + 1.12 frame validation (2x3 interior, obsidian sill/cap/pillars, CORNERS OPTIONAL - issue body over-strict, 1.12 wins)
   + flint&steel ignite brute-forcing 6 origins, routed ahead of TNT in useFlintSteel; CF.warp = dim map + per-dim BE

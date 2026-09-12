@@ -35,6 +35,11 @@ window.CF = window.CF || {};
 
   // ---- sleep sequence: fade to black, skip to dawn, set spawn on head cell, fade back
   CF.trySleep = (x, y, z) => {
+    if (CF.activeDim === 'nether') { // #056 1.12: sleeping in the nether = bed EXPLODES (power 5, at the bed)
+      CF.lastSleepFail = 'nether';
+      CF.explode(x + 0.5, y + 0.5, z + 0.5, 5);
+      return false;
+    }
     const t = CF.timeOfDay();
     if (!(t >= 12542 && t < 23542)) { CF.lastSleepFail = 'day'; return false; } // 1.12 night window
     if (CF.player && Math.hypot(CF.player.pos[0] - (x + 0.5), CF.player.pos[2] - (z + 0.5)) > 3) { CF.lastSleepFail = 'far'; return false; }
@@ -165,6 +170,21 @@ window.CF = window.CF || {};
     CF.shake = 5; CF.bedTick();
     CF.assert(r, 'bed.shake-decays', CF.shake < 5);
     W.set(sx, sy, sz, 0); CF.mobs.clear(); CF.sleeping = null; if (CF.sleepEl) CF.sleepEl.style.opacity = 0;
+    { // #056 1.12: using a bed in the nether = power-5 explosion (own arena 260,260; activeDim swapped, restored after)
+      const ex = 260, ez = 260;
+      W.ensureAround(ex, ez, 2); for (let i = 0; i < 30 && W.stats().queue; i++) W.tick();
+      const ey = W.heightAt(ex, ez) + 1;
+      const dimSave = CF.activeDim;
+      CF.bedPlace(ex, ey, ez, 0);
+      CF.activeDim = 'nether';
+      const refused = CF.trySleep(ex, ey, ez), fail = CF.lastSleepFail;
+      CF.activeDim = dimSave;
+      const bedGone = W.get(ex, ey, ez) !== ID['bed'] && W.get(ex + 1, ey, ez) !== ID['bed'];
+      let crater = 0;
+      for (let x = ex - 4; x <= ex + 5; x++) for (let z = ez - 4; z <= ez + 5; z++) if (!W.get(x, ey, z)) crater++;
+      CF.assert(r, 'bed.nether-explode(refused=' + refused + ',fail=' + fail + ',gone=' + bedGone + ',crater=' + crater + ')',
+        refused === false && fail === 'nether' && bedGone && crater > 40);
+    }
     CF.survival = surv0; CF.timeOffset = t0; CF.mobSense = true;
   };
 })();

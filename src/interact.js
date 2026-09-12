@@ -402,7 +402,7 @@ window.CF = window.CF || {};
       CF.warpArmed = true;
       const w1 = CF.portalStepTick(); // -> nether
       const dimOk = CF.activeDim === 'nether' && CF.world === CF.dims.nether && CF.world !== overW;
-      const scaleOk = Math.abs(CF.world.heightAt(Math.floor(P.pos[0]), Math.floor(P.pos[2])) - (P.pos[1] - 0.9)) < 6; // on solid ground
+      const scaleOk = Math.abs(P.pos[0] - 8.5) < 1.5 && Math.abs(P.pos[2] - 7.5) < 1.5 && Math.abs(P.pos[1] - (CF.world.heightAt(7, 7) + 1.95)) < 1; // #056: 8:1 fresh-nether BUILD at floor(56/8)+1, GROUNDED on the nether floor (base=heightAt+1)
       const nPortal = CF.world.get(Math.floor(P.pos[0]), Math.floor(P.pos[1] - 0.9 + 0.4), Math.floor(P.pos[2])) === PT ||
         (() => { for (let y = 4; y < 110; y++) if (CF.world.get(56, y, 56) === PT || CF.world.get(57, y, 56) === PT) return true; return false; })();
       const near = CF.warp('over', [P.pos[0], P.pos[1] - 1.2, P.pos[2]]); // pair back to the original over portal (MC linkage)

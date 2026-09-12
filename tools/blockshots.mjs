@@ -1,5 +1,5 @@
-// Per-block proof sheets: node tools/blockshots.mjs — for every registered block+variant,
-// renders a centered pedestal shot into qa/blocks/<name>[-variant].png (parity evidence).
+// Per-block proof sheets: node tools/blockshots.mjs [name ...] — for every registered block+variant
+// (or only the named ones), renders a centered pedestal shot into qa/blocks/<name>[-variant].png (parity evidence).
 import { existsSync, mkdirSync, statSync } from 'node:fs';
 import { runBrowser, toFileUrl, p } from './lib.mjs';
 
@@ -11,9 +11,11 @@ Object.assign(reg, JSON.parse(m[1]));
 const dir = p('qa', 'blocks');
 mkdirSync(dir, { recursive: true });
 
+const only = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const wanted = [];
 for (const b of catalog.blocks) {
   if (!reg[b.n]) continue;
+  if (only.length && !only.includes(b.n)) continue;
   for (const key of Object.keys(reg[b.n].variants)) wanted.push([b.n, key]);
 }
 let n = 0;

@@ -31,6 +31,7 @@ window.CF = window.CF || {};
     raw_chicken: { food: 2, poison: 0.3 }, cooked_chicken: { food: 6 },
     wool: {}, // superseded by the wool BLOCK family (#050) - bare item kept for sheep drop compat
     clay_ball: {}, brick: {}, // #051 chain items (icons -> #048)
+    quartz: { tile: 'item_quartz' }, // #056 nether quartz (quartz_ore drop; smelting->quartz_block = #048/later)
   };
   for (const [mat, info] of Object.entries(TOOLS))
     for (const shape of ['pickaxe', 'axe', 'shovel', 'sword', 'hoe'])

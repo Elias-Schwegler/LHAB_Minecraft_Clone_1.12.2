@@ -1850,6 +1850,66 @@ window.CF.REGISTRY = /*REGISTRY-START*/{
     }
    }
   },
+  "netherrack": {
+   "id": 87,
+   "tier": 2,
+   "variants": {
+    "default": {
+     "functional": true,
+     "tiles": [
+      "netherrack",
+      "netherrack",
+      "netherrack",
+      "netherrack",
+      "netherrack",
+      "netherrack"
+     ],
+     "hardness": 0.4,
+     "drop": "netherrack",
+     "tool": null,
+     "minTier": 0,
+     "solid": true,
+     "light": 0,
+     "proof": {
+      "issue": "#056",
+      "tests": [
+       "world.nether-gen",
+       "registry.nether"
+      ]
+     }
+    }
+   }
+  },
+  "quartz_ore": {
+   "id": 24,
+   "tier": 2,
+   "variants": {
+    "default": {
+     "functional": true,
+     "tiles": [
+      "quartz_ore",
+      "quartz_ore",
+      "quartz_ore",
+      "quartz_ore",
+      "quartz_ore",
+      "quartz_ore"
+     ],
+     "hardness": 0.7,
+     "drop": "quartz",
+     "tool": "pickaxe",
+     "minTier": 1,
+     "solid": true,
+     "light": 0,
+     "proof": {
+      "issue": "#056",
+      "tests": [
+       "world.nether-gen",
+       "registry.nether"
+      ]
+     }
+    }
+   }
+  },
   "oak_stairs": {
    "id": 53,
    "tier": 1,
@@ -2073,6 +2133,14 @@ window.CF.REGISTRY = /*REGISTRY-START*/{
         u[0][1] === 0.5 && u[1][1] === 0 && u[1][4] === 0.5 &&
         (window.__TEXMETA || {})['planks_oak'] && !!CF.IDOF['brick_stairs'];
       return ok;
+    })());
+    CF.assert(r, 'registry.nether', (() => { // #056: nether blocks registered w/ Blender tiles + 1.12 mining fields
+      const meta = window.__TEXMETA || {};
+      const nr = CF.REGISTRY.netherrack && CF.REGISTRY.netherrack.variants.default;
+      const qz = CF.REGISTRY.quartz_ore && CF.REGISTRY.quartz_ore.variants.default;
+      return !!nr && !!qz && nr.tool === null && nr.drop === 'netherrack' && nr.solid === true && nr.light === 0 &&
+        qz.tool === 'pickaxe' && qz.drop === 'quartz' && !!CF.IDOF['netherrack'] && !!CF.IDOF['quartz_ore'] &&
+        nr.tiles.every((t) => meta[t] && /^blender:/.test(meta[t].src)) && qz.tiles.every((t) => meta[t]);
     })());
     CF.assert(r, 'registry.ids-unique', new Set(CF.BY_ID.map((v) => v && v.id)).size === CF.BY_ID.length);
   };

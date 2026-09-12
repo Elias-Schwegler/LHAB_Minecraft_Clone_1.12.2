@@ -178,6 +178,15 @@ Engine/logic:
 - Vision-QA sessions die with "At most 32 image(s) may be provided in one prompt" (llama.cpp counts ALL
   images in re-sent history). Fixed by global plugin `~/.config/opencode/plugins/image-cap.js`: prunes
   oldest screenshots from the outgoing prompt (keeps last 24, env OPENCODE_IMAGE_KEEP); no /compact needed.
+- Registry IDs are SEQUENTIAL (insertion order); the 1.12 `id` field is documentation only. Any tool/harness
+  that resolves a block via `reg.variants[k].id` works ONLY by coincidence (matched until the first mid-JSON
+  insert). #056: blockshots pedestal rendered wool:red for quartz_ore, and the sheets looked "like a plausible
+  red block" - vision QA nearly waved it through. RULE: IDOF[name] / IDOF[name+':'+variant] EVERYWHERE, and
+  when two proof sheets for DIFFERENT blocks look alike, suspect the harness, not the texture.
+- Generation loops that write y ASCENDING cannot test arr[y+1] (unwritten). Use analytic look-ahead predicates
+  (solidAt(x,y+1,z)-style) instead. And value noise CENTERS ON 0.5: heights/palettes must be calibrated around
+  it (nether lava sea at 31 never filled when floor was 32+bias*10; EMIT-rendered tiles come out ~2.2x darker
+  than input hex - compare a zoom of atlas cell vs intended color, don't trust the pedestal from 3m away).
 
 ## 5. Scrum/audit cadence
 - Issues: issues/NNN-slug.md from _TEMPLATE; number continues globally; states DRAFT→READY→

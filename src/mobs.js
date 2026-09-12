@@ -463,7 +463,7 @@ window.CF = window.CF || {};
     // ================= #039 per-chunk scheduler (1.12 spawnStructure-style) =================
     // Scan every loaded chunk in the [min..max] player shell; a small ATTEMPT budget per tick keeps it cheap
     // (chunk distance test is free). Light/type/distance rules live in trySpawnAt; caps are MC category ceilings.
-    if (CF.survival && M.sched !== false && P) {
+    if (CF.survival && M.sched !== false && P && !CF.world.nether) { // #056: no natural mob spawns in the nether yet (ghast/pigmen deferred)
       let attempts = CFG.chunkBudget; // attempts (not chunk visits) per tick
       for (const [k] of W.chunks) {
         if (attempts <= 0) break;
