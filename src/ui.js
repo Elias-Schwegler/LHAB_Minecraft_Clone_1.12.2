@@ -86,7 +86,7 @@ window.CF = window.CF || {};
     return d;
   }
 
-  let hud, inv, ghostEl, hudSlots = [], invSlots = [], craftSlots = [], resultSlot = null, bookEl = null; // #059 bookEl declared early (renderBook runs during build)
+  let hud, inv, titleEl, ghostEl, hudSlots = [], invSlots = [], craftSlots = [], resultSlot = null, bookEl = null; // #059 bookEl declared early (renderBook runs during build)
   let furnEl, finSlot, ffuelSlot, foutSlot, burnBar, cookArrow;
   let chestEl, chestSlots = [];
   let atkEl;
@@ -95,8 +95,8 @@ window.CF = window.CF || {};
     hud = document.createElement('div'); hud.id = 'hud';
     for (let i = 0; i < 9; i++) { const s = mkSlot('inv', i); hudSlots.push(s); hud.appendChild(s); }
     inv = document.createElement('div'); inv.id = 'inv';
-    const title = document.createElement('div'); title.textContent = 'Inventory (E to close)';
-    inv.appendChild(title);
+    titleEl = document.createElement('div'); titleEl.textContent = 'Inventory (E to close)';
+    inv.appendChild(titleEl);
     const cgWrap = document.createElement('div'); cgWrap.innerHTML = '<h4>Crafting</h4>';
     const cg = document.createElement('div'); cg.className = 'cgrid';
     for (let i = 0; i < 9; i++) { const s = mkSlot('craft', i); craftSlots.push(s); cg.appendChild(s); } // #059: 3x3 layout; 2x2 hides the extras
@@ -152,6 +152,7 @@ window.CF = window.CF || {};
 
   function refresh() {
     if (!hud) return;
+    if (titleEl) titleEl.textContent = CF.ui.workbench ? 'Crafting (E to close)' : 'Inventory (E to close)'; // F6/audit#7: 1.12 workbench panel title
     const xh = document.getElementById('xh'); if (xh) xh.style.display = CF.ui.open ? 'none' : 'block'; // #047
     for (let i = 0; i < 9; i++) {
       paint(hudSlots[i], CF.inv[i]);

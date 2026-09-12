@@ -26,10 +26,11 @@ node tools/build.mjs                      # src/* (+atlas b64) -> game/index.htm
 node --check src/mobs.js                  # after big edits: build is CONCAT-ONLY, a duplicate const in a
                                           # shared function scope parses per-file but kills the whole bundle
                                           # at runtime (boot hangs, no TESTRESULT). --check each edited src/*.js.
-node tools/test.mjs                       # full gate: 15 suites, expect "TEST GREEN" (203 asserts as of #043)
-node tools/test.mjs --quick               # dev loop (skips slow: grass/time/fluids); ~144s WALL since #046
+node tools/test.mjs                       # full gate: 15 suites, expect "TEST GREEN" (241 asserts @ v0.4.0);
+                                          # auto-retries w/ doubled virtual budget (audit#7 F1 boot-starvation flake)
+node tools/test.mjs --quick               # dev loop (skips slow: grass/time/fluids); ~180s WALL - sim-time lies
                                           # (two-sided mesher ~2x buildMesh; in-page SIM time lies - wall is real)
-node tools/test.mjs --suites=world,light  # surgical
+node tools/test.mjs --suites=world,light  # surgical - CAVEAT #061: suites are order-coupled (interact alone crashes)
 node tools/shot.mjs <scenario> [seed=N]   # qa/YYYY-MM-DD/<scenario>.png — then VIEW it (Read tool)
 node tools/parity.mjs                     # honest count: functional flag + proof.tests in BUILT file
                                           # + blender tile + qa/blocks png; writes qa/parity-latest.json
