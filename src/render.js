@@ -335,6 +335,17 @@ void main(){ vec4 t = texture(T, uv); float cut = 1.0 - smoothstep(0.30, 0.62, t
         if (x >= 10 && x <= 12 && y >= 6 && y <= 8) return '#d63030'; // front torch (lit hint)
         return RS;
       });
+      // #066 lamps: unlit = dark glass-ish casing w/ red dust veins; lit = blazing yellow with glass blocks
+      const lampOff = (x, y) => {
+        if ((x === 3 && y === 3) || (x === 12 && y === 12) || (x === 4 && y === 11) || (x === 11 && y === 4)) return '#8a1f1f';
+        return ((x + y) % 4 === 0) ? '#3f2f2f' : ((x * y) % 7 === 0 ? '#4a3a38' : '#352828');
+      };
+      const lampLit = (x, y) => {
+        if (x < 1 || y < 1 || x > 14 || y > 14) return '#6a4a22';
+        if ((x + y) % 5 < 2) return '#b8892a'; // glass frame lines
+        return ((x * 3 + y * 7) % 6 === 0) ? '#ffe87a' : '#f4c23c';
+      };
+      cell(64, 176, lampOff); cell(80, 176, lampLit);
       cell(16, 176, (x, y) => { // item_redstone: dust pile
         if (y >= 9 && y <= 12 && x >= 4 && x <= 11) return (y % 2) ? '#8a1a14' : '#a52a2a';
         if (y >= 7 && y <= 8 && x >= 6 && x <= 9) return '#932222';

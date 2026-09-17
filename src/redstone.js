@@ -12,11 +12,13 @@ window.CF = window.CF || {};
   if (!meta.item_redstone) meta.item_redstone = { x: 16, y: 176, w: 16, h: 16, src: 'generated:redstone.js' };
   if (!meta.item_redstone_torch) meta.item_redstone_torch = { x: 32, y: 176, w: 16, h: 16, src: 'generated:redstone.js' };
   if (!meta.repeater) meta.repeater = { x: 48, y: 176, w: 16, h: 16, src: 'generated:redstone.js' };
+  if (!meta.redstone_lamp) meta.redstone_lamp = { x: 64, y: 176, w: 16, h: 16, src: 'generated:redstone.js' };
+  if (!meta.redstone_lamp_lit) meta.redstone_lamp_lit = { x: 80, y: 176, w: 16, h: 16, src: 'generated:redstone.js' };
 
   const K = (x, y, z) => x + ',' + y + ',' + z;
   const DIRS = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
-  const isRS = (id) => { const d = id && CF.BY_ID[id]; return !!d && (d.wire || d.rstorch || d.repeater); };
-  const RTYPE = (w, x, y, z) => { const d = CF.BY_ID[w.get(x, y, z)]; return d ? (d.wire ? 'w' : d.rstorch ? 't' : d.repeater ? 'r' : 0) : 0; };
+  const isRS = (id) => { const d = id && CF.BY_ID[id]; return !!d && (d.wire || d.rstorch || d.repeater || d.lamp); };
+  const RTYPE = (w, x, y, z) => { const d = CF.BY_ID[w.get(x, y, z)]; return d ? (d.wire ? 'w' : d.rstorch ? 't' : d.repeater ? 'r' : 0) : 0; }; // lamps = '0' sinks, tracked in cells for the swap sweep
   // torch attach vectors from the saved face-code (#105 plumbing): 1 floor 2 -X 6 +X 4 -Z 8 +Z
   const SUPV = { 1: [0, -1, 0], 2: [-1, 0, 0], 6: [1, 0, 0], 4: [0, 0, -1], 8: [0, 0, 1] };
   const RDIRV = [[1, 0], [-1, 0], [0, 1], [0, -1]]; // repeater facing: 0E 1W 2S 3N (CF.dirFromYaw, bed precedent)
@@ -36,11 +38,16 @@ window.CF = window.CF || {};
   // is the PLAIN block at (x,y,z) externally powered? (powered dust touching it, or a live repeater facing it)
   function blockPowered(w, rs, power, x, y, z) {
     for (const [dx, dy, dz] of DIRS) {
+      const nk = K(x + dx, y + dy, z + dz);
       const t = RTYPE(w, x + dx, y + dy, z + dz);
-      if (t === 'w' && (power.get(K(x + dx, y + dy, z + dz)) || 0) > 0) return true;
-      if (t === 'r' && rs.on.has(K(x + dx, y + dy, z + dz))) {
+      if (t === 'w' && (power.get(nk) || 0) > 0) return true;
+      if (t === 'r' && rs.on.has(nk)) {
         const [ddx, ddz] = RDIRV[(w.flatAt(x + dx, y + dy, z + dz) || 0) & 3];
-        if (x + dx + ddx === x && z + dz + ddz === z) return true; // its output faces this block
+        if (x + dx + ddx === x && y + dy === y && z + dz + ddz === z) return true; // its output faces this block
+      }
+      if (t === 't' && (power.get(nk) || 0) > 0) { // torch powers the cell OPPOSITE its attach (#066: lamp above a floor torch)
+        const vec = SUPV[(w.flatAt(x + dx, y + dy, z + dz) || 0) & 15] || SUPV[1];
+        if (x + dx - vec[0] === x && y + dy - vec[1] === y && z + dz - vec[2] === z) return true;
       }
     }
     return false;
@@ -96,6 +103,17 @@ window.CF = window.CF || {};
       if ((rs.power.get(K(x - ddx, y, z - ddz)) || 0) > 0) {
         if (!rs.on.has(k) && !rs.pend.has(k)) { rs.pend.add(k); CF.rsDue.push({ w, k, due: (CF.ticks || 0) + 2 }); }
       } else { rs.on.delete(k); rs.pend.delete(k); } // signal gone = off INSTANTLY (1.12 repeater off is immediate)
+    }
+    // #066 lamp swap: lit id <-> unlit id on blockPowered state (instant on; 2gt off-delay omitted v1 - documented)
+    const LIT = CF.IDOF['lit_redstone_lamp'], UNLIT = CF.IDOF['redstone_lamp'];
+    for (const k of rs.cells) {
+      const [x, y, z] = k.split(',').map(Number);
+      const id = w.get(x, y, z);
+      const d = id && CF.BY_ID[id];
+      if (!d || !d.lamp) continue;
+      const want = blockPowered(w, rs, rs.power, x, y, z);
+      if (want && id === UNLIT) w.set(x, y, z, LIT);
+      else if (!want && id === LIT) w.set(x, y, z, UNLIT);
     }
   };
   CF.rsTick = () => {
@@ -268,6 +286,48 @@ window.CF = window.CF || {};
       const onOut = CF.rsPowerAt(ax, H, az); // torch ALIVE: output dust lights at 14
       for (let i = 0; i <= 8; i++) { W.set(ax + i, H, az, 0); W.set(ax + i, H + 1, az, 0); }
       CF.assert(r, 'interact.redstone-invert(off=' + offOut + ',chain=' + chain + ',on=' + onOut + ')', offOut === 0 && chain > 0 && onOut === 14);
+    }
+    // --- #066 lamp on/off: dust beside lamp, lamp ABOVE a torch, repeater-facing lamp ---
+    {
+      const H = h + 1, LIT = ID['lit_redstone_lamp'], OFF = ID['redstone_lamp'];
+      for (let i = 0; i <= 10; i++) { W.set(ax + i, H - 1, az, ID['stone']); W.set(ax + i, H, az, 0); W.set(ax + i, H + 1, az, 0); }
+      W.set(ax, H, az, ID['redstone_torch']); W.flatSet(ax, H, az, 1); // floor torch
+      W.set(ax + 2, H, az, ID['redstone_wire']); // dust west of lamp spot
+      W.set(ax + 1, H, az, ID['redstone_wire']); // dust between torch and lamp: torch(15)->i1=14->i2=13
+      W.set(ax + 3, H, az, OFF); // lamp BESIDE powered dust -> ON
+      W.set(ax, H + 1, az, OFF); // lamp ABOVE the torch (torch powers opposite-attach cell) -> ON
+      const repX = ax + 7;
+      W.set(repX, H, az, ID['repeater']); W.flatSet(repX, H, az, 0); // out east
+      W.set(ax + 5, H, az, ID['redstone_wire']); // T2(ax+4) -> i5 -> i6 = repeater input
+      W.set(repX - 1, H, az, ID['redstone_wire']); W.set(ax + 4, H, az, ID['redstone_torch']); W.flatSet(ax + 4, H, az, 1); // feed its input
+      W.set(repX + 1, H, az, OFF); // lamp in FRONT of repeater -> ON once delay fires
+      CF.rsTick(); CF.rsTick();
+      for (let i = 0; i < 4; i++) { CF.ticks += 2; CF.rsTick(); } // let any repeater due fire + settle
+      const sideLit = W.get(ax + 3, H, az) === LIT, aboveLit = W.get(ax, H + 1, az) === LIT;
+      W.ensureLight((ax + 3) >> 4, az >> 4);
+      for (let i = 0; i < 6 && W.stats().queue; i++) W.tick();
+      const lit15 = (W.lightAt(ax + 3, H, az) & 15) === 15;
+      const repLit = W.get(repX + 1, H, az) === LIT;
+      W.set(ax + 1, H, az, 0); // cut the side line (dust i2 alone still 0? i2's feed was i1 - now dead)
+      CF.rsTick(); CF.rsTick();
+      const sideOff = W.get(ax + 3, H, az) === OFF;
+      W.set(ax, H + 1, az, 0); W.set(ax, H, az, 0); // torch away: above-lamp dies with its source
+      CF.rsTick(); CF.rsTick();
+      const aboveOff = W.get(ax, H + 1, az) === undefined && true; // lamp removed entirely, trivially gone
+      W.set(repX + 1, H, az, 0); W.set(repX, H, az, 0); W.set(repX - 1, H, az, 0); W.set(ax + 4, H, az, 0);
+      for (let i = 0; i <= 10; i++) { W.set(ax + i, H, az, 0); W.set(ax + i, H + 1, az, 0); }
+      CF.rsTick(); CF.rsTick();
+      CF.assert(r, 'world.lamp-on-off(side=' + sideLit + ',above=' + aboveLit + ',light15=' + lit15 + ',repeater=' + repLit + ',sideOff=' + sideOff + ',torchGone=' + aboveOff + ')',
+        sideLit && aboveLit && lit15 && repLit && sideOff);
+      // craft
+      const invSave5 = CF.inv.map((s) => (s ? { name: s.name, count: s.count } : null));
+      CF.inv.fill(null);
+      CF.give('glowstone', 4); CF.give('redstone', 5);
+      for (const s of [20, 22, 26, 28]) CF.inv[s] = { name: 'glowstone', count: 1 }; // corners
+      for (const s of [21, 23, 24, 25, 27]) CF.inv[s] = { name: 'redstone', count: 1 }; // cross
+      const resL = CF.craftOnce([20, 21, 22, 23, 24, 25, 26, 27, 28]);
+      CF.assert(r, 'items.lamp-craft(' + CF.countItem('redstone_lamp') + ',' + (resL && resL.name) + ')', CF.countItem('redstone_lamp') === 1 && resL && resL.name === 'redstone_lamp');
+      CF.inv.fill(null); for (const s of invSave5) if (s) CF.give(s.name, s.count); CF.uiRefresh && CF.uiRefresh();
     }
     // --- #065 interact.repeater-facing: placement stores away-from-player output + floor rule ---
     {

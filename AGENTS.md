@@ -1,7 +1,10 @@
 # AGENTS.md — project STATE memory (1-minute grounding)
 Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each session) · Spec: docs/REFERENCE.md
 
-## Current state (2026-09-17, SPRINT 05 ACTIVE - "Current flows", planned docs/sprints/05.md, it1 #061 + it2 #064 done, it3 next: #065 repeater)
+## Current state (2026-09-17, SPRINT 05 ACTIVE - "Current flows", planned docs/sprints/05.md, it1 #061 + it2 #064 + it3 #065 + it4 #066 done (EXIT CRITERION LIT), it5 next: #068 plate+button, then #067 piston)
+- #066 SHIPPED: lamp pair (123/124 1.12 ids), post-flood swap sweep, torch powers opposite-attach cell
+  (lamp-over-floor-torch classic; inverter intact). Live video finale: lamp=LIT light=15 at end of
+  torch->dust->repeater->dust. 256/240 GREEN, 50 blocks. Art polish (lit tile bloom) -> #048.
 - #065 SHIPPED: repeater (painted tile functional:false, flat bits 0-3 = OUTPUT dir = yaw XOR 1, floor rule,
   pop; engine = Jacobi fixed-point passes (PURE), diode output-only injection, rsDue delay list fires +2gt in
   rsTick, off instant) + TORCH INVERTER (torch dies while attach block carries dust-on-top/repeater power;
@@ -62,7 +65,7 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
     SPRINT 04 CLOSED: audit #7 READY-WITH-NOTES (0 P0/P1, 1 P2 + 5 P3 - F1 gate-flake retried in test.mjs + F6
     workbench title fixed same-close; F2/F3 doc drift fixed here; F4 -> #061 suite-coupling, F5 quartz sheet -> #048).
     Backlog to 05: #044/#048/#061 (+poisonous_potato, +F7-black leftovers + torch flame tile art + mob drops/chain
-    icons). - Gate: TEST GREEN 242 full / 226 quick (WALL ~180s since two-sided mesher - sim-time lies), 0 errors.
+    icons). - Gate: TEST GREEN 256 full / 240 quick (WALL ~180s since two-sided mesher - sim-time lies), 0 errors.
     Parity: 58/399 (TNT/chest/bed/portal functional:false -
   procedural tiles, not Blender; mechanics shipped+tested, not counted: honest)
   proof-bound: t1 43/125 (wood/wool/storage/slabs/stairs/farm-items era), t2 15/163 (+netherrack+quartz #056).
@@ -79,6 +82,13 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #066 redstone lamp (sprint-05 it4, EXIT CRITERION): 1.12 pre-flatten id pair redstone_lamp(123)/
+  lit_redstone_lamp(124), both painted functional:false (parity honest 59); lamps join rs.cells as '0' sinks;
+  post-flood SWEEP sets/unsets lit via blockPowered (instant on; 1.12 2gt off-delay omitted v1).
+  blockPowered + torch rule: lit torch powers cell OPPOSITE its attach (lamp-above-floor-torch) and never
+  its own attach (inverter invariant). Craft corners/cross swapped first try - items.lamp-craft caught it.
+  video-redstone finale: live probe lamp=LIT light=15; frames show warm glowing lamp at line end.
+  +2 asserts, 256/240 GREEN, 50 blocks. Lit-tile art bloom -> #048.
 - #065 repeater + torch inverter (sprint-05 it3): redstone.js passes became a pure Jacobi fixed-point
   (cap 6) with a post-stability sweep: repeaters conduct only when rs.on; switch-on scheduled on CF.rsDue
   (+2 game ticks, fReady pattern) and fires in rsTick BEFORE drain; signal loss = instant off. DIODE fix:

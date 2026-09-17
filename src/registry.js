@@ -1976,6 +1976,68 @@ window.CF.REGISTRY = /*REGISTRY-START*/{
     }
    }
   },
+  "redstone_lamp": {
+   "id": 123,
+   "tier": 2,
+   "variants": {
+    "default": {
+     "functional": false,
+     "tiles": [
+      "redstone_lamp",
+      "redstone_lamp",
+      "redstone_lamp",
+      "redstone_lamp",
+      "redstone_lamp",
+      "redstone_lamp"
+     ],
+     "hardness": 0.3,
+     "drop": "redstone_lamp",
+     "tool": null,
+     "minTier": 0,
+     "solid": true,
+     "light": 0,
+     "lamp": true,
+     "proof": {
+      "issue": "#066",
+      "tests": [
+       "world.lamp-on-off",
+       "items.lamp-craft"
+      ]
+     }
+    }
+   }
+  },
+  "lit_redstone_lamp": {
+   "id": 124,
+   "tier": 2,
+   "variants": {
+    "default": {
+     "functional": false,
+     "tiles": [
+      "redstone_lamp_lit",
+      "redstone_lamp_lit",
+      "redstone_lamp_lit",
+      "redstone_lamp_lit",
+      "redstone_lamp_lit",
+      "redstone_lamp_lit"
+     ],
+     "hardness": 0.3,
+     "drop": "redstone_lamp",
+     "tool": null,
+     "minTier": 0,
+     "solid": true,
+     "light": 15,
+     "lamp": true,
+     "lit": true,
+     "proof": {
+      "issue": "#066",
+      "tests": [
+       "world.lamp-on-off"
+      ]
+     }
+    }
+   }
+  },
   "repeater": {
    "id": 93,
    "tier": 2,

@@ -113,7 +113,7 @@ window.CF = window.CF || {};
       c.arr[idx] = id;
       queueRelight(x, z);
       const prevDef = CF.BY_ID[prev], nowDef = CF.BY_ID[id];
-      if (CF.rsOnSet && ((prevDef && (prevDef.wire || prevDef.rstorch || prevDef.repeater)) || (nowDef && (nowDef.wire || nowDef.rstorch || nowDef.repeater)))) CF.rsOnSet(api, x, y, z); // #064: dirty the power map only when RS blocks change (SPK-8: derived state, zero idle cost)
+      if (CF.rsOnSet && ((prevDef && (prevDef.wire || prevDef.rstorch || prevDef.repeater || prevDef.lamp)) || (nowDef && (nowDef.wire || nowDef.rstorch || nowDef.repeater || nowDef.lamp)))) CF.rsOnSet(api, x, y, z); // #064: dirty the power map only when RS blocks change (SPK-8: derived state, zero idle cost)
       if (id === 0) {
         // cross-model pop when its ATTACHED face support dies (MC torch rule, per-face) (#028)
         for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, -1]]) {

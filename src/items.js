@@ -99,6 +99,7 @@ window.CF = window.CF || {};
     P(['c', 's'], { c: 'coal', s: 'stick' }, 'torch', 4),
     P(['r', 's'], { r: 'redstone', s: 'stick' }, 'redstone_torch', 1), // #064 1.12: dust over stick = 1 redstone torch
     P(['rtr', 's s'], { r: 'redstone', t: 'redstone_torch', s: 'stone_slab:stone' }, 'repeater', 1), // #065 1.12 (wiki): dust+torch+dust over 2 stone slabs
+    P(['grg', 'rrr', 'grg'], { g: 'glowstone', r: 'redstone' }, 'redstone_lamp', 1), // #066 1.12 (wiki): 4 glowstone corners + redstone cross
     P(['mmm', ' s ', ' s '], null, 'pickaxe', 4), // materials expanded below
     P(['mm', 'ms', ' s'], null, 'axe', 4),
     P(['m', 's', 's'], null, 'shovel', 4),

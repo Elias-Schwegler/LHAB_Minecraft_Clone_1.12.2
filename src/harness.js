@@ -666,7 +666,9 @@
           CF.camera = { pos: [ax + 4.5, h + 2.3, az + 7.5], yaw: Math.atan2(look[0] - (ax + 4.5), look[2] - (az + 7.5)), pitch: Math.atan2(look[1] - (h + 2.3), 7) };
           CF.renderDraw(CF.camera);
         }
-        else if (t === 100) { const pw = CF.rsPowerAt(ax + 1, h + 1, az), pd = CF.rsPowerAt(ax + 5, h + 1, az); const p7 = CF.rsPowerAt(ax + 7, h + 1, az), p8 = CF.rsPowerAt(ax + 8, h + 1, az); const rs = W._rs; act('p d1=' + pw + ' d7=' + p7 + ' d8=' + p8 + ' flat=' + W.flatAt(ax + 6, h + 1, az) + ' cell=' + W.get(ax + 6, h + 1, az) + ' id=' + CF.IDOF['repeater'] + ' due=' + CF.rsDue.length + ' on=' + (rs ? rs.on.size : -1)); }
+        else if (t === 100) { const pw = CF.rsPowerAt(ax + 1, h + 1, az), p7 = CF.rsPowerAt(ax + 7, h + 1, az), p8 = CF.rsPowerAt(ax + 8, h + 1, az); act('p d1=' + pw + ' d7=' + p7 + ' d8=' + p8); }
+        else if (t === 108) { W.set(ax + 9, h, az, CF.IDOF['stone']); put('redstone_lamp', ax + 9, h, az); act('lamp beside boosted dust'); } // #066 finale: FIRST visible circuit state
+        else if (t === 130) { const LIT = CF.IDOF['lit_redstone_lamp']; act('lamp=' + (W.get(ax + 9, h + 1, az) === LIT ? 'LIT' : W.get(ax + 9, h + 1, az)) + ' light=' + (W.lightAt(ax + 9, h + 1, az) & 15)); }
       } catch (e) { log.push('ERR@' + t + ':' + e.message); }
       document.title = 'VR:' + t + 't:' + encodeURIComponent(log.join('|'));
     };
