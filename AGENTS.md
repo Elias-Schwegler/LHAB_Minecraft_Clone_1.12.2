@@ -1,7 +1,10 @@
 # AGENTS.md — project STATE memory (1-minute grounding)
 Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each session) · Spec: docs/REFERENCE.md
 
-## Current state (2026-09-17, SPRINT 04 CLOSED - sprint 05 NEXT)
+## Current state (2026-09-17, SPRINT 05 ACTIVE - "Current flows", planned docs/sprints/05.md, it1 next: #061)
+- Sprint 05 issues 064-070 mirrored: redstone chain 064->065->066 (+067 piston/068 plate/button), carried
+  #044/#048/#061, 069 spider/enderman, 070 SPK-9 nether scout. Exit: in-game lamp circuit + FULL video
+  re-eval before audit #8 + v0.5.0.
 - QUALITY LAW (user 2026-09-17): verify = DoD 4b GAMEPLAY VIDEO (`node tools/video.mjs basic seed=5` ->
   scripted-playback frames, REVIEW all, verdicts in Evidence; qa/videos is TEMPORARY/gitignored, auto-pruned,
   --clean; NEVER commit frames) + FULL re-evaluation video at SPRINT CLOSE before audit/tag. First run CAUGHT
