@@ -219,6 +219,11 @@ window.CF = window.CF || {};
     // #055 persist v2: markers in BOTH dims survive save->load; a v1 blob auto-migrates into dims.over
     {
       CF.autosavePaused = true;
+      if (!CF.dims) CF.dimBootHook && CF.dimBootHook(); // #061: subset runs without boot-suite side effects
+      if (CF.dims && !CF.dims.nether) { // #061: standalone - provision nether exactly like CF.warp's first call
+        CF.dims.nether = CF.makeWorld((CF.dims.over.seed ^ 0x5EED) >>> 0, { nether: true });
+        CF.trackWorld && CF.trackWorld(CF.dims.nether);
+      }
       const dw0 = CF.dims, overW = CF.world, nW = dw0 && dw0.nether;
       const ox = 12, oz = 12, oy = overW.heightAt(ox, oz);
       overW.set(ox, oy, oz, CF.IDOF['stone']);
