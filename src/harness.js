@@ -47,6 +47,19 @@
     let chosen = SUITES;
     if (spec === 'quick') chosen = SUITES.filter((s) => !s.slow);
     else if (spec && spec !== 'all') { const want = spec.split(','); chosen = SUITES.filter((s) => want.includes(s.name)); }
+    // #061 PRELUDE: any selection gets boot/world's side effects WITHOUT depending on their order -
+    // ready+GL up, loop stopped (unless boot runs and asserts live ticking), spawn arena loaded, player grounded.
+    const wantBoot = chosen.some((s) => s.name === 'boot');
+    for (let i = 0; i < 200 && !CF.ready; i++) await new Promise((res) => setTimeout(res, 50));
+    for (let i = 0; i < 100 && !CF.gl; i++) await new Promise((res) => setTimeout(res, 50));
+    if (CF.world && CF.player) {
+      CF.world.ensureAround(CF.player.pos[0], CF.player.pos[2], 4);
+      for (let i = 0; i < 30 && CF.world.stats().queue; i++) CF.world.tick();
+      const hA = CF.world.heightAt(Math.floor(CF.player.pos[0]), Math.floor(CF.player.pos[2]));
+      CF.player.pos = [Math.floor(CF.player.pos[0]) + 0.5, hA + 1, Math.floor(CF.player.pos[2]) + 0.5];
+      CF.player.vel = [0, 0, 0]; CF.player.prevPos = CF.player.pos.slice();
+    }
+    if (!wantBoot) CF.stopGameLoop && CF.stopGameLoop();
     try {
       for (const s of chosen) {
         const t0 = performance.now();

@@ -39,7 +39,8 @@ node tools/test.mjs                       # full gate: 15 suites, expect "TEST G
                                           # auto-retries w/ doubled virtual budget (audit#7 F1 boot-starvation flake)
 node tools/test.mjs --quick               # dev loop (skips slow: grass/time/fluids); ~180s WALL - sim-time lies
                                           # (two-sided mesher ~2x buildMesh; in-page SIM time lies - wall is real)
-node tools/test.mjs --suites=world,light  # surgical - CAVEAT #061: suites are order-coupled (interact alone crashes)
+node tools/test.mjs --suites=world,light  # surgical - #061: runTests PRELUDE self-setups every selection
+                                          # (ready+GL, arena r4, ground player, loop-stop unless boot runs)
 node tools/shot.mjs <scenario> [seed=N]   # qa/YYYY-MM-DD/<scenario>.png — then VIEW it (Read tool)
 node tools/parity.mjs                     # honest count: functional flag + proof.tests in BUILT file
                                           # + blender tile + qa/blocks png; writes qa/parity-latest.json

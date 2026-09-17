@@ -1,7 +1,7 @@
 # AGENTS.md — project STATE memory (1-minute grounding)
 Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each session) · Spec: docs/REFERENCE.md
 
-## Current state (2026-09-17, SPRINT 05 ACTIVE - "Current flows", planned docs/sprints/05.md, it1 next: #061)
+## Current state (2026-09-17, SPRINT 05 ACTIVE - "Current flows", planned docs/sprints/05.md, it1 done #061, it2 next: #064)
 - Sprint 05 issues 064-070 mirrored: redstone chain 064->065->066 (+067 piston/068 plate/button), carried
   #044/#048/#061, 069 spider/enderman, 070 SPK-9 nether scout. Exit: in-game lamp circuit + FULL video
   re-eval before audit #8 + v0.5.0.
@@ -70,6 +70,10 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #061 suite decoupling (sprint-05 it1): runTests PRELUDE (CF.ready+CF.gl wait, ensureAround(player,4)+drain+
+  ground, stopGameLoop for boot-less selections; boot still proves live ticking first) + save.v2 self-
+  provisions the nether instance like CF.warp does. 11 suite singles + audit-F4 combos all GREEN (was 4 red);
+  full 242/0, quick 226/0. Surgical --suites repro now works.
 - #062+#063 (user video-QA law): tools/video.mjs + harness 'video-play' scripted driver (9 phases: walk/place/
   mine/jump-fall/GUI+book/combat-night/surface-walk-stream); law in DoD 4b + PLAYBOOK 7b (sprint-close
   re-evaluation pass; frames temporary, verdicts durable). Recording #1 caught #063: leaves opaque to skylight
