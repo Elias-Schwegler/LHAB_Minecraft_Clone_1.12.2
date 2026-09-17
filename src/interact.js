@@ -180,8 +180,8 @@ window.CF = window.CF || {};
     const v = CF.BY_ID[id];
     // #052 slab rule: clicking the TOP FACE of an existing same single-slab upgrades it to double (1.12)
     const hid0 = CF.world.get(hit.x, hit.y, hit.z);
-    if ((v.wire || v.repeater) && !CF.solidAt(CF.world.get(tx, ty - 1, tz))) return false; // #064/#065: dust+repeater need a floor (1.12)
-    if (v.boxes && !v.stairs && !v.wire && !v.repeater && hit.face[1] === 1 && hid0) {
+    if ((v.wire || v.repeater || v.plate) && !CF.solidAt(CF.world.get(tx, ty - 1, tz))) return false; // #064/#065/#068: dust+repeater+plate need a floor (1.12)
+    if (v.boxes && !v.stairs && !v.wire && !v.repeater && !v.plate && hit.face[1] === 1 && hid0) {
       const hv = CF.BY_ID[hid0];
       if (hv && hv === v && CF.world.flatAt && !(CF.world.flatAt(hit.x, hit.y, hit.z) & 4)) {
         CF.world.flatSet(hit.x, hit.y, hit.z, CF.world.flatAt(hit.x, hit.y, hit.z) | 4);
@@ -233,7 +233,7 @@ window.CF = window.CF || {};
   window.addEventListener('mousedown', (e) => {
     if (!CF.player) return;
     if (e.button === 0) CF.mineStart(CF.aim());
-    if (e.button === 2) { if (!(CF.useFlintSteel && CF.useFlintSteel(CF.aim())) && !(CF.useBlock && CF.useBlock(CF.aim())) && !(CF.useBucket && CF.useBucket(CF.aim())) && !(CF.mobFeed && CF.mobFeed()) && !(CF.useHoe && CF.useHoe(CF.aim())) && !(CF.useHeld && CF.useHeld())) CF.place(CF.aim()); }
+    if (e.button === 2) { const hb = CF.aim(); if (!(CF.pressButton && hb && CF.pressButton(hb.x, hb.y, hb.z)) && !(CF.useFlintSteel && CF.useFlintSteel(hb)) && !(CF.useBlock && CF.useBlock(hb)) && !(CF.useBucket && CF.useBucket(hb)) && !(CF.mobFeed && CF.mobFeed()) && !(CF.useHoe && CF.useHoe(hb)) && !(CF.useHeld && CF.useHeld())) CF.place(hb); }
   });
   window.addEventListener('mouseup', () => { CF.mining = null; });
   window.addEventListener('wheel', (e) => { CF.sel = (CF.sel + (e.deltaY > 0 ? 1 : -1) + CF.hotbar.length) % CF.hotbar.length; CF.uiRefresh && CF.uiRefresh(); });

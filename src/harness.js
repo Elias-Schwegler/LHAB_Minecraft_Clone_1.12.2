@@ -669,6 +669,21 @@
         else if (t === 100) { const pw = CF.rsPowerAt(ax + 1, h + 1, az), p7 = CF.rsPowerAt(ax + 7, h + 1, az), p8 = CF.rsPowerAt(ax + 8, h + 1, az); act('p d1=' + pw + ' d7=' + p7 + ' d8=' + p8); }
         else if (t === 108) { W.set(ax + 9, h, az, CF.IDOF['stone']); put('redstone_lamp', ax + 9, h, az); act('lamp beside boosted dust'); } // #066 finale: FIRST visible circuit state
         else if (t === 130) { const LIT = CF.IDOF['lit_redstone_lamp']; act('lamp=' + (W.get(ax + 9, h + 1, az) === LIT ? 'LIT' : W.get(ax + 9, h + 1, az)) + ' light=' + (W.lightAt(ax + 9, h + 1, az) & 15)); }
+        else if (t === 150) { // #068 plate demo: plate -> dust trail -> lamp (live physics-safe: nothing solid at head height over the plate)
+          for (let i = 0; i <= 5; i++) { W.set(ax - 2 + i, h, az + 4, CF.IDOF['stone']); W.set(ax - 2 + i, h + 1, az + 4, 0); }
+          put('stone_pressure_plate', ax - 2, h, az + 4);
+          for (let i = 1; i <= 3; i++) { W.set(ax - 2 + i, h + 1, az + 4, CF.IDOF['redstone_wire']); }
+          W.set(ax + 2, h + 1, az + 4, CF.IDOF['redstone_lamp']);
+          act('plate+dust+lamp2 row set');
+        }
+        else if (t === 156) { P.tp(ax - 2 + 0.5, h + 1, az + 4 + 0.5); } // step ONTO the plate
+        else if (t === 166) { const lid = W.get(ax + 2, h + 1, az + 4); act('on-plate lamp2=' + (lid === CF.IDOF['lit_redstone_lamp'] ? 'LIT' : 'off') + ' l=' + (W.lightAt(ax + 2, h + 1, az + 4) & 15) + ' press=' + (W._rs ? W._rs.press.size : -1) + ' id=' + lid + ' liT=' + (CF.BY_ID[lid] || {}).tiles + ' meta=' + JSON.stringify(((window.__TEXMETA || {})['redstone_lamp_lit'] || 'none'))
+            + ' px80=' + (window.__ATLAS_CTX ? [].slice.call(window.__ATLAS_CTX.getImageData(80, 176, 1, 1).data).join(' ') : 'nc')
+            + ' px64=' + (window.__ATLAS_CTX ? [].slice.call(window.__ATLAS_CTX.getImageData(64, 176, 1, 1).data).join(' ') : 'nc')); }
+        else if (t === 172) { CF.pressButton(ax - 4, h + 2, az); } // (no-op if pillar gone) keep simple: re-press the wall pillar button
+        else if (t === 180) { const lid = W.get(ax + 2, h + 1, az + 4); act('t180 lamp2=' + (lid === CF.IDOF['lit_redstone_lamp'] ? 'LIT' : 'off') + ' id=' + lid + ' press=' + W._rs.press.size + ' p=' + P.pos.map((v) => v.toFixed(2)).join(',')); }
+        else if (t === 182) { P.tp(ax + 14.5, h + 1, az - 4); } // step far off the plate
+        else if (t === 192) act('off-plate lamp2=' + (W.get(ax + 2, h + 1, az + 4) === CF.IDOF['lit_redstone_lamp'] ? 'LIT' : 'off'));
       } catch (e) { log.push('ERR@' + t + ':' + e.message); }
       document.title = 'VR:' + t + 't:' + encodeURIComponent(log.join('|'));
     };

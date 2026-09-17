@@ -1976,6 +1976,136 @@ window.CF.REGISTRY = /*REGISTRY-START*/{
     }
    }
   },
+  "stone_pressure_plate": {
+   "id": 70,
+   "tier": 2,
+   "variants": {
+    "default": {
+     "functional": false,
+     "tiles": [
+      "stone_pressure_plate",
+      "stone_pressure_plate",
+      "stone_pressure_plate",
+      "stone_pressure_plate",
+      "stone_pressure_plate",
+      "stone_pressure_plate"
+     ],
+     "hardness": 0.5,
+     "drop": "stone_pressure_plate",
+     "tool": null,
+     "minTier": 0,
+     "solid": false,
+     "light": 0,
+     "plate": true,
+     "boxes": [
+      [0, 0, 0, 1, 0.0625, 1]
+     ],
+     "proof": {
+      "issue": "#068",
+      "tests": [
+       "world.plate-press"
+      ]
+     }
+    }
+   }
+  },
+  "wooden_pressure_plate": {
+   "id": 147,
+   "tier": 2,
+   "variants": {
+    "default": {
+     "functional": false,
+     "tiles": [
+      "wooden_pressure_plate",
+      "wooden_pressure_plate",
+      "wooden_pressure_plate",
+      "wooden_pressure_plate",
+      "wooden_pressure_plate",
+      "wooden_pressure_plate"
+     ],
+     "hardness": 0.5,
+     "drop": "wooden_pressure_plate",
+     "tool": null,
+     "minTier": 0,
+     "solid": false,
+     "light": 0,
+     "plate": true,
+     "boxes": [
+      [0, 0, 0, 1, 0.0625, 1]
+     ],
+     "proof": {
+      "issue": "#068",
+      "tests": [
+       "world.plate-press"
+      ]
+     }
+    }
+   }
+  },
+  "stone_button": {
+   "id": 77,
+   "tier": 2,
+   "variants": {
+    "default": {
+     "functional": false,
+     "tiles": [
+      "stone_button",
+      "stone_button",
+      "stone_button",
+      "stone_button",
+      "stone_button",
+      "stone_button"
+     ],
+     "hardness": 0.5,
+     "drop": "stone_button",
+     "tool": null,
+     "minTier": 0,
+     "solid": false,
+     "light": 0,
+     "cross": true,
+     "button": true,
+     "dur": 20,
+     "proof": {
+      "issue": "#068",
+      "tests": [
+       "interact.button-press"
+      ]
+     }
+    }
+   }
+  },
+  "wooden_button": {
+   "id": 143,
+   "tier": 2,
+   "variants": {
+    "default": {
+     "functional": false,
+     "tiles": [
+      "wooden_button",
+      "wooden_button",
+      "wooden_button",
+      "wooden_button",
+      "wooden_button",
+      "wooden_button"
+     ],
+     "hardness": 0.5,
+     "drop": "wooden_button",
+     "tool": null,
+     "minTier": 0,
+     "solid": false,
+     "light": 0,
+     "cross": true,
+     "button": true,
+     "dur": 30,
+     "proof": {
+      "issue": "#068",
+      "tests": [
+       "interact.button-press"
+      ]
+     }
+    }
+   }
+  },
   "redstone_lamp": {
    "id": 123,
    "tier": 2,

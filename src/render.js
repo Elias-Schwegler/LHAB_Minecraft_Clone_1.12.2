@@ -341,11 +341,17 @@ void main(){ vec4 t = texture(T, uv); float cut = 1.0 - smoothstep(0.30, 0.62, t
         return ((x + y) % 4 === 0) ? '#3f2f2f' : ((x * y) % 7 === 0 ? '#4a3a38' : '#352828');
       };
       const lampLit = (x, y) => {
-        if (x < 1 || y < 1 || x > 14 || y > 14) return '#6a4a22';
-        if ((x + y) % 5 < 2) return '#b8892a'; // glass frame lines
-        return ((x * 3 + y * 7) % 6 === 0) ? '#ffe87a' : '#f4c23c';
+        if (x < 1 || y < 1 || x > 14 || y > 14) return '#9a7a3a';
+        if ((x === 4 || x === 11) && y > 2 && y < 13) return '#f8d868'; // sparse vertical glass seams, not a cage
+        if ((y === 4 || y === 11) && x > 2 && x < 13) return '#f8d868';
+        return ((x * 3 + y * 7) % 7 === 0) ? '#fff2a0' : '#ffcf4a'; // bright amber core (#048: was muddy at distance)
       };
       cell(64, 176, lampOff); cell(80, 176, lampLit);
+      // #068 input tiles: plates = thin slab textures; buttons = small nub tiles
+      const stoneTex = (x, y) => ((x + y * 3) % 7 === 0 ? '#7d7d82' : ((x * 2 + y) % 9 === 0 ? '#6a6a6f' : '#8f8f95'));
+      const woodTex = (x, y) => (y % 5 === 0 ? '#5b431f' : ((x + y) % 6 === 0 ? '#8d7143' : '#9c7f4e'));
+      cell(96, 176, stoneTex); cell(128, 176, (x, y) => (x >= 5 && x <= 10 && y >= 6 && y <= 9) ? stoneTex(x, y) : RS);
+      cell(112, 176, woodTex); cell(144, 176, (x, y) => (x >= 5 && x <= 10 && y >= 6 && y <= 9) ? woodTex(x, y) : RS);
       cell(16, 176, (x, y) => { // item_redstone: dust pile
         if (y >= 9 && y <= 12 && x >= 4 && x <= 11) return (y % 2) ? '#8a1a14' : '#a52a2a';
         if (y >= 7 && y <= 8 && x >= 6 && x <= 9) return '#932222';
