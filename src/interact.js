@@ -180,8 +180,8 @@ window.CF = window.CF || {};
     const v = CF.BY_ID[id];
     // #052 slab rule: clicking the TOP FACE of an existing same single-slab upgrades it to double (1.12)
     const hid0 = CF.world.get(hit.x, hit.y, hit.z);
-    if (v.wire && !CF.solidAt(CF.world.get(tx, ty - 1, tz))) return false; // #064: dust needs a floor (1.12)
-    if (v.boxes && !v.stairs && !v.wire && hit.face[1] === 1 && hid0) {
+    if ((v.wire || v.repeater) && !CF.solidAt(CF.world.get(tx, ty - 1, tz))) return false; // #064/#065: dust+repeater need a floor (1.12)
+    if (v.boxes && !v.stairs && !v.wire && !v.repeater && hit.face[1] === 1 && hid0) {
       const hv = CF.BY_ID[hid0];
       if (hv && hv === v && CF.world.flatAt && !(CF.world.flatAt(hit.x, hit.y, hit.z) & 4)) {
         CF.world.flatSet(hit.x, hit.y, hit.z, CF.world.flatAt(hit.x, hit.y, hit.z) | 4);
@@ -214,7 +214,11 @@ window.CF = window.CF || {};
       // clicking a BOTTOM face flips upside (bit4) like ceiling-mounted 1.12 stairs.
       CF.world.flatSet(tx, ty, tz, (CF.dirFromYaw ? CF.dirFromYaw(p.yaw) : 0) | (hit.face[1] === -1 ? 4 : 0));
     }
-    if (ok && v.boxes && !v.stairs && CF.world.flatSet) {
+    if (ok && v.repeater && CF.world.flatSet) {
+      // #065: store OUTPUT direction = opposite of player facing (wiki: repeater faces away from placer)
+      CF.world.flatSet(tx, ty, tz, CF.dirFromYaw(p.yaw) ^ 1); // RDIRV pairs 0(+X)/1(-X), 2(+Z)/3(-Z) - opposite = XOR 1 (out = away from player)
+    }
+    if (ok && v.boxes && !v.stairs && !v.repeater && CF.world.flatSet) {
       // #052: bottom slab onto floor face (up) = bit0-style default(0); top slab onto ceiling face (down) = bit 2
       if (hit.face[1] === -1) CF.world.flatSet(tx, ty, tz, 2);
     }

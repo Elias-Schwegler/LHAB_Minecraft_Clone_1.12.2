@@ -2,10 +2,15 @@
 Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each session) · Spec: docs/REFERENCE.md
 
 ## Current state (2026-09-17, SPRINT 05 ACTIVE - "Current flows", planned docs/sprints/05.md, it1 #061 + it2 #064 done, it3 next: #065 repeater)
+- #065 SHIPPED: repeater (painted tile functional:false, flat bits 0-3 = OUTPUT dir = yaw XOR 1, floor rule,
+  pop; engine = Jacobi fixed-point passes (PURE), diode output-only injection, rsDue delay list fires +2gt in
+  rsTick, off instant) + TORCH INVERTER (torch dies while attach block carries dust-on-top/repeater power;
+  SUPV sign fixed to torch+vec). Live video probe: d5=10 -> repeater -> d7=14 boost through the REAL loop.
+  +4 asserts -> 254/238 GREEN, 48 blocks. RMB delay-cycle 2/4/6/8 deferred. NEXT: #066 lamp (consumer of
+  CF.rsPowerAt - first VISIBLE circuit state), then #067 piston-lite / #068 plate+button (exit criterion).
 - #064 SHIPPED: src/redstone.js = SPK-8 model A (cells Set + full re-flood on dirty, idle 0, NO persistence,
   rsRescan on load). Blocks: redstone_wire (painted, functional:false) / redstone_torch (source 15, no light,
   painted) / redstone_ore (BLENDER +1 -> parity 59/399, y<16 veins). CF.rsPowerAt API ready for #065/#066.
-  TORCH INVERTER deferred to #065 (documented). Gate 249/233.
 - Sprint 05 issues 064-070 mirrored: redstone chain 064->065->066 (+067 piston/068 plate/button), carried
   #044/#048/#061, 069 spider/enderman, 070 SPK-9 nether scout. Exit: in-game lamp circuit + FULL video
   re-eval before audit #8 + v0.5.0.
@@ -74,6 +79,16 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #065 repeater + torch inverter (sprint-05 it3): redstone.js passes became a pure Jacobi fixed-point
+  (cap 6) with a post-stability sweep: repeaters conduct only when rs.on; switch-on scheduled on CF.rsDue
+  (+2 game ticks, fReady pattern) and fires in rsTick BEFORE drain; signal loss = instant off. DIODE fix:
+  injection spreads ONLY into the output cell (all-dir spread leaked power backward through the input).
+  Inverter: torch seeds suppressed while blockPowered(attach) - attach = torch+SUPV[code] (sign fixed via
+  world.js pop precedent); dust-on-top-of-attach powers it (interact.redstone-invert: out 0->14 across cut).
+  Repeater block: painted (48,176) tile, floor rule + pop, flat bits 0-3 = OUTPUT dir = dirFromYaw ^ 1
+  (a +1 vs XOR axis bug slipped past the single-direction assert, caught by the live video probe), recipe
+  dust+torch+dust / slab+slab (wiki-verified). video-redstone extended: live probe d5=10 -> d7=14 BOOST.
+  +4 asserts (delay/boost/facing+nofloor/invert), 254/238 GREEN, 48 blocks. Delay-setting cycle deferred.
 - #064 redstone power core (sprint-05 it2, SPK-8 executed): new src/redstone.js module - per-world cells+power
   maps, full clear+BFS re-flood ONLY when an RS block changes (world.set hook; idle free verified by assert
   counter), game-loop rsTick, CF.rsPowerAt consumer API, load-time rsRescan (power derived, save bytes clean -

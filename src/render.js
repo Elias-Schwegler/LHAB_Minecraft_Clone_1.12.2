@@ -329,6 +329,12 @@ void main(){ vec4 t = texture(T, uv); float cut = 1.0 - smoothstep(0.30, 0.62, t
       };
       const rt = (x, y) => (x >= 7 && x <= 8 && y >= 8) ? '#6b4a2c' : (x >= 6 && x <= 9 && y >= 4 && y <= 7) ? '#8a1f1f' : RS; // redstone_torch (block + item)
       cell(160, 160, wire); cell(0, 176, rt); cell(32, 176, rt);
+      cell(48, 176, (x, y) => { // #065 repeater: stone base strip + two torch dots (input back, output front)
+        if (y >= 10 && y <= 14) return ((x + y) % 3 === 0) ? '#7d7d82' : '#8f8f95'; // slab base
+        if (x >= 3 && x <= 5 && y >= 6 && y <= 8) return '#8a1f1f'; // back torch (off-red)
+        if (x >= 10 && x <= 12 && y >= 6 && y <= 8) return '#d63030'; // front torch (lit hint)
+        return RS;
+      });
       cell(16, 176, (x, y) => { // item_redstone: dust pile
         if (y >= 9 && y <= 12 && x >= 4 && x <= 11) return (y % 2) ? '#8a1a14' : '#a52a2a';
         if (y >= 7 && y <= 8 && x >= 6 && x <= 9) return '#932222';
