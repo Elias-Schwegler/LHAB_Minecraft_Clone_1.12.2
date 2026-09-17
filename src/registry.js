@@ -1910,6 +1910,103 @@ window.CF.REGISTRY = /*REGISTRY-START*/{
     }
    }
   },
+  "redstone_wire": {
+   "id": 55,
+   "tier": 2,
+   "variants": {
+    "default": {
+     "functional": false,
+     "tiles": [
+      "redstone_wire",
+      "redstone_wire",
+      "redstone_wire",
+      "redstone_wire",
+      "redstone_wire",
+      "redstone_wire"
+     ],
+     "hardness": 0,
+     "drop": "redstone",
+     "tool": null,
+     "minTier": 0,
+     "solid": false,
+     "light": 0,
+     "wire": true,
+     "boxes": [
+      [0, 0, 0, 1, 0.0625, 1]
+     ],
+     "proof": {
+      "issue": "#064",
+      "tests": [
+       "world.redstone-flood",
+       "interact.redstone-place"
+      ]
+     }
+    }
+   }
+  },
+  "redstone_torch": {
+   "id": 76,
+   "tier": 2,
+   "variants": {
+    "default": {
+     "functional": false,
+     "tiles": [
+      "redstone_torch",
+      "redstone_torch",
+      "redstone_torch",
+      "redstone_torch",
+      "redstone_torch",
+      "redstone_torch"
+     ],
+     "hardness": 0,
+     "drop": "redstone_torch",
+     "tool": null,
+     "minTier": 0,
+     "solid": false,
+     "light": 0,
+     "cross": true,
+     "rstorch": true,
+     "proof": {
+      "issue": "#064",
+      "tests": [
+       "world.redstone-flood",
+       "interact.redstone-place"
+      ]
+     }
+    }
+   }
+  },
+  "redstone_ore": {
+   "id": 74,
+   "tier": 2,
+   "variants": {
+    "default": {
+     "functional": true,
+     "tiles": [
+      "redstone_ore",
+      "redstone_ore",
+      "redstone_ore",
+      "redstone_ore",
+      "redstone_ore",
+      "redstone_ore"
+     ],
+     "hardness": 3,
+     "drop": "redstone",
+     "tool": "pickaxe",
+     "minTier": 3,
+     "solid": true,
+     "light": 0,
+     "proof": {
+      "issue": "#064",
+      "tests": [
+       "world.redstone-ore",
+       "items.redstone-smelt",
+       "registry.redstone"
+      ]
+     }
+    }
+   }
+  },
   "oak_stairs": {
    "id": 53,
    "tier": 1,

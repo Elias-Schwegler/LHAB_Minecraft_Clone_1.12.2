@@ -12,17 +12,11 @@ window.CF = window.CF || {};
   CF.hotId = () => {
     const h = CF.held && CF.held();
     if (!h) return 0;
-    if (CF.PLANTABLE && CF.PLANTABLE[h]) { const r2 = CF.REGISTRY[CF.PLANTABLE[h]]; return r2 ? r2.variants[Object.keys(r2.variants)[0]].id : 0; } // #054: wheat_seeds plants the wheat block
+    if (CF.PLANTABLE && CF.PLANTABLE[h]) return CF.IDOF[CF.PLANTABLE[h]] || 0; // #054: wheat_seeds plants the wheat block (#064: IDOF - the JSON id FIELD is documentation, sequential wins)
     if (h.indexOf(':') > 0) { // #052: variant items ('stone_slab:cobblestone')
-      const p2 = h.split(':');
-      const r2 = CF.REGISTRY[p2[0]];
-      if (r2 && r2.variants[p2[1]]) return r2.variants[p2[1]].id;
-      return 0;
+      return CF.IDOF[h] || 0;
     }
-    const reg = CF.REGISTRY[h];
-    if (!reg) return 0;
-    const k = Object.keys(reg.variants)[0];
-    return reg.variants[k].id;
+    return CF.IDOF[h] || 0; // #064: was variants[k].id (JSON FIELD) - only ever correct while field==sequential; IDOF is the truth
   };
 
   function raycast(o, d, maxD) {
@@ -186,7 +180,8 @@ window.CF = window.CF || {};
     const v = CF.BY_ID[id];
     // #052 slab rule: clicking the TOP FACE of an existing same single-slab upgrades it to double (1.12)
     const hid0 = CF.world.get(hit.x, hit.y, hit.z);
-    if (v.boxes && !v.stairs && hit.face[1] === 1 && hid0) {
+    if (v.wire && !CF.solidAt(CF.world.get(tx, ty - 1, tz))) return false; // #064: dust needs a floor (1.12)
+    if (v.boxes && !v.stairs && !v.wire && hit.face[1] === 1 && hid0) {
       const hv = CF.BY_ID[hid0];
       if (hv && hv === v && CF.world.flatAt && !(CF.world.flatAt(hit.x, hit.y, hit.z) & 4)) {
         CF.world.flatSet(hit.x, hit.y, hit.z, CF.world.flatAt(hit.x, hit.y, hit.z) | 4);

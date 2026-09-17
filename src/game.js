@@ -56,6 +56,7 @@ window.CF = window.CF || {};
         CF.tntTick && CF.tntTick(); // #042 primed TNT fuses + chain + explode
         CF.bedTick && CF.bedTick(); // #041 sleep sequence + weather/lightning/shake decay
         CF.itemTick && CF.itemTick(); // #060 dropped-item physics + pickup magnet
+        CF.rsTick && CF.rsTick(); // #064 redstone re-flood ONLY on changes (SPK-8 model A)
         CF.portalStepTick && CF.portalStepTick(); // #055 stepping into a portal warps (armed/cooldown inside)
       }
       CF.renderTick && CF.renderTick();

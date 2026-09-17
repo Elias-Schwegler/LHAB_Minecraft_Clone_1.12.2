@@ -319,6 +319,22 @@ void main(){ vec4 t = texture(T, uv); float cut = 1.0 - smoothstep(0.30, 0.62, t
         return T43;
       };
       cell(112, 160, bucket(null)); cell(128, 160, bucket('water')); cell(144, 160, bucket('lava'));
+      // #064 redstone: dust = translucent red powder trail; torch = stick + dark red tip (unlit!).
+      const RS = 'rgba(0,0,0,0)';
+      const wire = (x, y) => {
+        if (y === 7 || y === 8) return ((x * 7) % 5 < 3) ? '#8a1f1f' : '#a52a2a'; // main run
+        if ((x === 2 || x === 8 || x === 13) && y > 3 && y < 12 && (y * 11) % 4 < 3) return '#932222'; // side stubs
+        if ((x === 5 && y === 5) || (x === 11 && y === 10) || (x === 4 && y === 11)) return '#b03030'; // sprinkle
+        return RS;
+      };
+      const rt = (x, y) => (x >= 7 && x <= 8 && y >= 8) ? '#6b4a2c' : (x >= 6 && x <= 9 && y >= 4 && y <= 7) ? '#8a1f1f' : RS; // redstone_torch (block + item)
+      cell(160, 160, wire); cell(0, 176, rt); cell(32, 176, rt);
+      cell(16, 176, (x, y) => { // item_redstone: dust pile
+        if (y >= 9 && y <= 12 && x >= 4 && x <= 11) return (y % 2) ? '#8a1a14' : '#a52a2a';
+        if (y >= 7 && y <= 8 && x >= 6 && x <= 9) return '#932222';
+        if (y === 13 && x >= 5 && x <= 10) return '#5f0f0c';
+        return RS;
+      });
       // #049: Cycles PNG bakes flattened tile ALPHA to 255 (glass center & water translucency lost).
       // Restore it here in-canvas (same pipeline, still zero-download): glass hollow frame, water see-through.
       const alphaCell = (name, fn) => {

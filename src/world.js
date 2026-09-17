@@ -64,6 +64,7 @@ window.CF = window.CF || {};
               const r = hash(x * 3411288 + y * 1337 + z * 7919 + seed);
               if (y < 12 && r < 0.0012) id = IDOF['diamond_ore'];
               else if (y < 16 && r < 0.004) id = IDOF['gold_ore'];
+              else if (y < 16 && r < 0.006) id = IDOF['redstone_ore']; // #064: 1.12 deep vein (slightly commoner than gold, y<16)
               else if (y < 30 && r < 0.012) id = IDOF['iron_ore'];
               else if (y < 40 && r < 0.024) id = IDOF['coal_ore'];
             }
@@ -112,19 +113,21 @@ window.CF = window.CF || {};
       c.arr[idx] = id;
       queueRelight(x, z);
       const prevDef = CF.BY_ID[prev], nowDef = CF.BY_ID[id];
+      if (CF.rsOnSet && ((prevDef && (prevDef.wire || prevDef.rstorch)) || (nowDef && (nowDef.wire || nowDef.rstorch)))) CF.rsOnSet(api, x, y, z); // #064: dirty the power map only when RS blocks change (SPK-8: derived state, zero idle cost)
       if (id === 0) {
         // cross-model pop when its ATTACHED face support dies (MC torch rule, per-face) (#028)
         for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, -1]]) {
           const nx = x + dx, ny = y + dy, nz = z + dz;
           const nb = get(nx, ny, nz);
           const nv = nb && CF.BY_ID[nb];
-          if (!nv || !nv.cross) continue;
+          if (!nv || !(nv.cross || nv.wire)) continue; // #064: redstone wire pops off when its floor dies (like crops)
           const SUPV = { 1: [0, -1, 0], 2: [-1, 0, 0], 6: [1, 0, 0], 4: [0, 0, -1], 8: [0, 0, 1] };
-          const v = nv.crop ? [0, -1, 0] : (SUPV[flatAt(nx, ny, nz)] || [0, -1, 0]); // #054: crops always ride the block below (stage bits != torch codes)
+          const v = (nv.crop || nv.wire) ? [0, -1, 0] : (SUPV[flatAt(nx, ny, nz)] || [0, -1, 0]); // #054: crops always ride the block below (stage bits != torch codes)
           if (CF.solidAt(get(nx + v[0], ny + v[1], nz + v[2]))) continue;
           set(nx, ny, nz, 0);
-          if (CF.drops) CF.drops.push({ name: nv.name, n: 1, x: nx + 0.5, y: ny + 0.5, z: nz + 0.5 });
-          if (CF.give) CF.give(nv.name, 1);
+          const dropNm = (nv.drop == null ? nv.name : nv.drop) || nv.name; // #064: pop-drop honors the drop table (wire->redstone dust), not just the block name
+          if (CF.drops) CF.drops.push({ name: dropNm, n: 1, x: nx + 0.5, y: ny + 0.5, z: nz + 0.5 });
+          if (CF.give) CF.give(dropNm, 1);
         }
       }
       if ((nowDef && nowDef.liquid) || (prevDef && prevDef.liquid)) {

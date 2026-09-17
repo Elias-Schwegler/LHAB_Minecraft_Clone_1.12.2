@@ -2,7 +2,7 @@
 // Each frame = one headless boot cut off at virtual-time budget T_k (Edge --screenshot fires exactly at
 // budget expiry). Same seed + scripted inputs => same play in every boot (timers/rAF are virtual-deterministic;
 // Math.random spots = weather/lightning/drop rolls only, cosmetic variance).
-// Usage: node tools/video.mjs [name] [seed=N] [frames=N] [step=ms] [start=ms] [--clean]
+// Usage: node tools/video.mjs [name] [seed=N] [frames=N] [step=ms] [start=ms] [scenario=video-play] [--clean]
 // Output: qa/videos/YYYY-MM-DD/<name>/f<kk>.png (+ index.json). VIEW frames in <=8-image batches + write
 // per-batch verdicts into the issue Evidence (DoD 4b law 2026-09-12).
 // FRAMES ARE TEMPORARY (user 2026-09-17): qa/videos/ is .gitignored; the durable artifact is the verdict
@@ -46,7 +46,8 @@ for (let k = 0; k < frames; k++) {
   let ok = false, err = '';
   for (let a = 0; a < 2 && !ok; a++) {
     try {
-      runBrowser({ url: toFileUrl(p('game', 'index.html')) + `?seed=${seed}#shot=video-play`, screenshot: out, budget: budget + (a ? 8000 : 0), timeout: 180000 + budget * 12 });
+      const scen = (argv.find((x) => x.startsWith('scenario=')) || 'scenario=video-play').split('=')[1];
+      runBrowser({ url: toFileUrl(p('game', 'index.html')) + `?seed=${seed}#shot=${scen}`, screenshot: out, budget: budget + (a ? 8000 : 0), timeout: 180000 + budget * 12 });
     } catch (e) { err = String(e.message).slice(0, 80); }
     ok = existsSync(out) && statSync(out).size > 3000;
   }

@@ -32,6 +32,7 @@ window.CF = window.CF || {};
     wool: {}, // superseded by the wool BLOCK family (#050) - bare item kept for sheep drop compat
     clay_ball: {}, brick: {}, // #051 chain items (icons -> #048)
     quartz: { tile: 'item_quartz' }, // #056 nether quartz (quartz_ore drop; smelting->quartz_block = #048/later)
+    redstone: { tile: 'item_redstone' }, // #064 dust (redstone_ore smelt drop; torch + future repeater/lamp ingredient)
   };
   for (const [mat, info] of Object.entries(TOOLS))
     for (const shape of ['pickaxe', 'axe', 'shovel', 'sword', 'hoe'])
@@ -96,6 +97,7 @@ window.CF = window.CF || {};
     P(['ccc', 'c c', 'ccc'], { c: 'cobblestone' }, 'furnace', 1),
     P(['ccc', 'c c', 'ccc'], { c: 'planks' }, 'chest', 1),
     P(['c', 's'], { c: 'coal', s: 'stick' }, 'torch', 4),
+    P(['r', 's'], { r: 'redstone', s: 'stick' }, 'redstone_torch', 1), // #064 1.12: dust over stick = 1 redstone torch (inverter behavior lands with #065)
     P(['mmm', ' s ', ' s '], null, 'pickaxe', 4), // materials expanded below
     P(['mm', 'ms', ' s'], null, 'axe', 4),
     P(['m', 's', 's'], null, 'shovel', 4),
@@ -191,7 +193,7 @@ window.CF = window.CF || {};
 
   // ---- furnace block entities + smelting (200t/item, coal fuel 1600t)
   CF.blockEntities = {};
-  const SMELT = { iron_ore: 'iron_ingot', gold_ore: 'gold_ingot', sand: 'glass', clay_ball: 'brick' }; // #051
+  const SMELT = { iron_ore: 'iron_ingot', gold_ore: 'gold_ingot', sand: 'glass', clay_ball: 'brick', redstone_ore: 'redstone' }; // #051/#064
   CF.FUEL = { coal: 1600, planks: 300, log: 300, stick: 100 };
   CF.furnacePlace = (x, y, z) => { CF.blockEntities[x + ',' + y + ',' + z] = { type: 'furnace', input: null, fuel: null, out: null, burn: 0, cook: 0 }; };
   // #040 chest: 27-slot container block entity (+ tiles drawn procedurally by render at load)
