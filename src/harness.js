@@ -32,6 +32,7 @@
     { name: 'render', run: (r) => CF.rendererTests && CF.rendererTests(r) },
     { name: 'player', run: (r) => CF.playerTests && CF.playerTests(r) },
     { name: 'interact', run: (r) => CF.interactTests && CF.interactTests(r) },
+    { name: 'redstone', run: (r) => CF.redstoneTests && CF.redstoneTests(r) },
     { name: 'f3', run: (r) => CF.f3Tests && CF.f3Tests(r) },
     { name: 'items', run: (r) => CF.itemTests && CF.itemTests(r) },
     { name: 'ui', run: (r) => CF.uiTests && CF.uiTests(r) },
@@ -637,6 +638,37 @@
       };
     } catch (e) { document.title = 'VP-BOOT-ERR:' + e.message; }
     await new Promise((res) => setTimeout(res, 9999999)); // frames captured at budget cutoffs
+  };
+  CF.shotScenarios['video-redstone'] = async () => { // #064 VIDEO-QA: dust line + redstone torch on a lit surface
+    const P = CF.player, W = CF.world;
+    CF.freeCam = false; CF.survival = false;
+    let log = [];
+    const ax = 46, az = 46; // quiet arena (chunk 2,2)
+    const act = (s) => { log.push(CF.ticks + ':' + s); if (log.length > 5) log.shift(); };
+    W.ensureAround(ax, az, 1);
+    for (let i = 0; i < 40 && W.stats().queue; i++) W.tick();
+    const h = W.heightAt(ax, az);
+    for (let x = ax - 2; x <= ax + 12; x++) for (let z = az - 2; z <= az + 2; z++) { for (let y = h + 1; y <= h + 4; y++) W.set(x, y, z, 0); W.set(x, h, z, CF.IDOF['stone']); }
+    const prev = CF.onTick;
+    CF.onTick = () => {
+      prev && prev();
+      const t = CF.ticks;
+      try {
+        const put = (name, x, y, z) => { CF.inv.fill(null); CF.give(name, 1); CF.sel = 0; CF.place({ x, y, z, face: [0, 1, 0] }); };
+        if (t === 40) { put('redstone_torch', ax, h, az); act('torch'); }
+        else if (t > 45 && t <= 55 && (t % 2) === 1) { put('redstone_wire', ax + ((t - 45) / 2 | 0), h, az); }
+        else if (t === 56) act('dust line placed');
+        else if (t === 60) { CF.freeCam = true; act('camera'); }
+        else if (t === 61) {
+          const look = [ax + 4.5, h + 1.1, az + 0.5];
+          CF.camera = { pos: [ax + 4.5, h + 2.3, az + 6.5], yaw: Math.atan2(look[0] - (ax + 4.5), look[2] - (az + 6.5)), pitch: Math.atan2(look[1] - (h + 2.3), 6) };
+          CF.renderDraw(CF.camera);
+        }
+        else if (t === 90) { const pw = CF.rsPowerAt(ax + 1, h + 1, az), pe = CF.rsPowerAt(ax + 5, h + 1, az); act('power d1=' + pw + ' d5=' + pe); }
+      } catch (e) { log.push('ERR@' + t + ':' + e.message); }
+      document.title = 'VR:' + t + 't:' + encodeURIComponent(log.join('|'));
+    };
+    await new Promise((res) => setTimeout(res, 9999999)); // frames at budget cutoffs
   };
   CF.shotScenarios['storage-wall'] = async () => { // #051: gold/iron/diamond/brick/clay row
     CF.freeCam = true;

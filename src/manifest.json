@@ -6,6 +6,7 @@
     "src/player.js",
     "src/interact.js",
     "src/items.js",
+    "src/redstone.js",
     "src/ui.js",
     "src/survival.js",
     "src/persist.js",

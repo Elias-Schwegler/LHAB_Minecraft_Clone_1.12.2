@@ -178,6 +178,7 @@ def gen_tiles():
     add("iron_ore", ore("#7e7e82", "#c8a878"))
     add("gold_ore", ore("#7e7e82", "#f8d858"))
     add("diamond_ore", ore("#7e7e82", "#5cdcd4"))
+    add("redstone_ore", ore("#7e7e82", "#96231f"))  # #064: deep red blobs (1.12 y<16 vein)
     def water(m, nt, em):
         c = ramp(nt, noise(nt, 6.0), [hexc("#2253c8"), hexc("#3a6fd8")])
         nt.links.new(c, em.inputs["Color"])

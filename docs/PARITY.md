@@ -11,13 +11,13 @@ shot.mjs PNG + vision verdict. `parity.mjs` counts a variant ONLY if the game re
 marks it `functional:true` AND `qa/blocks/<variant>.png` exists AND a texture tile is
 Blender-sourced (`tools/tex` manifest). No self-declared counts.
 
-## Block % (tiered) — live from parity.mjs (2026-09-12 #056 close)
+## Block % (tiered) — live from parity.mjs (2026-09-17 #064)
 | Tier | variants total | functional | % |
 |------|---------------|-----------|---|
 | 1 | 125 | 43 | 34.4% |
-| 2 | 163 | 15 | 9.2% |
+| 2 | 163 | 16 | 9.8% |
 | 3 | 111 | 0 | 0% |
-| **all** | **399** | **58** | **14.5%** |
+| **all** | **399** | **59** | **14.8%** |
 
 Sprint-04 additions on the #043 baseline (20): wood II (#049 +9), wool (#050 +16), storage/brick/clay
 (#051 +5, mossy deferred->vines), slabs (#052 +3), stairs (#053 +3: oak 53 / stone_stairs=COBBLE 67 /
@@ -81,4 +81,4 @@ wood variants (no tiles), all Tier-2/3 families.
     registry.nether, bed.nether-explode asserts; nether-warp.png reload-past-warp + nether-view.png vision PASS).
     Ghast/zombie pigmen + nether-fortress = deferred (spider/enderman-style roster work).
 
-Last auto-run: 2026-09-12 (58/399 at #056 close) - parity.mjs writes qa/parity-latest.json; this doc's table is updated MANUALLY at each merge (audit #6 F5)
+Last auto-run: 2026-09-17 (59/399 @ #064; +redstone_ore blender tile + qa/blocks sheet + world.redstone-ore/items.redstone-smelt/registry.redstone. wire/torch procedural painted = functional:false honest, mechanics asserted via world.redstone-flood). - parity.mjs writes qa/parity-latest.json; this doc's table is updated MANUALLY at each merge (audit #6 F5)

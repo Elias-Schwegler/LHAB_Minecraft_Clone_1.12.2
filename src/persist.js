@@ -107,6 +107,7 @@ window.CF = window.CF || {};
       if (c) { c.arr.set(rleDecode(b64d(b), c.arr.length)); dw.edited.add(k); dw.dirty.add(k); }
       if (c && d.flats && d.flats[k]) { if (!c.flat) c.flat = new Uint8Array(16 * 128 * 16); c.flat.set(rleDecode(b64d(d.flats[k]), c.flat.length)); dw.dirty.add(k); } // #053 meta bits (lazy flat!)
     }
+    if (CF.rsRescan) CF.rsRescan(dw); // #064: redstone power is DERIVED - re-flood from placed blocks after load
     return dw;
   }
 

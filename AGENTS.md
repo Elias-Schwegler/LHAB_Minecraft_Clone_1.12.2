@@ -1,7 +1,11 @@
 # AGENTS.md — project STATE memory (1-minute grounding)
 Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each session) · Spec: docs/REFERENCE.md
 
-## Current state (2026-09-17, SPRINT 05 ACTIVE - "Current flows", planned docs/sprints/05.md, it1 done #061, it2 next: #064)
+## Current state (2026-09-17, SPRINT 05 ACTIVE - "Current flows", planned docs/sprints/05.md, it1 #061 + it2 #064 done, it3 next: #065 repeater)
+- #064 SHIPPED: src/redstone.js = SPK-8 model A (cells Set + full re-flood on dirty, idle 0, NO persistence,
+  rsRescan on load). Blocks: redstone_wire (painted, functional:false) / redstone_torch (source 15, no light,
+  painted) / redstone_ore (BLENDER +1 -> parity 59/399, y<16 veins). CF.rsPowerAt API ready for #065/#066.
+  TORCH INVERTER deferred to #065 (documented). Gate 249/233.
 - Sprint 05 issues 064-070 mirrored: redstone chain 064->065->066 (+067 piston/068 plate/button), carried
   #044/#048/#061, 069 spider/enderman, 070 SPK-9 nether scout. Exit: in-game lamp circuit + FULL video
   re-eval before audit #8 + v0.5.0.
@@ -70,6 +74,15 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #064 redstone power core (sprint-05 it2, SPK-8 executed): new src/redstone.js module - per-world cells+power
+  maps, full clear+BFS re-flood ONLY when an RS block changes (world.set hook; idle free verified by assert
+  counter), game-loop rsTick, CF.rsPowerAt consumer API, load-time rsRescan (power derived, save bytes clean -
+  save.redstone-derive). Blocks: wire (thin quad, floor rule + drop-table pop), rstorch (source, NO light 1.12,
+  painted tiles y160/176 rows), redstone_ore (blender tile, y<16 vein, iron+, smelt->dust) -> +7 asserts
+  (flood decay/cut/idle/dead, ore+pop, place rules, craft, smelt, registry), PARITY 58->59, 249/233 GREEN.
+  video-redstone frames PASS (dust line + unlit torch + live d1=14/d5=10 title probe). THIRD sighting of the
+  JSON-id-field landmine (hotId -> IDOF now) + my suite re-taught: restore inv after craft tests (ui.icon-live
+  downstream) + re-capture CF.world after loadNow. Torch inverter -> #065.
 - #061 suite decoupling (sprint-05 it1): runTests PRELUDE (CF.ready+CF.gl wait, ensureAround(player,4)+drain+
   ground, stopGameLoop for boot-less selections; boot still proves live ticking first) + save.v2 self-
   provisions the nether instance like CF.warp does. 11 suite singles + audit-F4 combos all GREEN (was 4 red);
