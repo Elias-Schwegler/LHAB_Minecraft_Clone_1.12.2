@@ -97,7 +97,8 @@ window.CF = window.CF || {};
     P(['ccc', 'c c', 'ccc'], { c: 'cobblestone' }, 'furnace', 1),
     P(['ccc', 'c c', 'ccc'], { c: 'planks' }, 'chest', 1),
     P(['c', 's'], { c: 'coal', s: 'stick' }, 'torch', 4),
-    P(['r', 's'], { r: 'redstone', s: 'stick' }, 'redstone_torch', 1), // #064 1.12: dust over stick = 1 redstone torch (inverter behavior lands with #065)
+    P(['r', 's'], { r: 'redstone', s: 'stick' }, 'redstone_torch', 1), // #064 1.12: dust over stick = 1 redstone torch
+    P(['rtr', 's s'], { r: 'redstone', t: 'redstone_torch', s: 'stone_slab:stone' }, 'repeater', 1), // #065 1.12 (wiki): dust+torch+dust over 2 stone slabs
     P(['mmm', ' s ', ' s '], null, 'pickaxe', 4), // materials expanded below
     P(['mm', 'ms', ' s'], null, 'axe', 4),
     P(['m', 's', 's'], null, 'shovel', 4),

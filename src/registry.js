@@ -1976,6 +1976,41 @@ window.CF.REGISTRY = /*REGISTRY-START*/{
     }
    }
   },
+  "repeater": {
+   "id": 93,
+   "tier": 2,
+   "variants": {
+    "default": {
+     "functional": false,
+     "tiles": [
+      "repeater",
+      "repeater",
+      "repeater",
+      "repeater",
+      "repeater",
+      "repeater"
+     ],
+     "hardness": 0,
+     "drop": "repeater",
+     "tool": null,
+     "minTier": 0,
+     "solid": false,
+     "light": 0,
+     "repeater": true,
+     "boxes": [
+      [0, 0, 0, 1, 0.125, 1]
+     ],
+     "proof": {
+      "issue": "#065",
+      "tests": [
+       "world.repeater-boost",
+       "world.repeater-delay",
+       "interact.repeater-facing"
+      ]
+     }
+    }
+   }
+  },
   "redstone_ore": {
    "id": 74,
    "tier": 2,

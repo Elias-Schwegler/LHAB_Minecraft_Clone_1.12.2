@@ -658,13 +658,15 @@
         if (t === 40) { put('redstone_torch', ax, h, az); act('torch'); }
         else if (t > 45 && t <= 55 && (t % 2) === 1) { put('redstone_wire', ax + ((t - 45) / 2 | 0), h, az); }
         else if (t === 56) act('dust line placed');
-        else if (t === 60) { CF.freeCam = true; act('camera'); }
-        else if (t === 61) {
+        else if (t === 57) { P.yaw = -Math.PI / 2; put('repeater', ax + 6, h, az); act('repeater (out east)'); }
+        else if (t === 59) { put('redstone_wire', ax + 7, h, az); put('redstone_wire', ax + 8, h, az); act('post-repeater dust'); }
+        else if (t === 62) { CF.freeCam = true; act('camera'); }
+        else if (t === 63) {
           const look = [ax + 4.5, h + 1.1, az + 0.5];
-          CF.camera = { pos: [ax + 4.5, h + 2.3, az + 6.5], yaw: Math.atan2(look[0] - (ax + 4.5), look[2] - (az + 6.5)), pitch: Math.atan2(look[1] - (h + 2.3), 6) };
+          CF.camera = { pos: [ax + 4.5, h + 2.3, az + 7.5], yaw: Math.atan2(look[0] - (ax + 4.5), look[2] - (az + 7.5)), pitch: Math.atan2(look[1] - (h + 2.3), 7) };
           CF.renderDraw(CF.camera);
         }
-        else if (t === 90) { const pw = CF.rsPowerAt(ax + 1, h + 1, az), pe = CF.rsPowerAt(ax + 5, h + 1, az); act('power d1=' + pw + ' d5=' + pe); }
+        else if (t === 100) { const pw = CF.rsPowerAt(ax + 1, h + 1, az), pd = CF.rsPowerAt(ax + 5, h + 1, az); const p7 = CF.rsPowerAt(ax + 7, h + 1, az), p8 = CF.rsPowerAt(ax + 8, h + 1, az); const rs = W._rs; act('p d1=' + pw + ' d7=' + p7 + ' d8=' + p8 + ' flat=' + W.flatAt(ax + 6, h + 1, az) + ' cell=' + W.get(ax + 6, h + 1, az) + ' id=' + CF.IDOF['repeater'] + ' due=' + CF.rsDue.length + ' on=' + (rs ? rs.on.size : -1)); }
       } catch (e) { log.push('ERR@' + t + ':' + e.message); }
       document.title = 'VR:' + t + 't:' + encodeURIComponent(log.join('|'));
     };
