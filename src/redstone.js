@@ -14,15 +14,22 @@ window.CF = window.CF || {};
   if (!meta.repeater) meta.repeater = { x: 48, y: 176, w: 16, h: 16, src: 'generated:redstone.js' };
   if (!meta.redstone_lamp) meta.redstone_lamp = { x: 64, y: 176, w: 16, h: 16, src: 'generated:redstone.js' };
   if (!meta.redstone_lamp_lit) meta.redstone_lamp_lit = { x: 80, y: 176, w: 16, h: 16, src: 'generated:redstone.js' };
+  if (!meta.stone_pressure_plate) meta.stone_pressure_plate = { x: 96, y: 176, w: 16, h: 16, src: 'generated:redstone.js' };
+  if (!meta.wooden_pressure_plate) meta.wooden_pressure_plate = { x: 112, y: 176, w: 16, h: 16, src: 'generated:redstone.js' };
+  if (!meta.stone_button) meta.stone_button = { x: 128, y: 176, w: 16, h: 16, src: 'generated:redstone.js' };
+  if (!meta.wooden_button) meta.wooden_button = { x: 144, y: 176, w: 16, h: 16, src: 'generated:redstone.js' };
 
   const K = (x, y, z) => x + ',' + y + ',' + z;
   const DIRS = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
-  const isRS = (id) => { const d = id && CF.BY_ID[id]; return !!d && (d.wire || d.rstorch || d.repeater || d.lamp); };
-  const RTYPE = (w, x, y, z) => { const d = CF.BY_ID[w.get(x, y, z)]; return d ? (d.wire ? 'w' : d.rstorch ? 't' : d.repeater ? 'r' : 0) : 0; }; // lamps = '0' sinks, tracked in cells for the swap sweep
+  const isRS = (id) => { const d = id && CF.BY_ID[id]; return !!d && (d.wire || d.rstorch || d.repeater || d.lamp || d.plate || d.button); };
+  const RTYPE = (w, x, y, z) => { const d = CF.BY_ID[w.get(x, y, z)]; return d ? (d.wire ? 'w' : d.rstorch ? 't' : d.repeater ? 'r' : d.plate ? 'p' : d.button ? 'b' : 0) : 0; }; // lamps = '0' sinks, tracked in cells for the swap sweep
   // torch attach vectors from the saved face-code (#105 plumbing): 1 floor 2 -X 6 +X 4 -Z 8 +Z
   const SUPV = { 1: [0, -1, 0], 2: [-1, 0, 0], 6: [1, 0, 0], 4: [0, 0, -1], 8: [0, 0, 1] };
   const RDIRV = [[1, 0], [-1, 0], [0, 1], [0, -1]]; // repeater facing: 0E 1W 2S 3N (CF.dirFromYaw, bed precedent)
-  function worldRS(w) { return w._rs || (w._rs = { cells: new Set(), power: new Map(), on: new Map(), pend: new Set() }); }
+  function worldRS(w) { return w._rs || (w._rs = { cells: new Set(), power: new Map(), on: new Map(), pend: new Set(), press: new Set(), bt: new Map() }); }
+  // #068 sources: pressed plates + live buttons (like torches: source 15, no decay, not fed through)
+  const bLive = (w, rs, k) => { const d = CF.BY_ID[w.get(...k.split(',').map(Number))]; return d && d.button && (rs.bt.get(k) || 0) > (CF.ticks || 0); };
+  const pLive = (rs, k) => rs.press.has(k);
 
   CF.rsDirty = new Set(); // worlds pending a re-flood (drained by rsTick)
   CF.rsFloods = 0; // idle-cost arbiter: must ONLY grow when wires changed
@@ -49,6 +56,11 @@ window.CF = window.CF || {};
         const vec = SUPV[(w.flatAt(x + dx, y + dy, z + dz) || 0) & 15] || SUPV[1];
         if (x + dx - vec[0] === x && y + dy - vec[1] === y && z + dz - vec[2] === z) return true;
       }
+      if (t === 'p' && rs.press.has(nk) && dy === -1 && dx === 0 && dz === 0) return true; // #068 pressed plate strongly powers the block ABOVE
+      if (t === 'b' && bLive(w, rs, nk)) { // #068 button strongly powers its OWN attach block (the exception to the torch rule)
+        const vec = SUPV[(w.flatAt(x + dx, y + dy, z + dz) || 0) & 15] || SUPV[1];
+        if (x + dx + vec[0] === x && y + dy + vec[1] === y && z + dz + vec[2] === z) return true;
+      }
     }
     return false;
   }
@@ -70,6 +82,10 @@ window.CF = window.CF || {};
           if (!blockPowered(w, rs, prev, x + vec[0], y + vec[1], z + vec[2])) { pm.set(k, 15); inj.push([k, 15]); }
         } else if (t === 'r') { // flat bits 0-3 = OUTPUT direction (input = cell behind). Passes are PURE
           if (rs.on.has(k)) { pm.set(k, 15); inj.push([k, 15]); } // only elapsed (on) repeaters conduct; bookkeeping runs after stability
+        } else if (t === 'p') { // #068 plate: source ONLY while an entity stands on it (rsTick scans overlap)
+          if (rs.press.has(k)) { pm.set(k, 15); inj.push([k, 15]); }
+        } else if (t === 'b') { // #068 button: timer-lit source (rs.bt expiry = CF.ticks)
+          if (bLive(w, rs, k)) { pm.set(k, 15); inj.push([k, 15]); }
         }
       }
       // spread dust from injections (torch/repeater cells inject; only wires conduct onward)
@@ -116,8 +132,36 @@ window.CF = window.CF || {};
       else if (!want && id === LIT) w.set(x, y, z, UNLIT);
     }
   };
+  CF.pressButton = (x, y, z) => { // #068: RMB route; wooden 30gt / stone 20gt (wiki durations); re-press refreshes
+    const w = CF.world, id = w.get(x, y, z), d = id && CF.BY_ID[id];
+    if (!d || !d.button) return false;
+    const rs = worldRS(w);
+    rs.bt.set(K(x, y, z), (CF.ticks || 0) + (d.dur || 20));
+    CF.rsDirty.add(w);
+    return true;
+  };
   CF.rsTick = () => {
-    const now = CF.ticks || 0; // fire due repeater switch-ons (fReady precedent) BEFORE draining
+    const now = CF.ticks || 0;
+    // #068 plate actuation: player + mobs whose feet occupy the plate cell (items skipped v1 - documented)
+    const wa = CF.world, rsa = wa && wa._rs;
+    if (rsa && rsa.cells.size) {
+      const want = new Set();
+      const ents = [];
+      if (CF.player) ents.push(CF.player.pos);
+      if (CF.mobs) for (const m of CF.mobs.list) ents.push(m.pos);
+      for (const k of rsa.cells) {
+        const [x, y, z] = k.split(',').map(Number);
+        if (RTYPE(wa, x, y, z) !== 'p') continue;
+        for (const p of ents) {
+          if (p[0] > x && p[0] < x + 1 && p[2] > z && p[2] < z + 1 && p[1] >= y && p[1] <= y + 1.6) { want.add(k); break; }
+        }
+      }
+      let ch = want.size !== rsa.press.size;
+      if (!ch) for (const k of want) if (!rsa.press.has(k)) { ch = true; break; }
+      if (ch) { rsa.press = want; CF.rsDirty.add(wa); }
+      for (const [k, until] of rsa.bt) if (until <= now) { rsa.bt.delete(k); CF.rsDirty.add(wa); } // buttons self-expire
+    }
+    // fire due repeater switch-ons (fReady precedent) BEFORE draining
     for (let i = CF.rsDue.length - 1; i >= 0; i--) {
       if (CF.rsDue[i].due <= now) {
         const d = CF.rsDue.splice(i, 1)[0], rs = worldRS(d.w);
@@ -352,6 +396,66 @@ window.CF = window.CF || {};
       const res = CF.craftOnce([20, 21, 22, 23, 24, 25, 26, 27, 28]);
       CF.assert(r, 'items.repeater-craft(' + CF.countItem('repeater') + ',' + (res && res.name) + ')', CF.countItem('repeater') === 1 && res && res.name === 'repeater');
       CF.inv.fill(null); for (const s of invSave4) if (s) CF.give(s.name, s.count); CF.uiRefresh && CF.uiRefresh();
+    }
+    // --- #068 pressure plate: entity overlap -> source; player AND mob trigger; lamp ABOVE plate lights (strong power) ---
+    {
+      const H = h + 1, LIT = ID['lit_redstone_lamp'], OFF = ID['redstone_lamp'];
+      for (let i = -2; i <= 6; i++) { W.set(ax + i, H - 1, az, ID['stone']); W.set(ax + i, H, az, 0); W.set(ax + i, H + 1, az, 0); W.set(ax + i, H + 2, az, 0); }
+      W.set(ax, H, az, ID['stone_pressure_plate']);
+      W.set(ax, H + 1, az, OFF); // lamp directly above the plate
+      const posSave = CF.player ? CF.player.pos.slice() : null;
+      if (CF.player) CF.player.tp(ax + 0.5, H, az + 0.5); // feet at plate-cell floor level (centered - strict >/</> edges!)
+      CF.rsTick(); CF.rsTick();
+      const playerOn = W.get(ax, H + 1, az) === LIT;
+      if (CF.player && posSave) { CF.player.tp(posSave[0], posSave[1], posSave[2]); CF.player.vel = [0, 0, 0]; }
+      CF.rsTick(); CF.rsTick();
+      const playerOff = W.get(ax, H + 1, az) === OFF;
+      const zm = CF.mobs.spawn('zombie', ax + 0.5, H, az + 0.5); // mob standing on plate also triggers
+      CF.rsTick(); CF.rsTick();
+      const mobOn = W.get(ax, H + 1, az) === LIT;
+      CF.mobs.remove(zm); CF.rsTick(); CF.rsTick();
+      const mobOff = W.get(ax, H + 1, az) === OFF;
+      W.set(ax, H + 1, az, 0); W.set(ax, H, az, 0);
+      CF.rsTick(); CF.rsTick();
+      CF.assert(r, 'world.plate-press(pOn=' + playerOn + ',pOff=' + playerOff + ',mOn=' + mobOn + ',mOff=' + mobOff + ')',
+        playerOn && playerOff && mobOn && mobOff);
+    }
+    // --- #068 button: RMB press -> 15 for 20gt (stone), self-expiry, re-press refresh ---
+    {
+      const H = h + 1;
+      for (let i = 0; i <= 6; i++) { W.set(ax + i, H - 1, az, ID['stone']); W.set(ax + i, H, az, 0); W.set(ax + i, H + 1, az, 0); }
+      const invSave6 = CF.inv.map((s) => (s ? { name: s.name, count: s.count } : null)), selSave6 = CF.sel;
+      CF.inv.fill(null); CF.sel = 0; CF.give('stone_button', 2);
+      const placedB = CF.place({ x: ax, y: H - 1, z: az, face: [0, 1, 0] }) !== false && W.get(ax, H, az) === ID['stone_button'];
+      const flatCode = W.flatAt(ax, H, az); // floor button => code 1 (attach below)
+      W.set(ax + 1, H, az, ID['redstone_wire']);
+      CF.rsTick(); CF.rsTick();
+      const idleOff = CF.rsPowerAt(ax + 1, H, az) === 0;
+      const okPress = CF.pressButton(ax, H, az) === true;
+      CF.rsTick(); CF.rsTick();
+      const onNow = CF.rsPowerAt(ax + 1, H, az);
+      CF.ticks += 15; CF.rsTick();
+      const midOn = CF.rsPowerAt(ax + 1, H, az);
+      CF.pressButton(ax, H, az); // re-press at t15 extends to t35
+      CF.ticks += 18; CF.rsTick(); // t33 < 35: the refresh bought time
+      const refreshed = CF.rsPowerAt(ax + 1, H, az);
+      CF.ticks += 10; CF.rsTick(); // t43 > 35: expired for good
+      const expired = CF.rsPowerAt(ax + 1, H, az);
+      W.set(ax, H, az, 0); W.set(ax + 1, H, az, 0); W.set(ax, H - 1, az, 0);
+      CF.rsTick(); CF.rsTick();
+      CF.inv.fill(null); for (const s of invSave6) if (s) CF.give(s.name, s.count); CF.sel = selSave6; CF.uiRefresh && CF.uiRefresh();
+      CF.assert(r, 'interact.button-press(placed=' + placedB + ',code=' + flatCode + ',idle=' + idleOff + ',press=' + okPress + '/' + onNow + '/' + midOn + ',ref=' + refreshed + ',exp=' + expired + ')',
+        placedB && flatCode === 1 && idleOff && okPress && onNow === 14 && midOn === 14 && refreshed === 14 && expired === 0);
+      // crafts
+      const invSave7 = CF.inv.map((s) => (s ? { name: s.name, count: s.count } : null));
+      CF.inv.fill(null); CF.inv[20] = { name: 'stone', count: 1 }; CF.inv[23] = { name: 'stone', count: 1 };
+      const rcP = CF.craftOnce([20, 21, 22, 23, 24, 25, 26, 27, 28]); // craftOnce needs the full 9-slot lattice (trims internally)
+      const plateCnt = CF.countItem('stone_pressure_plate'); // capture BEFORE the next fill(null) wipes it
+      CF.inv.fill(null); CF.inv[20] = { name: 'stone', count: 1 };
+      const rcB = CF.craftOnce([20, 21, 22, 23, 24, 25, 26, 27, 28]);
+      CF.assert(r, 'items.plate-button-craft(' + plateCnt + ',rcP=' + (rcP && rcP.name) + ',rcB=' + (rcB && rcB.name) + ')',
+        plateCnt === 1 && rcP && rcP.name === 'stone_pressure_plate' && rcB && rcB.name === 'stone_button');
+      CF.inv.fill(null); for (const s of invSave7) if (s) CF.give(s.name, s.count); CF.uiRefresh && CF.uiRefresh();
     }
     // cleanup arena on the CURRENT world (loadNow may have swapped instances)
     const Wc = CF.world;

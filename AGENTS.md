@@ -1,7 +1,11 @@
 # AGENTS.md — project STATE memory (1-minute grounding)
 Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each session) · Spec: docs/REFERENCE.md
 
-## Current state (2026-09-17, SPRINT 05 ACTIVE - "Current flows", planned docs/sprints/05.md, it1 #061 + it2 #064 + it3 #065 + it4 #066 done (EXIT CRITERION LIT), it5 next: #068 plate+button, then #067 piston)
+## Current state (2026-09-18, SPRINT 05 ACTIVE - "Current flows", planned docs/sprints/05.md, it1-5 done (#061 #064 #065 #066 #068), it6 next: #067 piston, then #044/#048/#069/#070, CLOSE = video re-eval + audit #8 + v0.5.0)
+- #068 SHIPPED: plates (entity-overlap scan in rsTick pre-pass, press set, strong-powers block ABOVE) +
+  buttons (RMB chain head CF.pressButton, rs.bt until-map, stone 20gt/wood 30gt wiki-current, re-press
+  refresh, powers own attach - the torch-rule exception). Full circuit complete: plate->dust->lamp live.
+  Watch: #071 lamp mesh ~1s lag in headless captures only (engine state verified correct).
 - #066 SHIPPED: lamp pair (123/124 1.12 ids), post-flood swap sweep, torch powers opposite-attach cell
   (lamp-over-floor-torch classic; inverter intact). Live video finale: lamp=LIT light=15 at end of
   torch->dust->repeater->dust. 256/240 GREEN, 50 blocks. Art polish (lit tile bloom) -> #048.
@@ -82,6 +86,15 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #068 pressure plate + button (sprint-05 it5, input glue): rsTick PRE-scan = player+mob feet-overlap for
+  plates (idle-cheap, items skipped v1-documented) with press-diff -> dirty; buttons = until-map self-expiry,
+  RMB pressButton at chain head, durations per CURRENT wiki (stone 20/wood 30 - issue's 10gt was stale);
+  blockPowered + plate->above and button->own-attach (wiki exception). 4 registry blocks painted
+  functional:false (parity honest). Test-haul: suite stood player in-plate (no physics) vs LIVE scenario
+  lamp-over-head pushbug - scenario rebuilt as plate->dust->lamp ROW, engine was right both times; edge-
+  centered teleports; craftOnce 9-slot + capture-before-fill. +3 asserts, 259/243 GREEN, 54 blocks.
+  video plate run: ON (f02 amber+probe) / OFF (f05) frames prove input side live; f04 mesh-lag (engine OFF,
+  mesh ~1s behind, headless-capture only) -> #071. NEXT: #067 piston-lite.
 - #066 redstone lamp (sprint-05 it4, EXIT CRITERION): 1.12 pre-flatten id pair redstone_lamp(123)/
   lit_redstone_lamp(124), both painted functional:false (parity honest 59); lamps join rs.cells as '0' sinks;
   post-flood SWEEP sets/unsets lit via blockPowered (instant on; 1.12 2gt off-delay omitted v1).
@@ -258,3 +271,5 @@ tools/: build/test/shot/parity/blockshots/tex. All zero-dependency. PowerShell q
 This file's state+merges sections · docs/PARITY.md rows (evidence-annotated) · sprint tracker row +
 daily · issue Evidence+vision verdicts · GAMEPLAY CHANGES ALSO: video.mjs frames reviewed + verdicts
 (DoD 4b; sprint close = full re-record + review BEFORE audit/tag). New hard process lesson → PLAYBOOK.md, not here.
+- GIT DEBT: #066 landed as a direct commit on main (42639e6) - branch discipline slipped after the it3 merge; rule stands (branch BEFORE coding), noted per #051 precedent.
+- GIT DEBT: #066 landed as a direct commit on main (42639e6) - branch discipline slipped after the it3 merge; rule stands (branch BEFORE coding), noted per #051 precedent.

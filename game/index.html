@@ -1991,6 +1991,136 @@ window.CF.REGISTRY = /*REGISTRY-START*/{
     }
    }
   },
+  "stone_pressure_plate": {
+   "id": 70,
+   "tier": 2,
+   "variants": {
+    "default": {
+     "functional": false,
+     "tiles": [
+      "stone_pressure_plate",
+      "stone_pressure_plate",
+      "stone_pressure_plate",
+      "stone_pressure_plate",
+      "stone_pressure_plate",
+      "stone_pressure_plate"
+     ],
+     "hardness": 0.5,
+     "drop": "stone_pressure_plate",
+     "tool": null,
+     "minTier": 0,
+     "solid": false,
+     "light": 0,
+     "plate": true,
+     "boxes": [
+      [0, 0, 0, 1, 0.0625, 1]
+     ],
+     "proof": {
+      "issue": "#068",
+      "tests": [
+       "world.plate-press"
+      ]
+     }
+    }
+   }
+  },
+  "wooden_pressure_plate": {
+   "id": 147,
+   "tier": 2,
+   "variants": {
+    "default": {
+     "functional": false,
+     "tiles": [
+      "wooden_pressure_plate",
+      "wooden_pressure_plate",
+      "wooden_pressure_plate",
+      "wooden_pressure_plate",
+      "wooden_pressure_plate",
+      "wooden_pressure_plate"
+     ],
+     "hardness": 0.5,
+     "drop": "wooden_pressure_plate",
+     "tool": null,
+     "minTier": 0,
+     "solid": false,
+     "light": 0,
+     "plate": true,
+     "boxes": [
+      [0, 0, 0, 1, 0.0625, 1]
+     ],
+     "proof": {
+      "issue": "#068",
+      "tests": [
+       "world.plate-press"
+      ]
+     }
+    }
+   }
+  },
+  "stone_button": {
+   "id": 77,
+   "tier": 2,
+   "variants": {
+    "default": {
+     "functional": false,
+     "tiles": [
+      "stone_button",
+      "stone_button",
+      "stone_button",
+      "stone_button",
+      "stone_button",
+      "stone_button"
+     ],
+     "hardness": 0.5,
+     "drop": "stone_button",
+     "tool": null,
+     "minTier": 0,
+     "solid": false,
+     "light": 0,
+     "cross": true,
+     "button": true,
+     "dur": 20,
+     "proof": {
+      "issue": "#068",
+      "tests": [
+       "interact.button-press"
+      ]
+     }
+    }
+   }
+  },
+  "wooden_button": {
+   "id": 143,
+   "tier": 2,
+   "variants": {
+    "default": {
+     "functional": false,
+     "tiles": [
+      "wooden_button",
+      "wooden_button",
+      "wooden_button",
+      "wooden_button",
+      "wooden_button",
+      "wooden_button"
+     ],
+     "hardness": 0.5,
+     "drop": "wooden_button",
+     "tool": null,
+     "minTier": 0,
+     "solid": false,
+     "light": 0,
+     "cross": true,
+     "button": true,
+     "dur": 30,
+     "proof": {
+      "issue": "#068",
+      "tests": [
+       "interact.button-press"
+      ]
+     }
+    }
+   }
+  },
   "redstone_lamp": {
    "id": 123,
    "tier": 2,
@@ -2472,16 +2602,16 @@ window.CF = window.CF || {};
       c.arr[idx] = id;
       queueRelight(x, z);
       const prevDef = CF.BY_ID[prev], nowDef = CF.BY_ID[id];
-      if (CF.rsOnSet && ((prevDef && (prevDef.wire || prevDef.rstorch || prevDef.repeater || prevDef.lamp)) || (nowDef && (nowDef.wire || nowDef.rstorch || nowDef.repeater || nowDef.lamp)))) CF.rsOnSet(api, x, y, z); // #064: dirty the power map only when RS blocks change (SPK-8: derived state, zero idle cost)
+      if (CF.rsOnSet && ((prevDef && (prevDef.wire || prevDef.rstorch || prevDef.repeater || prevDef.lamp || prevDef.plate || prevDef.button)) || (nowDef && (nowDef.wire || nowDef.rstorch || nowDef.repeater || nowDef.lamp || nowDef.plate || nowDef.button)))) CF.rsOnSet(api, x, y, z); // #064: dirty the power map only when RS blocks change (SPK-8: derived state, zero idle cost)
       if (id === 0) {
         // cross-model pop when its ATTACHED face support dies (MC torch rule, per-face) (#028)
         for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, -1]]) {
           const nx = x + dx, ny = y + dy, nz = z + dz;
           const nb = get(nx, ny, nz);
           const nv = nb && CF.BY_ID[nb];
-          if (!nv || !(nv.cross || nv.wire || nv.repeater)) continue; // #064/#065: wire+repeater pop off when their floor dies (like crops)
+          if (!nv || !(nv.cross || nv.wire || nv.repeater || nv.plate)) continue; // #064/#065/#068: wire+repeater+plate pop when their floor dies (like crops)
           const SUPV = { 1: [0, -1, 0], 2: [-1, 0, 0], 6: [1, 0, 0], 4: [0, 0, -1], 8: [0, 0, 1] };
-          const v = (nv.crop || nv.wire || nv.repeater) ? [0, -1, 0] : (SUPV[flatAt(nx, ny, nz)] || [0, -1, 0]); // #054: crops always ride the block below (stage bits != torch codes)
+          const v = (nv.crop || nv.wire || nv.repeater || nv.plate) ? [0, -1, 0] : (SUPV[flatAt(nx, ny, nz)] || [0, -1, 0]); // #054: crops always ride the block below (stage bits != torch codes)
           if (CF.solidAt(get(nx + v[0], ny + v[1], nz + v[2]))) continue;
           set(nx, ny, nz, 0);
           const dropNm = (nv.drop == null ? nv.name : nv.drop) || nv.name; // #064: pop-drop honors the drop table (wire->redstone dust), not just the block name
@@ -3607,11 +3737,17 @@ void main(){ vec4 t = texture(T, uv); float cut = 1.0 - smoothstep(0.30, 0.62, t
         return ((x + y) % 4 === 0) ? '#3f2f2f' : ((x * y) % 7 === 0 ? '#4a3a38' : '#352828');
       };
       const lampLit = (x, y) => {
-        if (x < 1 || y < 1 || x > 14 || y > 14) return '#6a4a22';
-        if ((x + y) % 5 < 2) return '#b8892a'; // glass frame lines
-        return ((x * 3 + y * 7) % 6 === 0) ? '#ffe87a' : '#f4c23c';
+        if (x < 1 || y < 1 || x > 14 || y > 14) return '#9a7a3a';
+        if ((x === 4 || x === 11) && y > 2 && y < 13) return '#f8d868'; // sparse vertical glass seams, not a cage
+        if ((y === 4 || y === 11) && x > 2 && x < 13) return '#f8d868';
+        return ((x * 3 + y * 7) % 7 === 0) ? '#fff2a0' : '#ffcf4a'; // bright amber core (#048: was muddy at distance)
       };
       cell(64, 176, lampOff); cell(80, 176, lampLit);
+      // #068 input tiles: plates = thin slab textures; buttons = small nub tiles
+      const stoneTex = (x, y) => ((x + y * 3) % 7 === 0 ? '#7d7d82' : ((x * 2 + y) % 9 === 0 ? '#6a6a6f' : '#8f8f95'));
+      const woodTex = (x, y) => (y % 5 === 0 ? '#5b431f' : ((x + y) % 6 === 0 ? '#8d7143' : '#9c7f4e'));
+      cell(96, 176, stoneTex); cell(128, 176, (x, y) => (x >= 5 && x <= 10 && y >= 6 && y <= 9) ? stoneTex(x, y) : RS);
+      cell(112, 176, woodTex); cell(144, 176, (x, y) => (x >= 5 && x <= 10 && y >= 6 && y <= 9) ? woodTex(x, y) : RS);
       cell(16, 176, (x, y) => { // item_redstone: dust pile
         if (y >= 9 && y <= 12 && x >= 4 && x <= 11) return (y % 2) ? '#8a1a14' : '#a52a2a';
         if (y >= 7 && y <= 8 && x >= 6 && x <= 9) return '#932222';
@@ -4396,8 +4532,8 @@ window.CF = window.CF || {};
     const v = CF.BY_ID[id];
     // #052 slab rule: clicking the TOP FACE of an existing same single-slab upgrades it to double (1.12)
     const hid0 = CF.world.get(hit.x, hit.y, hit.z);
-    if ((v.wire || v.repeater) && !CF.solidAt(CF.world.get(tx, ty - 1, tz))) return false; // #064/#065: dust+repeater need a floor (1.12)
-    if (v.boxes && !v.stairs && !v.wire && !v.repeater && hit.face[1] === 1 && hid0) {
+    if ((v.wire || v.repeater || v.plate) && !CF.solidAt(CF.world.get(tx, ty - 1, tz))) return false; // #064/#065/#068: dust+repeater+plate need a floor (1.12)
+    if (v.boxes && !v.stairs && !v.wire && !v.repeater && !v.plate && hit.face[1] === 1 && hid0) {
       const hv = CF.BY_ID[hid0];
       if (hv && hv === v && CF.world.flatAt && !(CF.world.flatAt(hit.x, hit.y, hit.z) & 4)) {
         CF.world.flatSet(hit.x, hit.y, hit.z, CF.world.flatAt(hit.x, hit.y, hit.z) | 4);
@@ -4449,7 +4585,7 @@ window.CF = window.CF || {};
   window.addEventListener('mousedown', (e) => {
     if (!CF.player) return;
     if (e.button === 0) CF.mineStart(CF.aim());
-    if (e.button === 2) { if (!(CF.useFlintSteel && CF.useFlintSteel(CF.aim())) && !(CF.useBlock && CF.useBlock(CF.aim())) && !(CF.useBucket && CF.useBucket(CF.aim())) && !(CF.mobFeed && CF.mobFeed()) && !(CF.useHoe && CF.useHoe(CF.aim())) && !(CF.useHeld && CF.useHeld())) CF.place(CF.aim()); }
+    if (e.button === 2) { const hb = CF.aim(); if (!(CF.pressButton && hb && CF.pressButton(hb.x, hb.y, hb.z)) && !(CF.useFlintSteel && CF.useFlintSteel(hb)) && !(CF.useBlock && CF.useBlock(hb)) && !(CF.useBucket && CF.useBucket(hb)) && !(CF.mobFeed && CF.mobFeed()) && !(CF.useHoe && CF.useHoe(hb)) && !(CF.useHeld && CF.useHeld())) CF.place(hb); }
   });
   window.addEventListener('mouseup', () => { CF.mining = null; });
   window.addEventListener('wheel', (e) => { CF.sel = (CF.sel + (e.deltaY > 0 ? 1 : -1) + CF.hotbar.length) % CF.hotbar.length; CF.uiRefresh && CF.uiRefresh(); });
@@ -4900,6 +5036,10 @@ window.CF = window.CF || {};
     P(['r', 's'], { r: 'redstone', s: 'stick' }, 'redstone_torch', 1), // #064 1.12: dust over stick = 1 redstone torch
     P(['rtr', 's s'], { r: 'redstone', t: 'redstone_torch', s: 'stone_slab:stone' }, 'repeater', 1), // #065 1.12 (wiki): dust+torch+dust over 2 stone slabs
     P(['grg', 'rrr', 'grg'], { g: 'glowstone', r: 'redstone' }, 'redstone_lamp', 1), // #066 1.12 (wiki): 4 glowstone corners + redstone cross
+    P(['s', 's'], { s: 'stone' }, 'stone_pressure_plate', 1), // #068 (wiki): two stone vertically
+    P(['p', 'p'], { p: 'planks' }, 'wooden_pressure_plate', 1),
+    P(['s'], { s: 'stone' }, 'stone_button', 1), // #068 (wiki): one stone / one plank
+    P(['p'], { p: 'planks' }, 'wooden_button', 1),
     P(['mmm', ' s ', ' s '], null, 'pickaxe', 4), // materials expanded below
     P(['mm', 'ms', ' s'], null, 'axe', 4),
     P(['m', 's', 's'], null, 'shovel', 4),
@@ -5237,15 +5377,22 @@ window.CF = window.CF || {};
   if (!meta.repeater) meta.repeater = { x: 48, y: 176, w: 16, h: 16, src: 'generated:redstone.js' };
   if (!meta.redstone_lamp) meta.redstone_lamp = { x: 64, y: 176, w: 16, h: 16, src: 'generated:redstone.js' };
   if (!meta.redstone_lamp_lit) meta.redstone_lamp_lit = { x: 80, y: 176, w: 16, h: 16, src: 'generated:redstone.js' };
+  if (!meta.stone_pressure_plate) meta.stone_pressure_plate = { x: 96, y: 176, w: 16, h: 16, src: 'generated:redstone.js' };
+  if (!meta.wooden_pressure_plate) meta.wooden_pressure_plate = { x: 112, y: 176, w: 16, h: 16, src: 'generated:redstone.js' };
+  if (!meta.stone_button) meta.stone_button = { x: 128, y: 176, w: 16, h: 16, src: 'generated:redstone.js' };
+  if (!meta.wooden_button) meta.wooden_button = { x: 144, y: 176, w: 16, h: 16, src: 'generated:redstone.js' };
 
   const K = (x, y, z) => x + ',' + y + ',' + z;
   const DIRS = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
-  const isRS = (id) => { const d = id && CF.BY_ID[id]; return !!d && (d.wire || d.rstorch || d.repeater || d.lamp); };
-  const RTYPE = (w, x, y, z) => { const d = CF.BY_ID[w.get(x, y, z)]; return d ? (d.wire ? 'w' : d.rstorch ? 't' : d.repeater ? 'r' : 0) : 0; }; // lamps = '0' sinks, tracked in cells for the swap sweep
+  const isRS = (id) => { const d = id && CF.BY_ID[id]; return !!d && (d.wire || d.rstorch || d.repeater || d.lamp || d.plate || d.button); };
+  const RTYPE = (w, x, y, z) => { const d = CF.BY_ID[w.get(x, y, z)]; return d ? (d.wire ? 'w' : d.rstorch ? 't' : d.repeater ? 'r' : d.plate ? 'p' : d.button ? 'b' : 0) : 0; }; // lamps = '0' sinks, tracked in cells for the swap sweep
   // torch attach vectors from the saved face-code (#105 plumbing): 1 floor 2 -X 6 +X 4 -Z 8 +Z
   const SUPV = { 1: [0, -1, 0], 2: [-1, 0, 0], 6: [1, 0, 0], 4: [0, 0, -1], 8: [0, 0, 1] };
   const RDIRV = [[1, 0], [-1, 0], [0, 1], [0, -1]]; // repeater facing: 0E 1W 2S 3N (CF.dirFromYaw, bed precedent)
-  function worldRS(w) { return w._rs || (w._rs = { cells: new Set(), power: new Map(), on: new Map(), pend: new Set() }); }
+  function worldRS(w) { return w._rs || (w._rs = { cells: new Set(), power: new Map(), on: new Map(), pend: new Set(), press: new Set(), bt: new Map() }); }
+  // #068 sources: pressed plates + live buttons (like torches: source 15, no decay, not fed through)
+  const bLive = (w, rs, k) => { const d = CF.BY_ID[w.get(...k.split(',').map(Number))]; return d && d.button && (rs.bt.get(k) || 0) > (CF.ticks || 0); };
+  const pLive = (rs, k) => rs.press.has(k);
 
   CF.rsDirty = new Set(); // worlds pending a re-flood (drained by rsTick)
   CF.rsFloods = 0; // idle-cost arbiter: must ONLY grow when wires changed
@@ -5272,6 +5419,11 @@ window.CF = window.CF || {};
         const vec = SUPV[(w.flatAt(x + dx, y + dy, z + dz) || 0) & 15] || SUPV[1];
         if (x + dx - vec[0] === x && y + dy - vec[1] === y && z + dz - vec[2] === z) return true;
       }
+      if (t === 'p' && rs.press.has(nk) && dy === -1 && dx === 0 && dz === 0) return true; // #068 pressed plate strongly powers the block ABOVE
+      if (t === 'b' && bLive(w, rs, nk)) { // #068 button strongly powers its OWN attach block (the exception to the torch rule)
+        const vec = SUPV[(w.flatAt(x + dx, y + dy, z + dz) || 0) & 15] || SUPV[1];
+        if (x + dx + vec[0] === x && y + dy + vec[1] === y && z + dz + vec[2] === z) return true;
+      }
     }
     return false;
   }
@@ -5293,6 +5445,10 @@ window.CF = window.CF || {};
           if (!blockPowered(w, rs, prev, x + vec[0], y + vec[1], z + vec[2])) { pm.set(k, 15); inj.push([k, 15]); }
         } else if (t === 'r') { // flat bits 0-3 = OUTPUT direction (input = cell behind). Passes are PURE
           if (rs.on.has(k)) { pm.set(k, 15); inj.push([k, 15]); } // only elapsed (on) repeaters conduct; bookkeeping runs after stability
+        } else if (t === 'p') { // #068 plate: source ONLY while an entity stands on it (rsTick scans overlap)
+          if (rs.press.has(k)) { pm.set(k, 15); inj.push([k, 15]); }
+        } else if (t === 'b') { // #068 button: timer-lit source (rs.bt expiry = CF.ticks)
+          if (bLive(w, rs, k)) { pm.set(k, 15); inj.push([k, 15]); }
         }
       }
       // spread dust from injections (torch/repeater cells inject; only wires conduct onward)
@@ -5339,8 +5495,36 @@ window.CF = window.CF || {};
       else if (!want && id === LIT) w.set(x, y, z, UNLIT);
     }
   };
+  CF.pressButton = (x, y, z) => { // #068: RMB route; wooden 30gt / stone 20gt (wiki durations); re-press refreshes
+    const w = CF.world, id = w.get(x, y, z), d = id && CF.BY_ID[id];
+    if (!d || !d.button) return false;
+    const rs = worldRS(w);
+    rs.bt.set(K(x, y, z), (CF.ticks || 0) + (d.dur || 20));
+    CF.rsDirty.add(w);
+    return true;
+  };
   CF.rsTick = () => {
-    const now = CF.ticks || 0; // fire due repeater switch-ons (fReady precedent) BEFORE draining
+    const now = CF.ticks || 0;
+    // #068 plate actuation: player + mobs whose feet occupy the plate cell (items skipped v1 - documented)
+    const wa = CF.world, rsa = wa && wa._rs;
+    if (rsa && rsa.cells.size) {
+      const want = new Set();
+      const ents = [];
+      if (CF.player) ents.push(CF.player.pos);
+      if (CF.mobs) for (const m of CF.mobs.list) ents.push(m.pos);
+      for (const k of rsa.cells) {
+        const [x, y, z] = k.split(',').map(Number);
+        if (RTYPE(wa, x, y, z) !== 'p') continue;
+        for (const p of ents) {
+          if (p[0] > x && p[0] < x + 1 && p[2] > z && p[2] < z + 1 && p[1] >= y && p[1] <= y + 1.6) { want.add(k); break; }
+        }
+      }
+      let ch = want.size !== rsa.press.size;
+      if (!ch) for (const k of want) if (!rsa.press.has(k)) { ch = true; break; }
+      if (ch) { rsa.press = want; CF.rsDirty.add(wa); }
+      for (const [k, until] of rsa.bt) if (until <= now) { rsa.bt.delete(k); CF.rsDirty.add(wa); } // buttons self-expire
+    }
+    // fire due repeater switch-ons (fReady precedent) BEFORE draining
     for (let i = CF.rsDue.length - 1; i >= 0; i--) {
       if (CF.rsDue[i].due <= now) {
         const d = CF.rsDue.splice(i, 1)[0], rs = worldRS(d.w);
@@ -5575,6 +5759,66 @@ window.CF = window.CF || {};
       const res = CF.craftOnce([20, 21, 22, 23, 24, 25, 26, 27, 28]);
       CF.assert(r, 'items.repeater-craft(' + CF.countItem('repeater') + ',' + (res && res.name) + ')', CF.countItem('repeater') === 1 && res && res.name === 'repeater');
       CF.inv.fill(null); for (const s of invSave4) if (s) CF.give(s.name, s.count); CF.uiRefresh && CF.uiRefresh();
+    }
+    // --- #068 pressure plate: entity overlap -> source; player AND mob trigger; lamp ABOVE plate lights (strong power) ---
+    {
+      const H = h + 1, LIT = ID['lit_redstone_lamp'], OFF = ID['redstone_lamp'];
+      for (let i = -2; i <= 6; i++) { W.set(ax + i, H - 1, az, ID['stone']); W.set(ax + i, H, az, 0); W.set(ax + i, H + 1, az, 0); W.set(ax + i, H + 2, az, 0); }
+      W.set(ax, H, az, ID['stone_pressure_plate']);
+      W.set(ax, H + 1, az, OFF); // lamp directly above the plate
+      const posSave = CF.player ? CF.player.pos.slice() : null;
+      if (CF.player) CF.player.tp(ax + 0.5, H, az + 0.5); // feet at plate-cell floor level (centered - strict >/</> edges!)
+      CF.rsTick(); CF.rsTick();
+      const playerOn = W.get(ax, H + 1, az) === LIT;
+      if (CF.player && posSave) { CF.player.tp(posSave[0], posSave[1], posSave[2]); CF.player.vel = [0, 0, 0]; }
+      CF.rsTick(); CF.rsTick();
+      const playerOff = W.get(ax, H + 1, az) === OFF;
+      const zm = CF.mobs.spawn('zombie', ax + 0.5, H, az + 0.5); // mob standing on plate also triggers
+      CF.rsTick(); CF.rsTick();
+      const mobOn = W.get(ax, H + 1, az) === LIT;
+      CF.mobs.remove(zm); CF.rsTick(); CF.rsTick();
+      const mobOff = W.get(ax, H + 1, az) === OFF;
+      W.set(ax, H + 1, az, 0); W.set(ax, H, az, 0);
+      CF.rsTick(); CF.rsTick();
+      CF.assert(r, 'world.plate-press(pOn=' + playerOn + ',pOff=' + playerOff + ',mOn=' + mobOn + ',mOff=' + mobOff + ')',
+        playerOn && playerOff && mobOn && mobOff);
+    }
+    // --- #068 button: RMB press -> 15 for 20gt (stone), self-expiry, re-press refresh ---
+    {
+      const H = h + 1;
+      for (let i = 0; i <= 6; i++) { W.set(ax + i, H - 1, az, ID['stone']); W.set(ax + i, H, az, 0); W.set(ax + i, H + 1, az, 0); }
+      const invSave6 = CF.inv.map((s) => (s ? { name: s.name, count: s.count } : null)), selSave6 = CF.sel;
+      CF.inv.fill(null); CF.sel = 0; CF.give('stone_button', 2);
+      const placedB = CF.place({ x: ax, y: H - 1, z: az, face: [0, 1, 0] }) !== false && W.get(ax, H, az) === ID['stone_button'];
+      const flatCode = W.flatAt(ax, H, az); // floor button => code 1 (attach below)
+      W.set(ax + 1, H, az, ID['redstone_wire']);
+      CF.rsTick(); CF.rsTick();
+      const idleOff = CF.rsPowerAt(ax + 1, H, az) === 0;
+      const okPress = CF.pressButton(ax, H, az) === true;
+      CF.rsTick(); CF.rsTick();
+      const onNow = CF.rsPowerAt(ax + 1, H, az);
+      CF.ticks += 15; CF.rsTick();
+      const midOn = CF.rsPowerAt(ax + 1, H, az);
+      CF.pressButton(ax, H, az); // re-press at t15 extends to t35
+      CF.ticks += 18; CF.rsTick(); // t33 < 35: the refresh bought time
+      const refreshed = CF.rsPowerAt(ax + 1, H, az);
+      CF.ticks += 10; CF.rsTick(); // t43 > 35: expired for good
+      const expired = CF.rsPowerAt(ax + 1, H, az);
+      W.set(ax, H, az, 0); W.set(ax + 1, H, az, 0); W.set(ax, H - 1, az, 0);
+      CF.rsTick(); CF.rsTick();
+      CF.inv.fill(null); for (const s of invSave6) if (s) CF.give(s.name, s.count); CF.sel = selSave6; CF.uiRefresh && CF.uiRefresh();
+      CF.assert(r, 'interact.button-press(placed=' + placedB + ',code=' + flatCode + ',idle=' + idleOff + ',press=' + okPress + '/' + onNow + '/' + midOn + ',ref=' + refreshed + ',exp=' + expired + ')',
+        placedB && flatCode === 1 && idleOff && okPress && onNow === 14 && midOn === 14 && refreshed === 14 && expired === 0);
+      // crafts
+      const invSave7 = CF.inv.map((s) => (s ? { name: s.name, count: s.count } : null));
+      CF.inv.fill(null); CF.inv[20] = { name: 'stone', count: 1 }; CF.inv[23] = { name: 'stone', count: 1 };
+      const rcP = CF.craftOnce([20, 21, 22, 23, 24, 25, 26, 27, 28]); // craftOnce needs the full 9-slot lattice (trims internally)
+      const plateCnt = CF.countItem('stone_pressure_plate'); // capture BEFORE the next fill(null) wipes it
+      CF.inv.fill(null); CF.inv[20] = { name: 'stone', count: 1 };
+      const rcB = CF.craftOnce([20, 21, 22, 23, 24, 25, 26, 27, 28]);
+      CF.assert(r, 'items.plate-button-craft(' + plateCnt + ',rcP=' + (rcP && rcP.name) + ',rcB=' + (rcB && rcB.name) + ')',
+        plateCnt === 1 && rcP && rcP.name === 'stone_pressure_plate' && rcB && rcB.name === 'stone_button');
+      CF.inv.fill(null); for (const s of invSave7) if (s) CF.give(s.name, s.count); CF.uiRefresh && CF.uiRefresh();
     }
     // cleanup arena on the CURRENT world (loadNow may have swapped instances)
     const Wc = CF.world;
@@ -9048,6 +9292,21 @@ window.CF = window.CF || {};
         else if (t === 100) { const pw = CF.rsPowerAt(ax + 1, h + 1, az), p7 = CF.rsPowerAt(ax + 7, h + 1, az), p8 = CF.rsPowerAt(ax + 8, h + 1, az); act('p d1=' + pw + ' d7=' + p7 + ' d8=' + p8); }
         else if (t === 108) { W.set(ax + 9, h, az, CF.IDOF['stone']); put('redstone_lamp', ax + 9, h, az); act('lamp beside boosted dust'); } // #066 finale: FIRST visible circuit state
         else if (t === 130) { const LIT = CF.IDOF['lit_redstone_lamp']; act('lamp=' + (W.get(ax + 9, h + 1, az) === LIT ? 'LIT' : W.get(ax + 9, h + 1, az)) + ' light=' + (W.lightAt(ax + 9, h + 1, az) & 15)); }
+        else if (t === 150) { // #068 plate demo: plate -> dust trail -> lamp (live physics-safe: nothing solid at head height over the plate)
+          for (let i = 0; i <= 5; i++) { W.set(ax - 2 + i, h, az + 4, CF.IDOF['stone']); W.set(ax - 2 + i, h + 1, az + 4, 0); }
+          put('stone_pressure_plate', ax - 2, h, az + 4);
+          for (let i = 1; i <= 3; i++) { W.set(ax - 2 + i, h + 1, az + 4, CF.IDOF['redstone_wire']); }
+          W.set(ax + 2, h + 1, az + 4, CF.IDOF['redstone_lamp']);
+          act('plate+dust+lamp2 row set');
+        }
+        else if (t === 156) { P.tp(ax - 2 + 0.5, h + 1, az + 4 + 0.5); } // step ONTO the plate
+        else if (t === 166) { const lid = W.get(ax + 2, h + 1, az + 4); act('on-plate lamp2=' + (lid === CF.IDOF['lit_redstone_lamp'] ? 'LIT' : 'off') + ' l=' + (W.lightAt(ax + 2, h + 1, az + 4) & 15) + ' press=' + (W._rs ? W._rs.press.size : -1) + ' id=' + lid + ' liT=' + (CF.BY_ID[lid] || {}).tiles + ' meta=' + JSON.stringify(((window.__TEXMETA || {})['redstone_lamp_lit'] || 'none'))
+            + ' px80=' + (window.__ATLAS_CTX ? [].slice.call(window.__ATLAS_CTX.getImageData(80, 176, 1, 1).data).join(' ') : 'nc')
+            + ' px64=' + (window.__ATLAS_CTX ? [].slice.call(window.__ATLAS_CTX.getImageData(64, 176, 1, 1).data).join(' ') : 'nc')); }
+        else if (t === 172) { CF.pressButton(ax - 4, h + 2, az); } // (no-op if pillar gone) keep simple: re-press the wall pillar button
+        else if (t === 180) { const lid = W.get(ax + 2, h + 1, az + 4); act('t180 lamp2=' + (lid === CF.IDOF['lit_redstone_lamp'] ? 'LIT' : 'off') + ' id=' + lid + ' press=' + W._rs.press.size + ' p=' + P.pos.map((v) => v.toFixed(2)).join(',')); }
+        else if (t === 182) { P.tp(ax + 14.5, h + 1, az - 4); } // step far off the plate
+        else if (t === 192) act('off-plate lamp2=' + (W.get(ax + 2, h + 1, az + 4) === CF.IDOF['lit_redstone_lamp'] ? 'LIT' : 'off'));
       } catch (e) { log.push('ERR@' + t + ':' + e.message); }
       document.title = 'VR:' + t + 't:' + encodeURIComponent(log.join('|'));
     };
