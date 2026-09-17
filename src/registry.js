@@ -2079,6 +2079,7 @@ window.CF.REGISTRY = /*REGISTRY-START*/{
   // Slabs, stairs and any partial-box model pass light like air on the open side (#052/#053/#105).
   CF.cellOpaque = (v, fm) => {
     if (!v) return true;
+    if (v.name === 'leaves') return false; // 1.12: leaves have ZERO light opacity - no tree-shade, no noon zombie farms (video-QA 2026-09-17)
     if (!v.boxes) return !!v.solid;
     const bb = CF.boxesOf(v, fm);
     return bb.length === 1 && bb[0][0] <= 1e-6 && bb[0][1] <= 1e-6 && bb[0][2] <= 1e-6 &&

@@ -532,6 +532,99 @@
     CF.inv.fill(null); for (const s of invSave) if (s) CF.give(s.name, s.count); CF.sel = selSave;
     await new Promise((res) => setTimeout(res, 300));
   };
+  // ---- VIDEO-QA (user law 2026-09-12): scripted basic-gameplay playback; tools/video.mjs extracts frames ----
+  CF.shotScenarios['video-play'] = async () => {
+    const P = CF.player, W = () => CF.world;
+    let log = [];
+    try {
+      CF.freeCam = false; CF.survival = true;
+      const g0 = W().heightAt(8, 8); P.tp(8.5, g0 + 1, 8.5); P.vel[0] = P.vel[1] = P.vel[2] = 0;
+      P.input.scripted = true; P.pitch = -0.05; P.yaw = Math.PI / 4;
+      const act = (s) => { log.push(CF.ticks + ':' + s); if (log.length > 6) log.shift(); };
+      const give = (n, k) => { CF.inv.fill(null); CF.give(n, k || 1); CF.sel = 0; CF.uiRefresh && CF.uiRefresh(); };
+      const cellTop = (x, z) => W().heightAt(x, z);
+      // P1 walk+look (terrain, textures, orientation) ticks 5..120
+      // P2 place row (cobble, torch, slab, stairs, glass, chest->wall) ticks 125..200
+      // P3 mine them back ticks 210..300
+      // P4 physics: step-jump + 8-block fall ticks 310..400
+      // P5 inventory + workbench GUI + book ticks 410..540
+      // P6 equip + Q-drop + magnet ticks 545..620
+      // P7 night zombie chase + melee ticks 630..800
+      // P8 long walk stability (stream/evict/light) ticks 810..1100
+      // P9 heal/hold ticks 1100..1400
+      let placed = [];
+      const prevOnTick = CF.onTick;
+      CF.onTick = () => {
+        prevOnTick && prevOnTick();
+        const t = CF.ticks;
+        if (CF.videoHold) return;
+        try {
+          const hp = W().heightAt(Math.floor(P.pos[0]), Math.floor(P.pos[2]));
+          if (P.pos[1] > hp + 30) P.tp(P.pos[0], hp + 2, P.pos[2]); // never void-fall the clip
+          if (CF.stats && CF.stats.hp < 10) { CF.stats.hp = 20; CF.stats.food = 20; CF.stats.sat = 5; } // cheat heal for continuity
+          P.input.f = 0; P.input.jump = false; P.input.l = 0; P.input.r = 0;
+          if (t < 120) { P.input.f = 1; P.yaw += 0.012; if (t === 30) act('walk+turn start'); }
+          else if (t === 130) {
+            give('cobblestone', 20);
+            const px = 12, pz = 16; placed = [];
+            const spots = [['cobblestone', 0, 0], ['torch', 1, 0], ['stone_slab:cobblestone', 2, 0], ['stone_stairs', 3, 0], ['glass', 4, 0], ['cobblestone', 5, 0]];
+            for (const [n, dx, dz] of spots) { const x = px + dx, z = pz + dz, y = cellTop(x, z); give(n); const okp = CF.place({ x, y, z, face: [0, 1, 0] }); placed.push([n, x, y + 1, z, !!okp]); }
+            P.yaw = Math.PI / 4; P.pitch = 0.28; P.tp(px + 0.5, cellTop(px + 2, pz) + 3, pz - 3.5 + 0.5);
+            act('placed ' + placed.map((p) => p[0][0] + (p[4] ? '' : '!')).join(','));
+          } else if (t === 200) { CF.mouseDown = false; P.pitch = 0.5; act('look at row'); }
+          else if (t === 215) { // mine the placed blocks back
+            let done = 0; CF.videoMine = setInterval(() => {
+              if (done >= placed.length) { clearInterval(CF.videoMine); act('mined back'); return; }
+              const [n, x, y, z] = placed[done];
+              const heldN = n === 'torch' ? 'cobblestone' : n.split(':')[0];
+              give(heldN, 5); CF.mining = null; CF.mineStart({ x, y, z, face: [0, 1, 0] });
+              for (let i = 0; i < 400 && CF.mining; i++) CF.mineTick(0.05);
+              done++;
+            }, 220); act('mining row');
+          }
+          else if (t === 320) { give('cobblestone', 8); const x = Math.floor(P.pos[0]) + 2, z = Math.floor(P.pos[2]); W().set(x, cellTop(x, z) + 1, z, CF.IDOF['cobblestone']); P.yaw = Math.atan2(x - P.pos[0], z - P.pos[2]); act('step ahead placed'); }
+          else if (t > 325 && t < 380) { P.input.f = 1; // auto-jump over the step, then run off the cliff edge
+            if (t === 350) { const cx = Math.floor(P.pos[0]) + 1, cz = Math.floor(P.pos[2]); for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) { const hh = cellTop(cx + dx, cz + dz); for (let y = hh - 7; y <= hh; y++) if (W().get(cx + dx, y, cz + dz)) W().set(cx + dx, y, cz + dz, 0); } act('8-block pit dug ahead'); }
+          }
+          else if (t === 385) { P.tp(8.5, W().heightAt(8, 8) + 1, 8.5); P.vel[0] = P.vel[1] = P.vel[2] = 0; act('reset pos after physics'); }
+          else if (t === 415) { CF.inv.fill(null); CF.give('planks', 12); CF.give('stick', 4); CF.sel = 0; CF.ui.open = true; act('inventory open'); }
+          else if (t === 470) { CF.uiOpenWorkbench(); CF.ui.craft[3] = { name: 'planks', count: 4 }; CF.uiRefresh && CF.uiRefresh(); act('workbench 3x3 open'); }
+          else if (t === 505) { const pick = CF.RECIPES.map((r, i) => [r, i]).filter(([r]) => r.out && r.out.name === 'wooden_pickaxe')[0]; if (pick) { CF.bookFill(pick[1]); act('bookFill pickaxe'); } }
+          else if (t === 530) { CF.ui.open = false; CF.ui.workbench = false; for (let i = 0; i < 9; i++) if (CF.ui.craft[i]) { CF.give(CF.ui.craft[i].name, CF.ui.craft[i].count); CF.ui.craft[i] = null; } act('close GUI'); }
+          else if (t === 550) { give('wooden_pickaxe', 1); act('equip pick'); }
+          else if (t === 560) { CF.dropHeld && CF.dropHeld(); act('Q drop'); }
+          else if (t === 570) { give('cobblestone', 32); P.input.f = 1; act('walk to drop (magnet)'); }
+          else if (t === 620) { P.input.f = 0; CF.timeOffset = (18000 - CF.ticks % 24000 + 24000) % 24000; give('wooden_sword', 1); const mx = Math.floor(P.pos[0]) + 6, mz = Math.floor(P.pos[2]); CF.z = (CF.mobs.spawn('zombie', mx, W().heightAt(mx, mz) + 1, mz) || {}).uid; act('night + zombie'); }
+          else if (t > 625 && t < 760) {
+            const m0 = CF.mobs.list.filter((m) => m.uid === CF.z)[0];
+            if (m0) {
+              const dist = Math.hypot(m0.pos[0] - P.pos[0], m0.pos[2] - P.pos[2]);
+              P.yaw = Math.atan2(m0.pos[0] - P.pos[0], m0.pos[2] - P.pos[2]);
+              if (dist > 3.2) { P.input.f = 1; P.pitch = 0; } // walk into swing range (zombie also closes)
+              else { // 1.9 combat = fresh CHARGED click (mobs.js trySwing gates on CF._freshClick): dispatch real events
+                P.input.f = 0; P.pitch = -0.16; CF.mouseDown = false; // eye 1.62 -> zombie chest ~0.97 at 3m
+                if (t % 25 === 0) { document.dispatchEvent(new MouseEvent('mousedown', { button: 0 })); CF.mouseDown = true; }
+                else if (t % 25 === 2) CF.mouseDown = false;
+              }
+              if (t === 700) act('zombie d=' + dist.toFixed(1) + ' hp=' + (m0.hp || 0));
+            } else if (t > 660) act('zombie DEAD');
+          }
+          else if (t === 765) { CF.mouseDown = false; CF.mining = null; CF.mobs.list.slice().forEach((m) => CF.mobs.remove(m)); CF.timeOffset = (6000 - CF.ticks % 24000 + 24000) % 24000; act('clear mobs, dawn'); }
+          else if (t >= 810 && t < 1100) { // long walk: stay ON THE SURFACE (video#1 lesson: cave wandering = useless frames)
+            if ((t - 810) % 100 === 0) { const hx = 8 + Math.floor((t - 810) / 100) * 6, hz = 8; const hy = W().heightAt(hx, hz); P.tp(hx + 0.5, W().get(hx, hy + 1, hz) || W().get(hx, hy + 2, hz) ? hy + 6 : hy + 1, hz + 0.5); P.vel[0] = P.vel[1] = P.vel[2] = 0; P.yaw = -Math.PI / 2; P.pitch = -0.02; } // re-seat every 5s on a cleared column
+            const cx3 = Math.floor(P.pos[0] + Math.sin(P.yaw) * 1.6), cz3 = Math.floor(P.pos[2] + Math.cos(P.yaw) * 1.6); // wall ahead? dig it (walk-through stress on set/relight)
+            const cy3 = Math.floor(P.pos[1]);
+            if (W().get(cx3, cy3, cz3)) W().set(cx3, cy3, cz3, 0);
+            P.input.f = 1; P.input.jump = (t % 60 < 6);
+            if (t === 810) { CF.inv.fill(null); CF.give('cobblestone', 64); CF.sel = 0; act('long surface walk (stream/light/stability)'); }
+          }
+          else if (t === 1105) { P.input.f = 0; CF.videoHold = true; act('hold final'); }
+        } catch (e) { log.push('ERR@' + CF.ticks + ':' + e.message); if (log.length > 6) log.shift(); }
+        document.title = 'VP:' + CF.ticks + 't:' + encodeURIComponent(log.join('|'));
+      };
+    } catch (e) { document.title = 'VP-BOOT-ERR:' + e.message; }
+    await new Promise((res) => setTimeout(res, 9999999)); // frames captured at budget cutoffs
+  };
   CF.shotScenarios['storage-wall'] = async () => { // #051: gold/iron/diamond/brick/clay row
     CF.freeCam = true;
     const W = CF.world, rx = 120, rz = 120;

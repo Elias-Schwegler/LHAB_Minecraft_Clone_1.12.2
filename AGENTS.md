@@ -1,7 +1,12 @@
 # AGENTS.md — project STATE memory (1-minute grounding)
 Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each session) · Spec: docs/REFERENCE.md
 
-## Current state (2026-09-12, SPRINT 04 CLOSED - sprint 05 NEXT)
+## Current state (2026-09-17, SPRINT 04 CLOSED - sprint 05 NEXT)
+- QUALITY LAW (user 2026-09-17): verify = DoD 4b GAMEPLAY VIDEO (`node tools/video.mjs basic seed=5` ->
+  scripted-playback frames, REVIEW all, verdicts in Evidence; qa/videos is TEMPORARY/gitignored, auto-pruned,
+  --clean; NEVER commit frames) + FULL re-evaluation video at SPRINT CLOSE before audit/tag. First run CAUGHT
+  #063 (leaves blocked skylight = black tree shade + noon zombie farms; fixed + light.leaves-pass-sky assert;
+  cellOpaque is THE light-opacity choke point - name 'leaves' now returns false). Rig = #062. Gate 242/226.
 - Tags: v0.0.0 scaffold → v0.1.0 sprint01+fixes → v0.2.0 sprint02 closed -> v0.3.0 SPRINT 03 CLOSED (audit #6 READY-WITH-NOTES, 7 P3 fixed same-close) -> v0.4.0 SPRINT 04 CLOSED (audit #7 READY-WITH-NOTES, 0 P0/P1).
 - Sprint 03 CLOSED: #033 #035 #032 #036 #037 #038 #042 #039 #040 #041 #046 #047 #043 #034 ALL DONE (#043 closed
   #031 + fixed P1 atlas icon-stride bug; README+GitHub origin+issue mirror done).
@@ -45,7 +50,7 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
     SPRINT 04 CLOSED: audit #7 READY-WITH-NOTES (0 P0/P1, 1 P2 + 5 P3 - F1 gate-flake retried in test.mjs + F6
     workbench title fixed same-close; F2/F3 doc drift fixed here; F4 -> #061 suite-coupling, F5 quartz sheet -> #048).
     Backlog to 05: #044/#048/#061 (+poisonous_potato, +F7-black leftovers + torch flame tile art + mob drops/chain
-    icons). - Gate: TEST GREEN 241 full / 225 quick (WALL ~180s since two-sided mesher - sim-time lies), 0 errors.
+    icons). - Gate: TEST GREEN 242 full / 226 quick (WALL ~180s since two-sided mesher - sim-time lies), 0 errors.
     Parity: 58/399 (TNT/chest/bed/portal functional:false -
   procedural tiles, not Blender; mechanics shipped+tested, not counted: honest)
   proof-bound: t1 43/125 (wood/wool/storage/slabs/stairs/farm-items era), t2 15/163 (+netherrack+quartz #056).
@@ -62,6 +67,12 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #062+#063 (user video-QA law): tools/video.mjs + harness 'video-play' scripted driver (9 phases: walk/place/
+  mine/jump-fall/GUI+book/combat-night/surface-walk-stream); law in DoD 4b + PLAYBOOK 7b (sprint-close
+  re-evaluation pass; frames temporary, verdicts durable). Recording #1 caught #063: leaves opaque to skylight
+  -> pitch-black canopies + noon zombie spawns (1.12 opacity=0); fix = cellOpaque leaves false + own-instance
+  assert. Recording #2 all-PASS (lit shade, pig/sheep day herds, zombie fight + damage, stable streaming).
+  Driver v2: 5s surface re-seat + tunnel-ahead stress (v1 wandered into caves = useless frames). 242/226 GREEN.
 - SPRINT 04 CLOSE (this commit): audit #7 READY-WITH-NOTES (0 P0/P1; gate 241/225 + parity 58/399 independently
   reproduced by auditor). Same-close fixes: F1 test.mjs auto-retry w/ doubled virtual budget (boot starvation
   flake), F6 workbench panel title 'Crafting (E to close)' (ui.js titleEl + refresh, ui-book.png re-shot vision
@@ -200,4 +211,5 @@ tools/: build/test/shot/parity/blockshots/tex. All zero-dependency. PowerShell q
 
 ## Update ritual (every merge, in the merge commit)
 This file's state+merges sections · docs/PARITY.md rows (evidence-annotated) · sprint tracker row +
-daily · issue Evidence+vision verdicts. New hard process lesson → PLAYBOOK.md, not here.
+daily · issue Evidence+vision verdicts · GAMEPLAY CHANGES ALSO: video.mjs frames reviewed + verdicts
+(DoD 4b; sprint close = full re-record + review BEFORE audit/tag). New hard process lesson → PLAYBOOK.md, not here.
