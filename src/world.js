@@ -583,6 +583,21 @@ window.CF = window.CF || {};
       if (open) { skyOpen = w.lightAt(sx, sh + 1, sz) >> 4; break; }
     }
     CF.assert(r, 'light.sky(' + skyOpen + ')', skyOpen === 15);
+    // video-QA 2026-09-17: leaves have ZERO light opacity (1.12) - NO pitch-black tree shade / noon zombie farms.
+    // OWN world instance (global-suite randomTick stream must not shift - suite-coupling #061 lesson).
+    {
+      const N = CF.makeWorld(CF.world.seed);
+      N.generate(0, 0);
+      const tx2 = 4, tz2 = 4, th = N.heightAt(tx2, tz2);
+      for (let x = tx2 - 2; x <= tx2 + 2; x++) for (let z = tz2 - 2; z <= tz2 + 2; z++) N.set(x, th + 4, z, IDL['leaves']);
+      N.set(tx2, th + 2, tz2, IDL['log']); N.set(tx2, th + 3, tz2, IDL['log']);
+      N.ensureLight(0, 0);
+      const under = N.lightAt(tx2 + 1, th + 1, tz2) >> 4; // grass under the canopy (NOT the trunk column - that may block)
+      const underTrunk = N.lightAt(tx2, th + 1, tz2) >> 4; // trunk column below: log IS opaque (1.12)
+      const inLeaf = N.lightAt(tx2, th + 4, tz2 + 1) >> 4; // a leaf cell itself
+      const shade = CF.cellOpaque(CF.BY_ID[IDL['leaves']], 0); // debug: must be false
+      CF.assert(r, 'light.leaves-pass-sky(under=' + under + ',trunk=' + underTrunk + ',leaf=' + inLeaf + ',op=' + shade + ')', under === 15 && inLeaf === 15 && shade === false && underTrunk === 0);
+    }
     // AC1 (#021): fully covered cave cell = skylight 0
     const bxc = 100, bzc = 100;
     w.ensureAround(bxc, bzc, 1);

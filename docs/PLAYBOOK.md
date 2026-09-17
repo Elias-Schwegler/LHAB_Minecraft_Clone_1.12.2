@@ -13,6 +13,15 @@ Operational manual for the Cubeforge loop. Update this file when a process learn
    vision verdict per AC (PASS/FAIL + what was seen) — this text goes into the issue Evidence.
    HARD LIMIT (user 2026-09-07): never analyze more than ~30 images in one go and NEVER more than
    ONE video - the agent loop crashes otherwise. More artifacts -> multiple batches.
+7b. VIDEO-QA (user law 2026-09-12, DoD 4b): gameplay-affecting issues ALSO require
+   `node tools/video.mjs <name> seed=5` (scripted playback -> frame PNGs under qa/videos/<date>/<name>/;
+   each frame = fresh deterministic boot cut at virtual-time budget) + frame-by-frame vision verdicts
+   in Evidence (physics, orientation, textures, placement, mobs, inventory GUI, stability over time).
+   At SPRINT CLOSE, after every merge: re-run the full basic video fresh and review end-to-end BEFORE
+   audit + tag - the total-state re-evaluation is where cross-feature regressions surface.
+   Video frames count toward the image batch limit: review in chunks of <=8.
+   FRAMES ARE TEMPORARY (user 2026-09-17): qa/videos/ gitignored + auto-pruned (>5 days) + `--clean`;
+   NEVER commit frames - the durable artifact is the verdict text written into the issue Evidence.
 8. Close issue: Status DONE + `## Evidence (close)` section with gate numbers, screenshot paths,
    vision verdicts, honest caveats/carve-outs (file a FIX issue for any broken remainder — never [x] it).
 9. Update in the SAME commit: AGENTS.md (state + architecture map), docs/PARITY.md (block/mechanic rows
