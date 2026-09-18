@@ -1,5 +1,5 @@
 ﻿# Issue: 048 â€” Texture fidelity pass (atlas P1 leftovers) + clean fluid proof sheets
-- Type: FIX (P2-class: fidelity/polish) | Status: DRAFT | Epic: Assets | Sprint: 04 candidate | Depends: #043
+- Type: FIX (P2-class: fidelity/polish) | Status: DONE (core pass; taste leftovers -> #072) | Epic: Assets | Sprint: 05 it9 | Depends: #043
 
 ## Context
 #043 fixed the atlas row-stride P1 (icons overlapped blocks) and repainted/relocated procedural cells.
