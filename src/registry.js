@@ -1976,6 +1976,36 @@ window.CF.REGISTRY = /*REGISTRY-START*/{
     }
    }
   },
+  "piston": {
+   "id": 29,
+   "tier": 2,
+   "variants": {
+    "default": {
+     "functional": false,
+     "tiles": [
+      "piston_side",
+      "piston_side",
+      "piston_top",
+      "piston_bottom",
+      "piston_side",
+      "piston_side"
+     ],
+     "hardness": 0.5,
+     "drop": "piston",
+     "tool": null,
+     "minTier": 0,
+     "solid": true,
+     "light": 0,
+     "piston": true,
+     "proof": {
+      "issue": "#067",
+      "tests": [
+       "world.piston-push"
+      ]
+     }
+    }
+   }
+  },
   "stone_pressure_plate": {
    "id": 70,
    "tier": 2,

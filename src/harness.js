@@ -684,6 +684,16 @@
         else if (t === 180) { const lid = W.get(ax + 2, h + 1, az + 4); act('t180 lamp2=' + (lid === CF.IDOF['lit_redstone_lamp'] ? 'LIT' : 'off') + ' id=' + lid + ' press=' + W._rs.press.size + ' p=' + P.pos.map((v) => v.toFixed(2)).join(',')); }
         else if (t === 182) { P.tp(ax + 14.5, h + 1, az - 4); } // step far off the plate
         else if (t === 192) act('off-plate lamp2=' + (W.get(ax + 2, h + 1, az + 4) === CF.IDOF['lit_redstone_lamp'] ? 'LIT' : 'off'));
+        else if (t === 210) { // #067 piston row: head EAST, cobble ahead, floor button on top
+          const pz2 = az - 8;
+          for (let i = 0; i <= 4; i++) { W.set(ax + 12 + i, h, pz2, CF.IDOF['stone']); W.set(ax + 12 + i, h + 1, pz2, 0); }
+          W.set(ax + 12, h + 1, pz2, CF.IDOF['piston']); W.flatSet(ax + 12, h + 1, pz2, 0); // dir 0 = +X
+          W.set(ax + 13, h + 1, pz2, CF.IDOF['cobblestone']);
+          W.set(ax + 12, h + 2, pz2, CF.IDOF['stone_button']); W.flatSet(ax + 12, h + 2, pz2, 1);
+          act('piston row set');
+        }
+        else if (t === 216) { CF.pressButton(ax + 12, h + 2, pz2 = az - 8); }
+        else if (t === 222) act('piston: cobbleAt14=' + (W.get(ax + 14, h + 1, az - 8) === CF.IDOF['cobblestone']) + ' ext=' + ((W.flatAt(ax + 12, h + 1, az - 8) || 0) & 16));
       } catch (e) { log.push('ERR@' + t + ':' + e.message); }
       document.title = 'VR:' + t + 't:' + encodeURIComponent(log.join('|'));
     };

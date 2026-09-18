@@ -104,6 +104,7 @@ window.CF = window.CF || {};
     P(['p', 'p'], { p: 'planks' }, 'wooden_pressure_plate', 1),
     P(['s'], { s: 'stone' }, 'stone_button', 1), // #068 (wiki): one stone / one plank
     P(['p'], { p: 'planks' }, 'wooden_button', 1),
+    P(['ppp', 'cic', 'crc'], { p: 'planks', c: 'cobblestone', i: 'iron_ingot', r: 'redstone' }, 'piston', 1), // #067 1.12 (wiki)
     P(['mmm', ' s ', ' s '], null, 'pickaxe', 4), // materials expanded below
     P(['mm', 'ms', ' s'], null, 'axe', 4),
     P(['m', 's', 's'], null, 'shovel', 4),

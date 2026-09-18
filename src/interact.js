@@ -218,6 +218,7 @@ window.CF = window.CF || {};
       // #065: store OUTPUT direction = opposite of player facing (wiki: repeater faces away from placer)
       CF.world.flatSet(tx, ty, tz, CF.dirFromYaw(p.yaw) ^ 1); // RDIRV pairs 0(+X)/1(-X), 2(+Z)/3(-Z) - opposite = XOR 1 (out = away from player)
     }
+    if (ok && v.piston && CF.world.flatSet) CF.world.flatSet(tx, ty, tz, CF.dirFromYaw(p.yaw) & 3); // #067: piston head faces the placer (wiki)
     if (ok && v.boxes && !v.stairs && !v.repeater && CF.world.flatSet) {
       // #052: bottom slab onto floor face (up) = bit0-style default(0); top slab onto ceiling face (down) = bit 2
       if (hit.face[1] === -1) CF.world.flatSet(tx, ty, tz, 2);

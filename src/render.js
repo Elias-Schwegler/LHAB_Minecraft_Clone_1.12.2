@@ -153,7 +153,8 @@ window.CF = window.CF || {};
           // merge buckets split by id AND light quartile so greedy quads respect lighting (#020)
           const packed = W.lightAt(B[0], B[1], B[2]);
           const lv = Math.max(packed >> 4, packed & 15);
-          mask[u * dims[va] + v] = cur | ((lv >> 2) << 12);
+          mask[u * dims[va] + v] = cur | ((lv >> 2) << 12) |
+            (CF.BY_ID[cur] && CF.BY_ID[cur].piston && ((W.flatAt ? W.flatAt(A[0], A[1], A[2]) : 0) & 16) ? 1 << 24 : 0); // #067 ext bit rides the greedy bucket too
         }
         for (let u = 0; u < dims[ua]; u++) for (let v = 0; v < dims[va];) {
           const val = mask[u * dims[va] + v];
@@ -164,7 +165,7 @@ window.CF = window.CF || {};
           const shadeBase = SHADE[a];
           let shade = (a % 2 === 0) ? shadeBase : shadeBase * 0.85; // existing +face shading (baselines)
           if (sgn < 0) shade = (a === 1) ? 0.45 : shadeBase * 0.7; // #046 -faces: bottoms darkest, sides darker
-          const tile = CF.tileFor(val & 0xfff, a * 2 + (sgn > 0 ? 0 : 1)) // #046 per-face tile (px,nx,py,ny,pz,nz); // #046 per-face tile (nx/ny/nz)
+          const tile = (val & (1 << 24)) ? 'piston_head' : CF.tileFor(val & 0xfff, a * 2 + (sgn > 0 ? 0 : 1)); // #067 extended piston shows its bright head plate; #046 per-face tile
           pushQuad(a, ua, va, d, u, v, w, hh, tile, shade, tris, sgn);
           for (let uu = 0; uu < w; uu++) for (let vv = 0; vv < hh; vv++) mask[(u + uu) * dims[va] + v + vv] = 0;
           v += hh;
@@ -352,6 +353,10 @@ void main(){ vec4 t = texture(T, uv); float cut = 1.0 - smoothstep(0.30, 0.62, t
       const woodTex = (x, y) => (y % 5 === 0 ? '#5b431f' : ((x + y) % 6 === 0 ? '#8d7143' : '#9c7f4e'));
       cell(96, 176, stoneTex); cell(128, 176, (x, y) => (x >= 5 && x <= 10 && y >= 6 && y <= 9) ? stoneTex(x, y) : RS);
       cell(112, 176, woodTex); cell(144, 176, (x, y) => (x >= 5 && x <= 10 && y >= 6 && y <= 9) ? woodTex(x, y) : RS);
+      // #067 piston face (retracted ring) + extended head (full bright plate)
+      const ring = (x, y, cx3, cy3, r0, r1, cIn) => { const dx = x - cx3, dy = y - cy3, r = Math.sqrt(dx * dx + dy * dy); return r >= r0 && r <= r1 ? cIn : null; };
+      cell(0, 160, (x, y) => { const r = ring(x, y, 7.5, 7.5, 3.5, 5, '#5a4324'); if (r) return r; const c2 = ring(x, y, 7.5, 7.5, 0, 2.5, '#3f2f1c'); if (c2) return c2; return woodTex(x, y); });
+      cell(160, 176, (x, y) => { const r = ring(x, y, 7.5, 7.5, 0, 5.5, '#c9b47e'); if (r) return ((x + y) % 3 === 0) ? '#d8c48e' : r; const e = ring(x, y, 7.5, 7.5, 5.5, 7, '#6a5228'); if (e) return e; return woodTex(x, y); });
       cell(16, 176, (x, y) => { // item_redstone: dust pile
         if (y >= 9 && y <= 12 && x >= 4 && x <= 11) return (y % 2) ? '#8a1a14' : '#a52a2a';
         if (y >= 7 && y <= 8 && x >= 6 && x <= 9) return '#932222';

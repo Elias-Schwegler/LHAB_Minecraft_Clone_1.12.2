@@ -18,10 +18,16 @@ window.CF = window.CF || {};
   if (!meta.wooden_pressure_plate) meta.wooden_pressure_plate = { x: 112, y: 176, w: 16, h: 16, src: 'generated:redstone.js' };
   if (!meta.stone_button) meta.stone_button = { x: 128, y: 176, w: 16, h: 16, src: 'generated:redstone.js' };
   if (!meta.wooden_button) meta.wooden_button = { x: 144, y: 176, w: 16, h: 16, src: 'generated:redstone.js' };
+  // #067 piston: side/bottom ALIAS existing blender tiles (same pixels, zero atlas cost); head+face painted
+  if (!meta.piston_side && meta.planks_oak) meta.piston_side = { x: meta.planks_oak.x, y: meta.planks_oak.y, w: 16, h: 16, src: 'alias:planks_oak(#067)' };
+  if (!meta.piston_bottom && meta.stone) meta.piston_bottom = { x: meta.stone.x, y: meta.stone.y, w: 16, h: 16, src: 'alias:stone(#067)' };
+  if (!meta.piston_top) meta.piston_top = { x: 0, y: 160, w: 16, h: 16, src: 'generated:redstone.js' };
+  if (!meta.piston_head) meta.piston_head = { x: 160, y: 176, w: 16, h: 16, src: 'generated:redstone.js' };
 
   const K = (x, y, z) => x + ',' + y + ',' + z;
   const DIRS = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
-  const isRS = (id) => { const d = id && CF.BY_ID[id]; return !!d && (d.wire || d.rstorch || d.repeater || d.lamp || d.plate || d.button); };
+  const isRS = (id) => { const d = id && CF.BY_ID[id]; return !!d && (d.wire || d.rstorch || d.repeater || d.lamp || d.plate || d.button || d.piston); };
+  const IMMOVABLE = () => { const s = new Set([CF.IDOF['bedrock'], CF.IDOF['obsidian'], CF.IDOF['piston']]); return s; };
   const RTYPE = (w, x, y, z) => { const d = CF.BY_ID[w.get(x, y, z)]; return d ? (d.wire ? 'w' : d.rstorch ? 't' : d.repeater ? 'r' : d.plate ? 'p' : d.button ? 'b' : 0) : 0; }; // lamps = '0' sinks, tracked in cells for the swap sweep
   // torch attach vectors from the saved face-code (#105 plumbing): 1 floor 2 -X 6 +X 4 -Z 8 +Z
   const SUPV = { 1: [0, -1, 0], 2: [-1, 0, 0], 6: [1, 0, 0], 4: [0, 0, -1], 8: [0, 0, 1] };
@@ -120,6 +126,33 @@ window.CF = window.CF || {};
         if (!rs.on.has(k) && !rs.pend.has(k)) { rs.pend.add(k); CF.rsDue.push({ w, k, due: (CF.ticks || 0) + 2 }); }
       } else { rs.on.delete(k); rs.pend.delete(k); } // signal gone = off INSTANTLY (1.12 repeater off is immediate)
     }
+    // #067 piston-lite actor sweep: powered + can-push -> move ONE flush block ahead, ext bit (flat 4);
+    // unpower -> ext bit off, moved block STAYS (not sticky). No per-tick animation frames (lite, documented).
+    {
+      const imm = IMMOVABLE();
+      for (const k of rs.cells) {
+        const [x, y, z] = k.split(',').map(Number);
+        const pd = CF.BY_ID[w.get(x, y, z)];
+        if (!pd || !pd.piston) continue;
+        const fm = w.flatAt(x, y, z) || 0;
+        const [ddx, ddz] = RDIRV[fm & 3]; // head faces dirFromYaw (toward placer, 1.12) - stored as-is
+        const ext = !!(fm & 16);
+        const want = blockPowered(w, rs, rs.power, x, y, z);
+        const tx = x + ddx, tz = z + ddz;
+        if (want && !ext) {
+          const t = w.get(tx, y, tz);
+          if (t && !imm.has(t) && !CF.BY_ID[t].piston && !w.get(tx + ddx, y, tz + ddz)) {
+            const tfm = w.flatAt(tx, y, tz) || 0;
+            w.set(tx, y, tz, 0);
+            w.set(tx + ddx, y, tz + ddz, t);
+            if (tfm) w.flatSet(tx + ddx, y, tz + ddz, tfm);
+            w.flatSet(x, y, z, fm | 16);
+          }
+        } else if (!want && ext) {
+          w.flatSet(x, y, z, fm & ~16);
+        }
+      }
+    }
     // #066 lamp swap: lit id <-> unlit id on blockPowered state (instant on; 2gt off-delay omitted v1 - documented)
     const LIT = CF.IDOF['lit_redstone_lamp'], UNLIT = CF.IDOF['redstone_lamp'];
     for (const k of rs.cells) {
@@ -175,9 +208,9 @@ window.CF = window.CF || {};
   };
   CF.rsPowerAt = (x, y, z) => { const rs = CF.world && CF.world._rs; return (rs && rs.power.get(K(x, y, z))) || 0; };
   CF.rsRescan = (w) => { // rebuild cell set from chunks after load (power/on-state is NEVER persisted)
-    const rs = worldRS(w); rs.cells.clear(); rs.power.clear(); rs.on.clear(); rs.pend.clear();
+    const rs = worldRS(w); rs.cells.clear(); rs.power.clear(); rs.on.clear(); rs.pend.clear(); rs.press = new Set();
     const ids = new Set();
-    for (const id of [CF.IDOF['redstone_wire'], CF.IDOF['redstone_torch']]) if (id) ids.add(id);
+    for (let id = 1; id < CF.BY_ID.length; id++) { const d = CF.BY_ID[id]; if (d && (d.wire || d.rstorch || d.repeater || d.lamp || d.plate || d.button || d.piston)) ids.add(id); }
     for (const c of w.chunks.values()) {
       let hit = false;
       for (let i = 0; i < c.arr.length; i++) if (ids.has(c.arr[i])) { hit = true;
@@ -456,6 +489,38 @@ window.CF = window.CF || {};
       CF.assert(r, 'items.plate-button-craft(' + plateCnt + ',rcP=' + (rcP && rcP.name) + ',rcB=' + (rcB && rcB.name) + ')',
         plateCnt === 1 && rcP && rcP.name === 'stone_pressure_plate' && rcB && rcB.name === 'stone_button');
       CF.inv.fill(null); for (const s of invSave7) if (s) CF.give(s.name, s.count); CF.uiRefresh && CF.uiRefresh();
+    }
+    // --- #067 piston-lite: button-attach powers piston -> push one block, retract keeps it, immovable refuses ---
+    {
+      const H = h + 1;
+      for (let i = -10; i <= -1; i++) { W.set(ax + i, H - 1, az, ID['stone']); W.set(ax + i, H, az, 0); W.set(ax + i, H + 1, az, 0); }
+      const px3 = ax - 8;
+      W.set(px3, H, az, ID['piston']); W.flatSet(px3, H, az, 0); // head EAST (toward placer came later; direct E for test)
+      W.set(px3 + 1, H, az, ID['cobblestone']);
+      W.set(px3, H + 1, az, ID['stone_button']); W.flatSet(px3, H + 1, az, 1); // floor button ON the piston = powers its own attach
+      CF.rsTick(); CF.rsTick();
+      const pre = W.get(px3 + 1, H, az) === ID['cobblestone'] && !(W.flatAt(px3, H, az) & 16);
+      CF.pressButton(px3, H + 1, az);
+      CF.rsTick(); CF.rsTick();
+      const pushed = W.get(px3 + 2, H, az) === ID['cobblestone'] && !W.get(px3 + 1, H, az) && (W.flatAt(px3, H, az) & 16) !== 0;
+      CF.ticks += 21; CF.rsTick(); // button expires -> retract, block STAYS (not sticky v1)
+      const retracted = !(W.flatAt(px3, H, az) & 16) && W.get(px3 + 2, H, az) === ID['cobblestone'];
+      // immovable: obsidian ahead refuses
+      W.set(px3 + 3, H, az, 0); W.set(px3 + 1, H, az, ID['obsidian']);
+      CF.pressButton(px3, H + 1, az); CF.rsTick(); CF.rsTick();
+      const refused = W.get(px3 + 1, H, az) === ID['obsidian'] && !(W.flatAt(px3, H, az) & 16);
+      CF.ticks += 25; CF.rsTick();
+      W.set(px3, H, az, 0); W.set(px3, H + 1, az, 0); W.set(px3 + 1, H, az, 0); W.set(px3 + 2, H, az, 0);
+      CF.rsTick(); CF.rsTick();
+      CF.assert(r, 'world.piston-push(pre=' + pre + ',push=' + pushed + ',retract=' + retracted + ',refuse=' + refused + ')', pre && pushed && retracted && refused);
+      const invSave8 = CF.inv.map((s) => (s ? { name: s.name, count: s.count } : null));
+      CF.inv.fill(null);
+      for (const s of [20, 21, 22]) CF.inv[s] = { name: 'planks', count: 1 };
+      CF.inv[23] = { name: 'cobblestone', count: 1 }; CF.inv[24] = { name: 'iron_ingot', count: 1 }; CF.inv[25] = { name: 'cobblestone', count: 1 };
+      CF.inv[26] = { name: 'cobblestone', count: 1 }; CF.inv[27] = { name: 'redstone', count: 1 }; CF.inv[28] = { name: 'cobblestone', count: 1 };
+      const rcPis = CF.craftOnce([20, 21, 22, 23, 24, 25, 26, 27, 28]);
+      CF.assert(r, 'items.piston-craft(' + (rcPis && rcPis.name) + ')', rcPis && rcPis.name === 'piston');
+      CF.inv.fill(null); for (const s of invSave8) if (s) CF.give(s.name, s.count); CF.uiRefresh && CF.uiRefresh();
     }
     // cleanup arena on the CURRENT world (loadNow may have swapped instances)
     const Wc = CF.world;

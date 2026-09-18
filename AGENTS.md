@@ -1,7 +1,10 @@
 # AGENTS.md — project STATE memory (1-minute grounding)
 Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each session) · Spec: docs/REFERENCE.md
 
-## Current state (2026-09-18, SPRINT 05 ACTIVE - "Current flows", planned docs/sprints/05.md, it1-5 done (#061 #064 #065 #066 #068), it6 next: #067 piston, then #044/#048/#069/#070, CLOSE = video re-eval + audit #8 + v0.5.0)
+## Current state (2026-09-18, SPRINT 05 ACTIVE - "Current flows", planned docs/sprints/05.md, it1-6 done (#061 #064 #065 #066 #068 #067), it7 next: #070 SPK-9, then #044/#048/#069, CLOSE = video re-eval + audit #8 + v0.5.0)
+- #067 SHIPPED (piston-lite): push-1 + flush head (ext bit, greedy mask bit24), not-sticky, immovable list,
+  alias tiles. LATENT FIX: rsOnSet/rsRescan unified isRsDef() - repeater/lamp/plate/button/piston had NEVER
+  survived save->load (only wire/torch rescanned). 261/245 GREEN, 55 blocks. Smooth slide = out of lite scope.
 - #068 SHIPPED: plates (entity-overlap scan in rsTick pre-pass, press set, strong-powers block ABOVE) +
   buttons (RMB chain head CF.pressButton, rs.bt until-map, stone 20gt/wood 30gt wiki-current, re-press
   refresh, powers own attach - the torch-rule exception). Full circuit complete: plate->dust->lamp live.
@@ -86,6 +89,15 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #067 piston-lite (sprint-05 it6): flood post-sweep actor - powered piston moves ONE ahead block (landing
+  must be air; obsidian/piston/bedrock refuse), ext flat bit 4 -> mesher paints all faces 'piston_head'
+  (bright plate) via greedy mask bit24 bucket (merge-consistent); retract unconditional on signal loss,
+  moved block STAYS (not-sticky v1); smooth vertex slide deliberately CUT from lite (logged). Side/bottom
+  tiles ALIAS planks/stone cells (zero atlas growth), face/head painted (0,160)/(160,176). Wiki recipe
+  (3 planks, 4 cobble, iron, redstone). IMPORTANT latent fix: world.set hook + rsRescan now use one
+  isRsDef() - before this, repeater/lamp/plate/button/piston blocks never re-entered rs.cells on LOAD
+  (rescan was wire/torch-only) - circuits silently dead after reload; #064-era save test only proved dust.
+  Live video probe: cobbleAt14=true ext=16. +2 asserts 261/245 GREEN, 55 blocks, parity honest.
 - #068 pressure plate + button (sprint-05 it5, input glue): rsTick PRE-scan = player+mob feet-overlap for
   plates (idle-cheap, items skipped v1-documented) with press-diff -> dirty; buttons = until-map self-expiry,
   RMB pressButton at chain head, durations per CURRENT wiki (stone 20/wood 30 - issue's 10gt was stale);
