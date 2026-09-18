@@ -1,7 +1,7 @@
 # AGENTS.md — project STATE memory (1-minute grounding)
 Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each session) · Spec: docs/REFERENCE.md
 
-## Current state (2026-09-18, SPRINT 05 CODE COMPLETE - it1-10 done (#061 #062 #063 #064 #065 #066 #067 #068 #070 #044 #048); CLOSE: full video re-eval PASS, review/retro/METRICS in, AUDIT #8 DONE READY-WITH-NOTES (F1 phantom mob.rare assert FIXED -> 264/248; F2-F7 swept) -> TAG v0.5.0; #069/#072 carry to 06, #071 watch)
+## Current state (2026-09-18, SPRINT 05 CLOSED - tag v0.5.0 @ 69bc47f. Sprint 06 NEXT: nether-II per SPK-9 (ghast+pigmen+fortress+nether-brick), #069 spider/enderman, #072 fidelity round 2; #071 watch.)
 - #067 SHIPPED (piston-lite): push-1 + flush head (ext bit, greedy mask bit24), not-sticky, immovable list,
   alias tiles. LATENT FIX: rsOnSet/rsRescan unified isRsDef() - repeater/lamp/plate/button/piston had NEVER
   survived save->load (only wire/torch rescanned). 261/245 GREEN, 55 blocks. Smooth slide = out of lite scope.
@@ -40,7 +40,7 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   --clean; NEVER commit frames) + FULL re-evaluation video at SPRINT CLOSE before audit/tag. First run CAUGHT
   #063 (leaves blocked skylight = black tree shade + noon zombie farms; fixed + light.leaves-pass-sky assert;
   cellOpaque is THE light-opacity choke point - name 'leaves' now returns false). Rig = #062. Gate 242/226.
-- Tags: v0.0.0 scaffold → v0.1.0 sprint01+fixes → v0.2.0 sprint02 closed -> v0.3.0 SPRINT 03 CLOSED (audit #6 READY-WITH-NOTES, 7 P3 fixed same-close) -> v0.4.0 SPRINT 04 CLOSED (audit #7 READY-WITH-NOTES, 0 P0/P1).
+- Tags: v0.0.0 scaffold → v0.1.0 sprint01+fixes → v0.2.0 sprint02 closed -> v0.3.0 SPRINT 03 CLOSED (audit #6 READY-WITH-NOTES, 7 P3 fixed same-close) -> v0.4.0 SPRINT 04 CLOSED (audit #7 READY-WITH-NOTES, 0 P0/P1) -> v0.5.0 SPRINT 05 CLOSED (audit #8 READY-WITH-NOTES, 1 P1 fixed same-close).
 - Sprint 03 CLOSED: #033 #035 #032 #036 #037 #038 #042 #039 #040 #041 #046 #047 #043 #034 ALL DONE (#043 closed
   #031 + fixed P1 atlas icon-stride bug; README+GitHub origin+issue mirror done).
   SPRINT 04 CLOSED: audit #7 READY-WITH-NOTES (0 P0/P1, 1 P2 + 5 P3 - F1 test.mjs budget-retry + F6 workbench
@@ -100,6 +100,11 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- SPRINT 05 CLOSE (this commit): audit #8 READY-WITH-NOTES - F1 P1 FOUND ON MY OWN WORK (mob.rare computed-
+  but-never-asserted = phantom +1 claim; wired real, 263->264) + F2-F7 swept same-close (#048 evidence,
+  tree/lava.png, PARITY 44/15 honest-fix, GH dedupe #108/#120, GIT-DEBT line deduped). Video re-eval: basic
+  16f PASS (icons+glowstone+speckled-leaf sky+pigs+dusk) on final build. Review/retro/METRICS in sprints/05.
+  TAG v0.5.0. Carries: #069 roster, #072 fidelity r2; watch #071 (headless-only lamp mesh lag).
 - #044 mob polish bundle (sprint-05 it8): steer() already kept m.yaw for every movement mode - render now
   orbits box-part offsets (visual yaw, AABB hitboxes intact, mob.face assert + video f08 facing camera);
   survival S.poison (II-style 1dmg/40t floor-at-1, rotten 80%/chicken 30%, death-cleanses, HUD tag,
