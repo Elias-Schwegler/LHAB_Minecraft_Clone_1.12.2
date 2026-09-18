@@ -459,7 +459,7 @@ window.CF = window.CF || {};
         relight(cx, cz);
       }
       _t.c = performance.now();
-      fluidTick();
+      if (!CF.fluidFreeze) fluidTick(); // #048: block-proof-shot mode pins sources so water/lava pedestals don't flood their own pad
       _t.d = performance.now();
       randomTicks();
       _t.e = performance.now();

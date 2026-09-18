@@ -114,6 +114,7 @@
 
   CF.shotScenarios['block'] = async () => {
     CF.freeCam = true;
+    CF.fluidFreeze = true; // #048: water/lava sources on the pedestal must not spread during the shot wait
     const name = (location.search.match(/block=([a-z0-9_]+)/) || [])[1] || 'stone';
     const vk = (location.search.match(/variant=([a-z0-9_]+)/) || [])[1]; // #049: variant-aware sheets
     const W = CF.world;
