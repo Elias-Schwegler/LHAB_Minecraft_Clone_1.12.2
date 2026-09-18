@@ -9,7 +9,7 @@ window.CF = window.CF || {};
   const stats = { meshes: 0, tris: 0, rebuilds: 0, glErr: 0, missingTiles: new Set() };
   CF.rendererStats = stats;
   const SHADE = { 0: 0.8, 1: 1.0, 2: 0.6 }; // +x,+y,+z faces; opposite = slightly darker
-  const ASZ = (window.__ATLAS_SIZE = 192); // #049: atlas GRID 8->12; NOT named A - buildMesh uses `const A = coord(...)` per cell!
+  const ASZ = (window.__ATLAS_SIZE = 224); // #049 GRID 8->12, #048 ->14; NOT named A - buildMesh uses `const A = coord(...)` per cell!
   const MAGENTA_UV = [(ASZ - 0.75) / ASZ, (ASZ - 0.75) / ASZ, (ASZ - 0.25) / ASZ, (ASZ - 0.25) / ASZ];
 
   function buildMesh(cx, cz) {

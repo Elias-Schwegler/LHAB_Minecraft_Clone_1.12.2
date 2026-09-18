@@ -8,7 +8,7 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = HERE
 SIZE = 16
-GRID = 12  # 12x12 tile grid (192px) - #049 pushed past 64 cells (species + saplings + room for paints)
+GRID = 14  # 14x14 tile grid (224px) - #048 item-icon pass pushed past 12x12; rows y>=160 stay FREE for runtime paints
 
 def srgb2lin(c):
     return tuple((v/12.92 if v <= 0.04045 else ((v+0.055)/1.055)**2.4) for v in c)
@@ -320,10 +320,14 @@ def gen_tiles():
     add("snow", lambda m, nt, em: nt.links.new(
         ramp(nt, noise(nt, 10.0), [hexc("#e8f0f8"), hexc("#ffffff")]), em.inputs["Color"]))
     def glowstone(m, nt, em):
-        base = ramp(nt, noise(nt, 7.0), [hexc("#d8a838"), hexc("#f0c858"), hexc("#b88820")])
-        spots = nt.nodes.new("ShaderNodeMix"); spots.data_type='RGBA'; spots.blend_type='ADD'; spots.inputs["Factor"].default_value = 0.4
+        base = ramp(nt, noise(nt, 7.0), [hexc("#d8a838"), hexc("#f0c858"), hexc("#c08f20")])  # 1.12: BRIGHT gold...
+        v = voronoi(nt, 6.0)
+        th = nt.nodes.new("ShaderNodeMath"); th.operation = 'GREATER_THAN'; th.inputs[1].default_value = 0.6
+        nt.links.new(v, th.inputs[0])  # ...with darker amber cell speckles (~40% coverage)
+        spots = nt.nodes.new("ShaderNodeMix"); spots.data_type='RGBA'
+        nt.links.new(th.outputs[0], spots.inputs["Factor"])
         nt.links.new(base, spots.inputs[6])
-        nt.links.new(ramp(nt, voronoi(nt, 5.0), [hexc("#201800"), hexc("#fff0a0")]), spots.inputs[7])
+        nt.links.new(ramp(nt, noise(nt, 11.0), [hexc("#7a5208"), hexc("#96680c")]), spots.inputs[7])
         nt.links.new(spots.outputs[2], em.inputs["Color"])
     add("glowstone", glowstone)
     add("obsidian", lambda m, nt, em: nt.links.new(
@@ -423,6 +427,27 @@ ICONS = {
     "item_quartz":         ([(6,4,4,3),(5,7,6,3),(6,10,4,3)], "#efe6da"),  # #056 nether quartz (quartz_ore drop)
     "item_carrot":         ([(7,3,3,10),(6,2,2,2)], "#e07820"),
     "item_potato":         ([(4,6,9,7)], "#c8a060"),
+    # #048 mob-drop + chain item icons (were invisible blanks since #035/#037/#038/#051)
+    "item_bone":           ([(6,2,2,10),(5,1,4,2),(7,13,4,2)], "#e8e8dc"),
+    "item_arrow":          ([(7,7,2,6),(6,8,1,4),(9,8,1,4)], "#8a6a42"),
+    "item_gunpowder":      ([(5,8,3,3),(8,6,3,3),(6,11,4,2),(10,10,2,2)], "#5a5a5a"),
+    "item_string":         ([(4,3,2,2),(6,5,2,2),(8,7,2,2),(10,9,2,2),(6,11,2,2)], "#e8e8e8"),
+    "item_feather":        ([(8,2,3,8),(6,6,2,6),(5,10,3,4)], "#e8e4e0"),
+    "item_leather":        ([(4,4,9,9),(3,6,2,5),(12,5,2,6)], "#9c6a3a"),
+    "item_ink_sac":        ([(5,5,7,8),(6,4,5,1)], "#20202c"),
+    "item_egg":            ([(6,3,5,10),(7,2,3,1),(6,13,5,1)], "#f0e8d8"),
+    "item_clay_ball":      ([(5,5,7,7),(6,4,5,1),(7,12,4,1)], "#a8a8c0"),
+    "item_brick":          ([(4,6,9,5),(4,8,9,1)], "#9c5242"),
+    "item_rotten_flesh":   ([(4,5,9,7),(6,4,4,1),(5,12,6,1)], "#7a4a30"),
+    "item_raw_porkchop":   ([(4,5,9,7),(5,4,6,1),(6,12,5,1)], "#e88a8a"),
+    "item_cooked_porkchop": ([(4,5,9,7),(5,4,6,1),(6,12,5,1)], "#b06a3a"),
+    "item_raw_beef":       ([(4,6,9,6),(3,8,1,3),(13,7,1,3)], "#c83c3c"),
+    "item_steak":          ([(4,5,9,7),(5,4,6,1),(6,12,5,1)], "#8a4028"),
+    "item_mutton":         ([(5,5,8,7),(4,7,1,3),(12,6,1,4)], "#e09090"),
+    "item_cooked_mutton":  ([(5,5,8,7),(4,7,1,3),(12,6,1,4)], "#a05830"),
+    "item_raw_chicken":    ([(5,5,7,7),(4,6,1,4),(11,6,2,3)], "#e8a8a0"),
+    "item_cooked_chicken": ([(5,5,7,7),(4,6,1,4),(11,6,2,3)], "#c88040"),
+    "item_quartz":         ([(6,3,5,4),(5,7,7,4),(7,11,4,3)], "#f0e8dc"),  # #056 orphan reference fixed (#048)
 }
 TOOL_SHAPES = {
     "pickaxe": [(4,2,8,2),(3,2,2,3),(11,2,2,3)],

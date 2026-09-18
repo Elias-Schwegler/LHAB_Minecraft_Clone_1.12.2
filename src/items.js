@@ -13,7 +13,6 @@ window.CF = window.CF || {};
     gold_ingot: { tile: 'item_gold_ingot' },
     diamond: { tile: 'item_diamond' },
     apple: { tile: 'item_apple', food: 4 },
-    rotten_flesh: { food: 4, poison: true }, // 1.12: +4 food, 80% poison II 4s (poison effect lands with #036 combat)
     sapling: { tile: 'item_sapling' },
     flint: { tile: 'item_flint' },
     shears: { tile: 'item_shears', tool: { type: 'shears', tier: 0, speed: 1 }, stack: 1 },
@@ -22,15 +21,18 @@ window.CF = window.CF || {};
     bucket: { tile: 'item_bucket', stack: 1 },
     water_bucket: { tile: 'item_water_bucket', stack: 1 },
     lava_bucket: { tile: 'item_lava_bucket', stack: 1 },
-    // mob drops + passive products (#037/#038). No atlas tiles yet -> blank icons (tracked #044); counts/logic tested.
-    bone: {}, arrow: {}, gunpowder: {}, string: {}, feather: {}, leather: {}, ink_sac: {},
-    egg: {}, wheat: { tile: 'item_wheat' }, carrot: { tile: 'item_carrot', food: 3 }, potato: { tile: 'item_potato', food: 1 }, wheat_seeds: { tile: 'item_wheat_seeds' }, bread: { tile: 'item_bread', food: 5 }, // #054 farm icons landed (blank-icons era over)
-    raw_porkchop: { food: 3 }, cooked_porkchop: { food: 8 },
-    raw_beef: { food: 3 }, steak: { food: 8 },
-    mutton: { food: 2 }, cooked_mutton: { food: 6 },
-    raw_chicken: { food: 2, poison: 0.3 }, cooked_chicken: { food: 6 },
+    // mob drops + passive products - #048 item icon pass (were invisible blanks since #035-#051)
+    bone: { tile: 'item_bone' }, arrow: { tile: 'item_arrow' }, gunpowder: { tile: 'item_gunpowder' },
+    string: { tile: 'item_string' }, feather: { tile: 'item_feather' }, leather: { tile: 'item_leather' },
+    ink_sac: { tile: 'item_ink_sac' }, egg: { tile: 'item_egg' },
+    wheat: { tile: 'item_wheat' }, carrot: { tile: 'item_carrot', food: 3 }, potato: { tile: 'item_potato', food: 1 }, wheat_seeds: { tile: 'item_wheat_seeds' }, bread: { tile: 'item_bread', food: 5 },
+    raw_porkchop: { tile: 'item_raw_porkchop', food: 3 }, cooked_porkchop: { tile: 'item_cooked_porkchop', food: 8 },
+    raw_beef: { tile: 'item_raw_beef', food: 3 }, steak: { tile: 'item_steak', food: 8 },
+    mutton: { tile: 'item_mutton', food: 2 }, cooked_mutton: { tile: 'item_cooked_mutton', food: 6 },
+    raw_chicken: { tile: 'item_raw_chicken', food: 2, poison: 0.3 }, cooked_chicken: { tile: 'item_cooked_chicken', food: 6 },
+    rotten_flesh: { tile: 'item_rotten_flesh', food: 4, poison: true }, // #044 art+poison wiring (was nameless tile)
     wool: {}, // superseded by the wool BLOCK family (#050) - bare item kept for sheep drop compat
-    clay_ball: {}, brick: {}, // #051 chain items (icons -> #048)
+    clay_ball: { tile: 'item_clay_ball' }, brick: { tile: 'item_brick' }, // #051 chain items (#048 icons)
     quartz: { tile: 'item_quartz' }, // #056 nether quartz (quartz_ore drop; smelting->quartz_block = #048/later)
     redstone: { tile: 'item_redstone' }, // #064 dust (redstone_ore smelt drop; torch + future repeater/lamp ingredient)
   };

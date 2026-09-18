@@ -10,6 +10,12 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   loot = item entities for ALL deaths (burn-loss bug fixed; CF.dropItemEnt shared; +found #035's duplicate
   give line = silent 2x loot). Texture sheets stay #048's job. +5 asserts 263/247, video basic f08 zombie
   faces player. NEXT: #048 fidelity.
+- #048 SHIPPED (core fidelity pass): 17 item icons (bone/arrow/gunpowder/string/feather/leather/ink_sac/egg/
+  clay/brick/8 meats + rotten flesh) + item_quartz orphan fixed, glowstone = gold+dark-speckle, lit-lamp bloom,
+  CF.fluidFreeze proof-shot gate (water sheet = clean pedestal), atlas GRID 12->14 (icons had overflowed the
+  runtime paint rows - collision audit caught what would have silently eaten tnt/chest/bucket paints).
+  Taste leftovers (furnace/table/glass/water-hue/bucket handle/F7 pool/all-sheet re-pass/mob skins) -> #072.
+  263/247 GREEN, parity unchanged (honest). NEXT: #069 roster OR CLOSE ceremonies (video re-eval + audit #8 + v0.5.0).
 - #068 SHIPPED: plates (entity-overlap scan in rsTick pre-pass, press set, strong-powers block ABOVE) +
   buttons (RMB chain head CF.pressButton, rs.bt until-map, stone 20gt/wood 30gt wiki-current, re-press
   refresh, powers own attach - the torch-rule exception). Full circuit complete: plate->dust->lamp live.
