@@ -89,6 +89,11 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #070 SPK-9 nether-II scout (docs+spike only): fortress district stamp 44ms/16k-sets GO (trees-style
+  in-generate pass, spread over genQueue budget), ghast fireball = CF.explode pwr1 0.05ms GO (explode.js +
+  arrows projectile pattern), fly steering ~free (no A* for fliers), current nether gen 2.8ms/chunk noted
+  (225ms full-view first-look, amortized by 2-chunk/tick budget). Sprint-06 split planned in
+  docs/spikes/SPK-9-nether-ii.md (ghast, pigmen aggro-table, fortress stamp, nether-brick art).
 - #067 piston-lite (sprint-05 it6): flood post-sweep actor - powered piston moves ONE ahead block (landing
   must be air; obsidian/piston/bedrock refuse), ext flat bit 4 -> mesher paints all faces 'piston_head'
   (bright plate) via greedy mask bit24 bucket (merge-consistent); retract unconditional on signal loss,
@@ -285,3 +290,4 @@ daily · issue Evidence+vision verdicts · GAMEPLAY CHANGES ALSO: video.mjs fram
 (DoD 4b; sprint close = full re-record + review BEFORE audit/tag). New hard process lesson → PLAYBOOK.md, not here.
 - GIT DEBT: #066 landed as a direct commit on main (42639e6) - branch discipline slipped after the it3 merge; rule stands (branch BEFORE coding), noted per #051 precedent.
 - GIT DEBT: #066 landed as a direct commit on main (42639e6) - branch discipline slipped after the it3 merge; rule stands (branch BEFORE coding), noted per #051 precedent.
+- GIT DEBT: #067 landed as a direct commit on main (42639e6...) - branch discipline slipped after the it3 merge; rule stands (branch BEFORE coding), noted per #051 precedent.
