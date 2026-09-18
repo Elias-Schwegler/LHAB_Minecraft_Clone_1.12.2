@@ -96,11 +96,20 @@ window.CF = window.CF || {};
     hostileCount() { let n = 0; for (const m of M.list) if (CF.MOBS[m.type].hostile) n++; return n; },
     passiveCount() { let n = 0; for (const m of M.list) if (CF.MOBS[m.type].passive) n++; return n; },
     rollDrop(type) {
-      const T = CF.MOBS[type]; const d = T.drop; if (!d) return [];
-      const out = [];
-      const n = d.min + Math.floor(Math.random() * (d.max - d.min + 1));
-      if (n > 0) out.push({ name: d.name, n });
-      if (d.extra) { const en = d.extra.min + Math.floor(Math.random() * (d.extra.max - d.extra.min + 1)); if (en > 0) out.push({ name: d.extra.name, n: en }); }
+      const R = () => (CF.__roll == null ? Math.random() : CF.__roll()); // test seam
+      const T = CF.MOBS[type]; const out = [];
+      if (T.drop) {
+        const d = T.drop;
+        const n = d.min + Math.floor(R() * (d.max - d.min + 1));
+        if (n > 0) out.push({ name: d.name, n });
+        if (d.extra) { const en = d.extra.min + Math.floor(R() * (d.extra.max - d.extra.min + 1)); if (en > 0) out.push({ name: d.extra.name, n: en }); }
+      }
+      if (type === 'zombie') { // #044 rare table (1.12 unenchanted, no looting - [TBC] note resolved: 2.5%/item, n=1)
+        if (R() < 0.025) out.push({ name: 'iron_ingot', n: 1 });
+        if (R() < 0.025) out.push({ name: 'gold_ingot', n: 1 });
+        if (R() < 0.025) out.push({ name: 'carrot', n: 1 });
+        if (R() < 0.025) out.push({ name: 'potato', n: 1 });
+      }
       return out;
     },
     hurt(m, n, src) {
@@ -109,7 +118,9 @@ window.CF = window.CF || {};
       if (CF.MOBS[m.type].passive && !m.dead) m.fleeT = 100; // passives flee when struck (1.12)
       if (m.hp <= 0) {
         m.dead = true;
-        if (src === 'player' && !m.baby && CF.give) for (const loot of M.rollDrop(m.type)) CF.give(loot.name, loot.n); // Tier-1: no item entities; player kills -> inventory; babies drop nothing
+        // #044: ALL death loot becomes pickup-able item entities (1.12); fixes burn/starvation loot loss.
+        // Babies still drop nothing. Magnet pickup delivers to inventory when the player is close.
+        if (!m.baby && CF.dropItemEnt) for (const loot of M.rollDrop(m.type)) for (let i = 0; i < loot.n; i++) CF.dropItemEnt(loot.name, m.pos[0], m.pos[1], m.pos[2]);
         M.remove(m);
       }
     },
@@ -515,11 +526,13 @@ window.CF = window.CF || {};
       const feet = m.pos[1] - hh(m) * (m.baby ? 0.5 : 1);
       const burn = m.burning && ((CF.ticks + m.uid) & 1); // hurt/burn flash: flicker bright each frame-parity
       const g = (1 + swell * 0.35) * (m.baby ? 0.5 : 1); // babies render at half scale (1.12)
+      const yaw = m.yaw || 0, cY = Math.cos(yaw), sY = Math.sin(yaw); // #044 visual yaw: parts orbit the body axis (steer() maintains m.yaw)
       for (const b of CF.MOBS[m.type].boxes) {
         let col = C[b.color] || 0;
         if (swell > 0.6 && (CF.ticks & 1)) col = C.creeFlash; // creeper pre-blast white flash
         if (burn) light = Math.max(light, 0.9); // on-fire mobs glow
-        addBox(out, m.pos[0] + (b.cx || 0) * g, feet + b.cy * g, m.pos[2] + (b.cz || 0) * g, b.sx * g, b.sy * g, b.sz * g, col, light);
+        const ox = (b.cx || 0) * g, oz = (b.cz || 0) * g;
+        addBox(out, m.pos[0] + ox * cY + oz * sY, feet + b.cy * g, m.pos[2] - ox * sY + oz * cY, b.sx * g, b.sy * g, b.sz * g, col, light);
       }
     }
     // arrows: thin box aligned to velocity
@@ -818,13 +831,38 @@ window.CF = window.CF || {};
     for (let t = 0; t < 600; t++) CF.mobTick();
     CF.assert(r, 'mob.no-burn-night(hp=' + z4.hp + ')', z4.hp === 20 && M.list.indexOf(z4) >= 0);
 
-    // player-kill drops rotten flesh (0-2 -> killed 8, expect >=1 total; removal certain)
-    CF.inv.fill(null);
+    // #044: kill-loot is WORLD ITEM ENTITIES (any death cause), magnet delivers on pickup
+    CF.inv.fill(null); CF.itemEnts.length = 0; // wipe burn-kill strays from the burn tests (new behavior)
+    CF.__roll = () => 0.5; // rotten 1/kill deterministic, rares off
+    const posSave = P.pos.slice();
+    const drainLoot = (x, y, z) => { if (x != null) P.tp(x, y, z); for (const e of CF.itemEnts) e.age = 25; for (let t = 0; t < 80; t++) CF.itemTick(); };
     for (let k = 0; k < 8; k++) { const zz = M.spawn('zombie', bx + 0.5, by, bz + 0.5); M.hurt(zz, 999, 'player'); }
+    const ents = CF.itemEnts.filter((e) => e.name === 'rotten_flesh').length;
+    drainLoot(bx + 0.5, by, bz + 0.5);
     const loot = CF.countItem('rotten_flesh');
-    CF.assert(r, 'mob.drop(loot=' + loot + ')', loot >= 1 && loot <= 16);
-    CF.assert(r, 'mob.env-kill-no-loot', (() => { const c0 = CF.countItem('rotten_flesh'); const zz = M.spawn('zombie', bx + 0.5, by, bz + 0.5); M.hurt(zz, 999, 'burn'); return CF.countItem('rotten_flesh') === c0; })());
-    M.clear();
+    CF.assert(r, 'mob.drop(ents=' + ents + ',loot=' + loot + ')', ents === 8 && loot === 8);
+    // burn kills NOW drop too (was silent loot loss pre-#044)
+    const c0 = CF.itemEnts.length;
+    const zz2 = M.spawn('zombie', bx + 0.5, by, bz + 0.5); M.hurt(zz2, 999, 'burn');
+    const burnLoot = CF.itemEnts.length > c0;
+    CF.itemEnts.length = 0; // don't carry loot into the chase arena
+    P.tp(posSave[0], posSave[1], posSave[2]); P.prevPos = posSave.slice();
+    // rare table roll (1.12 2.5% x4, forced hit)
+    CF.__roll = () => 0.001;
+    const zz3 = M.spawn('zombie', bx + 0.5, by, bz + 0.5); M.hurt(zz3, 999, 'player');
+    const names = new Set(CF.itemEnts.map((e) => e.name));
+    const rareOk = ['iron_ingot', 'gold_ingot', 'carrot', 'potato'].every((n) => names.has(n));
+    CF.itemEnts.length = 0; CF.__roll = null;
+    // #044 visual yaw: pursuing mob tracks player + verts build
+    CF.survival = true;
+    const zc0 = M.spawn('zombie', bx + 0.5, by, bz + 0.5);
+    P.tp(bx - 4.5, by, bz + 0.5);
+    for (let t = 0; t < 40; t++) CF.mobTick();
+    const wantYaw = Math.atan2(P.pos[0] - zc0.pos[0], P.pos[2] - zc0.pos[2]);
+    let dYaw = Math.abs(zc0.yaw - wantYaw); if (dYaw > Math.PI) dYaw = Math.abs(dYaw - Math.PI * 2);
+    const verts = CF.buildMobVerts({ pos: P.pos.slice() });
+    CF.assert(r, 'mob.face(yawErr=' + dYaw.toFixed(2) + ',verts=' + (verts ? verts.length : 0) + ')' , dYaw < 0.6 && verts && verts.length > 36);
+    M.clear(); CF.survival = false; if (CF.stats) { CF.stats.hp = 20; CF.stats.poison = 0; } P.tp(posSave[0], posSave[1], posSave[2]); P.prevPos = posSave.slice();
 
     // ---- #036: A* + chase + 1.12 melee (flatten arena so terrain noise can't move the goal)
     M.clear(); CF.survival = false;
@@ -915,14 +953,16 @@ window.CF = window.CF || {};
     for (let k = 0; k < 4 && !zc5.dead; k++) { CF.atkTick = 20; CF._freshClick = true; CF.mineStart(CF.aim()); }
     CF.assert(r, 'mob.hit-kill(dead=' + !!zc5.dead + ')', zc5.dead === true && M.list.indexOf(zc5) < 0);
     CF.inv.fill(null);
-    let lootT = 0;
+    let lootT = 0, lastZ = null;
     for (let k = 0; k < 8; k++) {
       CF.give('iron_sword', 1); CF.sel = 0;
       const zz = M.spawn('zombie', P.pos[0] + 2.2, P.pos[1] - 0.9 + 1, P.pos[2]);
       P.yaw = Math.atan2(zz.pos[0] - P.pos[0], zz.pos[2] - P.pos[2]);
       for (let s = 0; s < 4 && !zz.dead; s++) { CF.atkTick = 20; CF._freshClick = true; CF.mineStart(CF.aim()); }
-      lootT = CF.countItem('rotten_flesh');
+      lastZ = zz.pos.slice();
     }
+    drainLoot(lastZ[0], Math.max(lastZ[1] - 0.9, W.heightAt(Math.floor(lastZ[0]), Math.floor(lastZ[2])) + 1), lastZ[2]); // #044: walk the loot home (ent pickup)
+    lootT = CF.countItem('rotten_flesh');
     CF.assert(r, 'mob.melee-loot(' + lootT + ')', lootT >= 1);
     CF.atkTick = 0; CF.uiRefresh();
     const bar = document.getElementById('atk');
@@ -1010,11 +1050,11 @@ window.CF = window.CF || {};
     plat();
     // drops per species (player-killed)
     CF.inv.fill(null);
-    const pk = M.spawn('pig', pgx + 2.5, 101, pgz); M.hurt(pk, 999, 'player');
+    const pk = M.spawn('pig', pgx + 2.5, 101, pgz); M.hurt(pk, 999, 'player'); drainLoot(pgx + 2.5, 101, pgz);
     CF.assert(r, 'mob.passive-pig-drop(' + CF.countItem('raw_porkchop') + ')', CF.countItem('raw_porkchop') >= 1 && CF.countItem('raw_porkchop') <= 3);
-    CF.inv.fill(null); const sh = M.spawn('sheep', pgx + 2.5, 101, pgz); M.hurt(sh, 999, 'player');
+    CF.inv.fill(null); const sh = M.spawn('sheep', pgx + 2.5, 101, pgz); M.hurt(sh, 999, 'player'); drainLoot(pgx + 2.5, 101, pgz);
     CF.assert(r, 'mob.passive-sheep-drop(wool=' + CF.countItem('wool') + ',mutton=' + CF.countItem('mutton') + ')', CF.countItem('wool') === 1 && CF.countItem('mutton') >= 1);
-    CF.inv.fill(null); const cw = M.spawn('cow', pgx + 2.5, 101, pgz); M.hurt(cw, 999, 'player');
+    CF.inv.fill(null); const cw = M.spawn('cow', pgx + 2.5, 101, pgz); M.hurt(cw, 999, 'player'); drainLoot(pgx + 2.5, 101, pgz);
     CF.assert(r, 'mob.passive-cow-drop(beef=' + CF.countItem('raw_beef') + ',leather=' + CF.countItem('leather') + ')', CF.countItem('raw_beef') >= 1);
     // baby drops nothing (1.12)
     CF.inv.fill(null); const bab = M.spawn('pig', pgx + 2.5, 101, pgz, { baby: true }); M.hurt(bab, 999, 'player');

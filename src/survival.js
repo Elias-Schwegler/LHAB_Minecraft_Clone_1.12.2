@@ -3,7 +3,7 @@
 window.CF = window.CF || {};
 (function () {
   const CF = window.CF;
-  const S = CF.stats = { hp: 20, food: 20, sat: 5, air: 300, deaths: 0 };
+  const S = CF.stats = { hp: 20, food: 20, sat: 5, air: 300, deaths: 0, poison: 0 }; // #044: poison = game-tick timer, II-style (1 dmg / 40t, floors at 1)
   CF.survival = false; // creative default (documented deviation: F4 toggles)
 
   let peakY = null, hurtCd = 0, regenAcc = 0, starveAcc = 0;
@@ -11,7 +11,7 @@ window.CF = window.CF || {};
   const hud = document.createElement('div');
   hud.id = 'surv';
   hud.style.cssText = 'position:fixed;bottom:56px;left:50%;transform:translateX(-50%);display:none;gap:0;z-index:21;font:13px monospace';
-  hud.innerHTML = '<div id="hearts" style="display:flex;gap:1px"></div><div id="food" style="display:flex;gap:1px;margin-left:60%"></div>';
+  hud.innerHTML = '<div id="hearts" style="display:flex;gap:1px"></div><div id="food" style="display:flex;gap:1px;margin-left:60%"></div><div id="pois" style="position:absolute;top:-16px;left:0;color:#9a4ad0;display:none">Poisoned</div>'; // #044
   // #047: append synchronously when body already exists (scripts run at </body>) - the old
   // Promise.resolve().then() deferred one microtask so getElementById('hearts') could miss it
   // when a test suite ran before the flush (latent since #026, hit by the bedsuite standalone).
@@ -37,6 +37,7 @@ window.CF = window.CF || {};
     const hc = document.getElementById('hearts'), fc = document.getElementById('food');
     if (hc) pip(hc, Math.max(0, Math.ceil(S.hp)), 10, HEART, EMPTY, true);
     if (fc) pip(fc, Math.max(0, Math.ceil(S.food)), 10, FOODC, DRY, false);
+    const ps = document.getElementById('pois'); if (ps) ps.style.display = S.poison > 0 ? 'block' : 'none'; // #044
   }
   CF.survRefresh = hudRefresh;
 
@@ -51,7 +52,7 @@ window.CF = window.CF || {};
   };
   function respawn() {
     S.deaths++;
-    S.hp = 20; S.food = 20; S.sat = 5; S.air = 300;
+    S.hp = 20; S.food = 20; S.sat = 5; S.air = 300; S.poison = 0; // #044: death cleanses
     peakY = null; // stale fall-peaks must never damage across teleports (phantom-fall bug, #036)
     const P = CF.player;
     P.tp(P.spawn[0], P.spawn[1], P.spawn[2]);
@@ -65,6 +66,10 @@ window.CF = window.CF || {};
     if (def && def.food && S.food < 20) {
       S.food = Math.min(20, S.food + def.food);
       S.sat = Math.min(S.food, S.sat + def.food * 0.5);
+      if (def.poison) { // #044 1.12: rotten_flesh 80% poison II 4s; raw chicken keeps its own chance
+        const p = def.poison === true ? 0.8 : def.poison;
+        if ((CF.__roll == null ? Math.random() : CF.__roll()) < p) S.poison = 80;
+      }
       CF.consume(held, 1);
       hudRefresh();
       return true;
@@ -96,6 +101,11 @@ window.CF = window.CF || {};
     }
 
     if (!CF.survival) return;
+
+    if (S.poison > 0) { // #044: poison II tick - 1 dmg per 40t, never kills (floors at half-heart... 1hp)
+      if (S.poison % 40 === 0 && S.hp > 1) { S.hp -= 1; hudRefresh(); }
+      S.poison--;
+    }
 
     // exhaustion -> hunger
     const i = P.input;
@@ -215,6 +225,20 @@ window.CF = window.CF || {};
     S.food = 20; S.sat = 5; S.hp = 10; regenAcc = 0;
     for (let t = 0; t < 200; t++) CF.onTick();
     CF.assert(r, 'surv.regen(' + S.hp + ')', S.hp > 10);
+    // #044 poison: rotten flesh 80% II-timer, damage floors at 1hp, high roll dodges
+    CF.__roll = () => 0.1; S.poison = 0; S.hp = 20; S.food = 10; S.sat = 5;
+    CF.inv[CF.sel] = { name: 'rotten_flesh', count: 1 };
+    CF.useHeld();
+    const poisSet = S.poison === 80;
+    S.hp = 2;
+    for (let t = 0; t < 70; t++) CF.onTick();
+    const floored = S.hp === 1 && S.poison > 0;
+    S.poison = 0; S.food = 10;
+    CF.__roll = () => 0.95; CF.inv[CF.sel] = { name: 'rotten_flesh', count: 1 };
+    CF.useHeld();
+    const dodge = S.poison === 0;
+    CF.__roll = null;
+    CF.assert(r, 'surv.poison(set=' + poisSet + ',floor=' + floored + ',dodge=' + dodge + ')', poisSet && floored && dodge);
     // death + respawn via void
     S.hp = 20; const d0 = S.deaths;
     P.tp(0, -30, 0);

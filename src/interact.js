@@ -111,15 +111,17 @@ window.CF = window.CF || {};
   // #060 item entities: Q drops the held item as a pickup-able billboard (1.12 throw + magnet pickup).
   CF.itemEnts = [];
   CF.PLANTABLE = { wheat_seeds: 'wheat', carrot: 'carrot', potato: 'potato' }; // #054 (1.12: carrot/potato plant themselves)
+  CF.dropItemEnt = (name, x, y, z, vx, vy, vz) => { // #044 shared spawner: mob death loot + future chest ejects
+    if (CF.itemEnts.length > 200) CF.itemEnts.shift();
+    CF.itemEnts.push({ name, n: 1, x, y: y + 0.4, z, vx: vx || 0, vy: vy == null ? 1.5 : vy, vz: vz || 0, age: 0, ph: Math.random() * 6.28 });
+  };
   CF.dropHeld = () => {
     const s = CF.inv[CF.sel];
     if (!s || (CF.ui && CF.ui.open)) return false;
     const name = s.name;
     s.count--; if (s.count <= 0) CF.inv[CF.sel] = null;
     const P = CF.player, cy = Math.cos(P.yaw), sy = Math.sin(P.yaw);
-    CF.itemEnts.push({ name, n: 1, x: P.pos[0] + cy * 0.45, y: P.pos[1] + 0.6, z: P.pos[2] + sy * 0.45,
-      vx: cy * 4, vy: 2.5, vz: sy * 4, age: 0, ph: Math.random() * 6.28 });
-    if (CF.itemEnts.length > 200) CF.itemEnts.splice(0, CF.itemEnts.length - 200);
+    CF.dropItemEnt(name, P.pos[0] + cy * 0.45, P.pos[1], P.pos[2] + sy * 0.45, cy * 4, 2.5, sy * 4);
     CF.uiRefresh && CF.uiRefresh();
     return true;
   };
