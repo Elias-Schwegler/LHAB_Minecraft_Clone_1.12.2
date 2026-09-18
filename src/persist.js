@@ -78,6 +78,7 @@ window.CF = window.CF || {};
       const besMap = CF.dimBes ? CF.dimBes[key] : (key === active ? CF.blockEntities : {});
       const e = packDim(dw, besMap);
       if (key === active && CF.player) e.player = { pos: CF.player.pos.map((v) => +v.toFixed(2)), yaw: CF.player.yaw, pitch: CF.player.pitch, sel: CF.sel };
+      if (key === active && CF.mobs) e.mobs = CF.mobs.list.filter((m) => !m.dead).slice(0, 64).map((m) => ({ t: m.type, p: m.pos.map((v) => +v.toFixed(2)), hp: m.hp, b: m.baby ? 1 : 0, a: m.age, f: m.fuse || 0 })); // #044: active-dim mobs ride the save (capped 64; warp-wiped dims stay wiped - documented)
       save.dims[key] = e;
       total += Object.keys(e.chunks).length;
     }
@@ -150,7 +151,7 @@ window.CF = window.CF || {};
     CF.dimBes = bes;
     CF.blockEntities = bes[CF.activeDim] || (bes[CF.activeDim] = {});
     CF.renderReset && CF.renderReset();
-    CF.mobs && CF.mobs.clear(); // mobs are transient (persistence = backlog #044)
+    CF.mobs && CF.mobs.clear(); // #044: respawned below from the ACTIVE dim's save block (other dims stay wiped - warp semantics)
     if (CF.tnts) CF.tnts.length = 0; // primed TNT not persisted either
     if (CF.itemEnts) CF.itemEnts.length = 0; // #060 dropped items are transient
     CF.ticks = save.time || 0;
@@ -167,6 +168,12 @@ window.CF = window.CF || {};
       bes[key] = kept;
     }
     CF.blockEntities = bes[CF.activeDim];
+    if (CF.mobs && save.dims && save.dims[CF.activeDim] && save.dims[CF.activeDim].mobs) { // #044 respawn (type+pos+hp+baby; age kept for babies)
+      for (const s of save.dims[CF.activeDim].mobs) {
+        const m = CF.mobs.spawn(s.t, s.p[0], s.p[1], s.p[2], { baby: !!s.b });
+        if (m) { m.pos = s.p.slice(); m.prevPos = s.p.slice(); m.hp = s.hp; m.age = s.a || 0; }
+      }
+    }
     CF.loaded = true;
     return true;
   }
@@ -253,6 +260,19 @@ window.CF = window.CF || {};
       localStorage.removeItem('cf-save-1');
       CF.autosavePaused = false;
       CF.assert(r, 'save.v2(' + okOver + ',' + okN + ',mig=' + migOk + ')', okOver && okN && migOk);
+      // #044 mob persistence: active-dim mobs saved + respawned (type/pos/hp/baby)
+      {
+        CF.mobs.clear();
+        const my = CF.world.heightAt(40, 40) + 1;
+        const mz = CF.mobs.spawn('zombie', 40.5, my, 40.5, { baby: true });
+        mz.hp = 13;
+        CF.saveNow(); CF.loadNow();
+        const back = CF.mobs.list.filter((m) => m.type === 'zombie');
+        const okMob = back.length === 1 && back[0].baby === true && back[0].hp === 13 &&
+          Math.hypot(back[0].pos[0] - 40.5, back[0].pos[2] - 40.5) < 0.01 && Math.abs(back[0].pos[1] - mz.pos[1]) < 0.01;
+        CF.mobs.clear();
+        CF.assert(r, 'save.mobs(' + back.length + ',' + (back[0] && back[0].hp) + ')', okMob);
+      }
     }
   };
 })();

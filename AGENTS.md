@@ -5,6 +5,11 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
 - #067 SHIPPED (piston-lite): push-1 + flush head (ext bit, greedy mask bit24), not-sticky, immovable list,
   alias tiles. LATENT FIX: rsOnSet/rsRescan unified isRsDef() - repeater/lamp/plate/button/piston had NEVER
   survived save->load (only wire/torch rescanned). 261/245 GREEN, 55 blocks. Smooth slide = out of lite scope.
+- #044 SHIPPED (mob polish): visual yaw (part-orbit in buildMobVerts), poison II hook (surv.poison timer,
+  floors 1hp, HUD tag), rare zombie table 2.5%x4, ACTIVE-DIM MOB PERSISTENCE (save v2 dims entry + respawn),
+  loot = item entities for ALL deaths (burn-loss bug fixed; CF.dropItemEnt shared; +found #035's duplicate
+  give line = silent 2x loot). Texture sheets stay #048's job. +5 asserts 263/247, video basic f08 zombie
+  faces player. NEXT: #048 fidelity.
 - #068 SHIPPED: plates (entity-overlap scan in rsTick pre-pass, press set, strong-powers block ABOVE) +
   buttons (RMB chain head CF.pressButton, rs.bt until-map, stone 20gt/wood 30gt wiki-current, re-press
   refresh, powers own attach - the torch-rule exception). Full circuit complete: plate->dust->lamp live.
@@ -89,6 +94,14 @@ Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each s
   F3 debug; ?new=1 wipes saves, ?seed=N new world).
 
 ## Recent merges (newest first)
+- #044 mob polish bundle (sprint-05 it8): steer() already kept m.yaw for every movement mode - render now
+  orbits box-part offsets (visual yaw, AABB hitboxes intact, mob.face assert + video f08 facing camera);
+  survival S.poison (II-style 1dmg/40t floor-at-1, rotten 80%/chicken 30%, death-cleanses, HUD tag,
+  CF.__roll seam); rare zombie drops 2.5%x4 no-looting ([TBC] resolved as the unenchanted row); save v2
+  gained per-active-dim mobs list (cap64, type/pos/hp/baby, save.mobs respawn assert); ALL death loot
+  becomes item entities (burn/fall loot-loss FIXED; dropItemEnt shared spawner; passive tests now
+  walk-the-loot) + found a duplicated give line from #035 (2x loot) - removed. Mob texture sheets
+  explicitly routed to #048. +5 asserts 263/247 GREEN; video basic re-recorded PASS.
 - #070 SPK-9 nether-II scout (docs+spike only): fortress district stamp 44ms/16k-sets GO (trees-style
   in-generate pass, spread over genQueue budget), ghast fireball = CF.explode pwr1 0.05ms GO (explode.js +
   arrows projectile pattern), fly steering ~free (no A* for fliers), current nether gen 2.8ms/chunk noted
