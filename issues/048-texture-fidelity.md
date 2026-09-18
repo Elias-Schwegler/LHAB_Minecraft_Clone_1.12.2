@@ -23,9 +23,9 @@ but for the record:
 - [ ] -> #072 fluid-pool black patch (F7) + full 25-sheet re-pass (only changed tiles re-shot this round)
 
 ## Acceptance criteria
-- [ ] AC1: per-tile crops (x10 zoom PNGs in qa/blocks/) show the MC features listed above - vision PASS
-- [ ] AC2: full gate stays green; parity count unchanged (tiles already counted, names stable)
-- [ ] AC3: fluids get clean pedestal proof sheets (freeze rule), water/lava rows still counted
+- [x] AC1: per-tile crops (x10 zoom PNGs in qa/blocks/) show the MC features listed above - vision PASS (for the tiles this round touched; round-2 tiles -> #072)
+- [x] AC2: full gate stays green; parity count unchanged (264/248, 59/399 - names stable)
+- [x] AC3: fluids get clean pedestal proof sheets (freeze rule), water/lava rows still counted
 
 
 ## Audit #7 F5 (2026-09-12)
@@ -38,3 +38,14 @@ poisonous_potato item + hydration also queued here.
 - Painted lit_redstone_lamp reads muddy-brown at distance (video lamp f01/f04): needs brighter core +
 fewer dark (x+y)%5 frame lines; optional: emissive hint (lit tile bypass shade). Unlit casing ok.
 
+
+## Evidence (close, 2026-09-18; audit #8 F2 fix - this section was missing at merge)
+- Merge 1623358 (+3ca0db3 status header): 17 item icon entries in gen.py ICONS + wiring in items.js (bone/arrow/gunpowder/string/feather/
+  leather/ink_sac/egg/clay_ball/brick/rotten_flesh/8 meats) + item_quartz orphan fixed; atlas cell-zoom vision
+  PASS row-by-row (icons2_zoom); glowstone = bright gold + dark amber speckle, sheet re-shot (qa/blocks/glowstone.png
+  vision PASS - spotted at hotbar scale, gold+texture on block); lit-lamp bloom (video lamp reviewed); CF.fluidFreeze
+  narrow gate (fluidTick only - gen/light alive) + block scenario sets it: water AND lava sheets re-shot = clean
+  pedestals (qa/blocks/water.png + lava.png, lava committed here per F3); GRID 12->14 with 0 collisions + paint-row
+  reservation verified (the icon overflow WOULD have overwritten tnt/chest/bucket paints - audit8 re-verified).
+- AC1 PARTIAL->done for touched tiles (zoom crops reviewed); AC2 full 264/248 GREEN parity 59 unchanged; AC3 fluid
+  sheets clean + water/lava still counted (blender src intact). Untouched taste items correctly moved to #072.

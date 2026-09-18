@@ -1,8 +1,8 @@
-# METRICS — velocity & quality
+﻿# METRICS â€” velocity & quality
 
 | Sprint | planned pts | done pts | velocity | escaped defects | notes |
 |--------|------------|----------|----------|-----------------|-------|
-| 00 (bootstrap) | 6 spikes + tooling | all done in 1 iteration | high | 0 | Retro: (1) branch BEFORE coding (tooling landed in scaffold commit); (2) matrix/GLSL conventions must be documented at spike exit — adopted as spike doc template line |
+| 00 (bootstrap) | 6 spikes + tooling | all done in 1 iteration | high | 0 | Retro: (1) branch BEFORE coding (tooling landed in scaffold commit); (2) matrix/GLSL conventions must be documented at spike exit â€” adopted as spike doc template line |
 | 01 (walking) | #002-#009 (8 issues) | 8/8 in 2 iterations | high | 4 P1 + 5 P2 from audit #1 (all fixed in-iteration) | Renderer debug ate ~60% of effort (4 subtle GL bugs). Retro: proof-bound flags; screenshot-first debugging; audit before tag |
 
 Definition: 1 point = 1 issue completed within one iteration-day (issue points = size
@@ -13,4 +13,4 @@ estimate). Escaped defect = P0/P1 opened by auditor against already-DONE work.
 
 | 04 (underworld+verify) | #049-#060 + #105/#106 (14 issues) | 14/14 in 14 iterations (045 shipped inside 059; 044/048 honest pull) | high | 0 auditor-escaped P0/P1; 2 user-reported (105 torch-triple-bug + 106 NaN-lightCell black faces - both #049-era renders, same-day fixes) | +38 asserts (203->241), parity 20->58/399, 25->44 blocks; first DIMENSION (portal/warp/persist-v2 + real nether gen); the two VERIFY tickets (#058/#059) each found a false Tier-1 'done' claim (no eviction ever; tools uncraftable in-game) -> VERIFY-then-claim rule adopted; SPK-8 redstone GO. |
 
-| 05 (currents flow) | #061-#070 + #048 (11 planned-ish) | 10 issues / 9 iterations (#069 + #072 carried honest; #071 watch) | high | 0 user-reported; 1 self-caught BY THE NEW LAW (#063 leaves-skylight black-shade, recording #1) | +21 asserts (242->263 / 226->247), blocks 44->55, parity 58->59. Gameplay VIDEO-QA law adopted mid-sprint (DoD 4b + tools/video.mjs, frames temporary) and paid off immediately. Full redstone chain per SPK-8: dust/torch->repeater(diode+2gt delay)->lamp->plate/button->piston-lite; latent load-persistence bug for all RS blocks found+fixed (isRsDef). |
+| 05 (currents flow) | #061-#070 + #048 (11 planned-ish) | 10 issues / 9 iterations (#069 + #072 carried honest; #071 watch) | high | 0 user-reported; 1 self-caught BY THE NEW LAW (#063 leaves-skylight black-shade, recording #1) | +22 asserts (242->264 / 226->248), blocks 44->55, parity 58->59. Gameplay VIDEO-QA law adopted mid-sprint (DoD 4b + tools/video.mjs, frames temporary) and paid off immediately. Full redstone chain per SPK-8: dust/torch->repeater(diode+2gt delay)->lamp->plate/button->piston-lite; latent load-persistence bug for all RS blocks found+fixed (isRsDef). |

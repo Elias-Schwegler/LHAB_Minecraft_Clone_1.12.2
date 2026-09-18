@@ -1,7 +1,7 @@
 # AGENTS.md — project STATE memory (1-minute grounding)
 Law: docs/MASTERPROMPT.md · How we work: docs/PLAYBOOK.md (READ IT FULLY each session) · Spec: docs/REFERENCE.md
 
-## Current state (2026-09-18, SPRINT 05 CODE COMPLETE - it1-10 done (#061 #062 #063 #064 #065 #066 #067 #068 #070 #044 #048); CLOSE: full video re-eval PASS, review/retro/METRICS in, AUDIT #8 next -> v0.5.0; #069/#072 carry to 06, #071 watch), then #044/#048/#069, CLOSE = video re-eval + audit #8 + v0.5.0)
+## Current state (2026-09-18, SPRINT 05 CODE COMPLETE - it1-10 done (#061 #062 #063 #064 #065 #066 #067 #068 #070 #044 #048); CLOSE: full video re-eval PASS, review/retro/METRICS in, AUDIT #8 DONE READY-WITH-NOTES (F1 phantom mob.rare assert FIXED -> 264/248; F2-F7 swept) -> TAG v0.5.0; #069/#072 carry to 06, #071 watch)
 - #067 SHIPPED (piston-lite): push-1 + flush head (ext bit, greedy mask bit24), not-sticky, immovable list,
   alias tiles. LATENT FIX: rsOnSet/rsRescan unified isRsDef() - repeater/lamp/plate/button/piston had NEVER
   survived save->load (only wire/torch rescanned). 261/245 GREEN, 55 blocks. Smooth slide = out of lite scope.
@@ -307,6 +307,4 @@ tools/: build/test/shot/parity/blockshots/tex. All zero-dependency. PowerShell q
 This file's state+merges sections · docs/PARITY.md rows (evidence-annotated) · sprint tracker row +
 daily · issue Evidence+vision verdicts · GAMEPLAY CHANGES ALSO: video.mjs frames reviewed + verdicts
 (DoD 4b; sprint close = full re-record + review BEFORE audit/tag). New hard process lesson → PLAYBOOK.md, not here.
-- GIT DEBT: #066 landed as a direct commit on main (42639e6) - branch discipline slipped after the it3 merge; rule stands (branch BEFORE coding), noted per #051 precedent.
-- GIT DEBT: #066 landed as a direct commit on main (42639e6) - branch discipline slipped after the it3 merge; rule stands (branch BEFORE coding), noted per #051 precedent.
-- GIT DEBT: #067 landed as a direct commit on main (42639e6...) - branch discipline slipped after the it3 merge; rule stands (branch BEFORE coding), noted per #051 precedent.
+- GIT DEBT: #066 direct commit 42639e6 + #067 direct commit 6a3ede6 on main (branch slipped after it3; #068/#044/#048 went back on branches). Rule stands: branch BEFORE coding.

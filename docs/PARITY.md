@@ -14,8 +14,8 @@ Blender-sourced (`tools/tex` manifest). No self-declared counts.
 ## Block % (tiered) — live from parity.mjs (2026-09-17 #064)
 | Tier | variants total | functional | % |
 |------|---------------|-----------|---|
-| 1 | 125 | 43 | 34.4% |
-| 2 | 163 | 16 | 9.8% |
+| 1 | 125 | 44 | 35.2% |
+| 2 | 163 | 15 | 9.2% |
 | 3 | 111 | 0 | 0% |
 | **all** | **399** | **59** | **14.8%** |
 

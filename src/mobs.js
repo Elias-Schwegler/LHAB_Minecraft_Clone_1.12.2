@@ -852,6 +852,7 @@ window.CF = window.CF || {};
     const zz3 = M.spawn('zombie', bx + 0.5, by, bz + 0.5); M.hurt(zz3, 999, 'player');
     const names = new Set(CF.itemEnts.map((e) => e.name));
     const rareOk = ['iron_ingot', 'gold_ingot', 'carrot', 'potato'].every((n) => names.has(n));
+    CF.assert(r, 'mob.rare(ents=' + CF.itemEnts.length + ',all4=' + rareOk + ')', rareOk && CF.itemEnts.length === 4);
     CF.itemEnts.length = 0; CF.__roll = null;
     // #044 visual yaw: pursuing mob tracks player + verts build
     CF.survival = true;
